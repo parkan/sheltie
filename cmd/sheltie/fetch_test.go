@@ -202,7 +202,7 @@ func TestFetchCommandFlags(t *testing.T) {
 			name: "with ipni endpoint",
 			args: []string{
 				"fetch",
-				"--ipni-endpoint",
+				"--delegated-routing-endpoint",
 				"https://cid.contact",
 				"bafybeic56z3yccnla3cutmvqsn5zy3g24muupcsjtoyp3pu5pm5amurjx4",
 			},
@@ -215,7 +215,7 @@ func TestFetchCommandFlags(t *testing.T) {
 			name: "with bad ipni endpoint",
 			args: []string{
 				"fetch",
-				"--ipni-endpoint",
+				"--delegated-routing-endpoint",
 				"not-a-url",
 				"bafybeic56z3yccnla3cutmvqsn5zy3g24muupcsjtoyp3pu5pm5amurjx4",
 			},

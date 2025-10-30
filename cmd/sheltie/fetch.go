@@ -77,7 +77,7 @@ var fetchFlags = []cli.Flag{
 			"may be useful for streaming.",
 		Aliases: []string{"dups"},
 	},
-	FlagIPNIEndpoint,
+	FlagDelegatedRoutingEndpoint,
 	FlagEventRecorderAuth,
 	FlagEventRecorderInstanceId,
 	FlagEventRecorderUrl,

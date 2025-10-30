@@ -62,7 +62,7 @@ var daemonFlags = []cli.Flag{
 		DefaultText: "no limit",
 		EnvVars:     []string{"LASSIE_CONCURRENT_SP_RETRIEVALS"},
 	},
-	FlagIPNIEndpoint,
+	FlagDelegatedRoutingEndpoint,
 	FlagEventRecorderAuth,
 	FlagEventRecorderInstanceId,
 	FlagEventRecorderUrl,
