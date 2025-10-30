@@ -5,7 +5,7 @@
 
 ---
 
-Lassie is the leaner, nimbler cousin of [lassie](https://github.com/filecoin-project/lassie) that knows a few more tricks. She specializes in highly performant retrievals via HTTP and Graphsync.
+Lassie is the leaner, nimbler cousin of [lassie](https://github.com/filecoin-project/lassie) that knows a few more tricks.
 
 
 ## Table of Contents
@@ -35,7 +35,7 @@ This project is a fork of Protocol Labs’s Lassie (https://github.com/filecoin-
 
 ## Overview
 
-Lassie is a simple retrieval client for Filecoin. It finds and fetches your data over the best retrieval protocols available. Lassie makes Filecoin retrieval.
+Lassie is an optimized retrieval client for Filecoin. She specializes in highly performant retrievals via HTTP (Trustless Gateway transport) and also supports Graphsync. Large graphs can be streamed from multiple providers.
 
 ## Installation
 
