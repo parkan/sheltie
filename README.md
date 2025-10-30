@@ -27,6 +27,7 @@ Sheltie is the leaner, nimbler cousin of [lassie](https://github.com/filecoin-pr
 ## Changes from Lassie
 - Sheltie **does not support Bitswap**, see https://github.com/filecoin-project/lassie/pull/512
 - Sheltie **uses delegated routing V1 API** to find providers instead of legacy IPNI, see https://github.com/filecoin-project/lassie/issues/489
+- options for cascading have been removed (controlled by the delegated routing instance) and `filter-protocols` is used for protocol selection
 - [IN PROGRESS] Sheltie uses **streaming output** to reduce disk uage and **does not support arbitrary selectors**, see https://github.com/filecoin-project/lassie/issues/108
 - [IN PROGRESS] Sheltie will **reconstruct DAGs across HTTP providers** instead of bailing out on unexpected CAR stream termination
 
