@@ -105,7 +105,7 @@ func (d *DirectCandidateSource) FindCandidates(ctx context.Context, c cid.Cid, c
 			cb(types.RetrievalCandidate{
 				MinerPeer: provider.Peer,
 				RootCid:   cs.rootCid,
-				Metadata:  metadata.Default.New(metadata.IpfsGatewayHttp{}, metadata.Bitswap{}, &metadata.GraphsyncFilecoinV1{}),
+				Metadata:  metadata.Default.New(metadata.IpfsGatewayHttp{}, &metadata.GraphsyncFilecoinV1{}),
 			})
 			continue
 		}

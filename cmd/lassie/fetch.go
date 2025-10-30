@@ -397,7 +397,7 @@ func defaultFetchRun(
 	}
 	spid := stats.StorageProviderId.String()
 	if spid == "" {
-		spid = types.BitswapIndentifier
+		spid = "Unknown"
 	}
 	fmt.Fprintf(msgWriter, "\nFetched [%s] from [%s]:\n"+
 		"\tDuration: %s\n"+

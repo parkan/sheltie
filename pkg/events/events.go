@@ -7,17 +7,11 @@ import (
 )
 
 // Identifier returns the peer ID of the storage provider if this retrieval was
-// requested via peer ID, or the string "Bitswap" if this retrieval was
-// requested via the Bitswap protocol
+// requested via peer ID
 func Identifier(evt types.RetrievalEvent) string {
 	spEvent, spOk := evt.(EventWithProviderID)
 	if spOk && spEvent.ProviderId() != peer.ID("") {
 		return spEvent.ProviderId().String()
-	}
-	// we only want to return "Bitswap" if this is an event with a storage provider id using the bitswap protocol
-	protocolEvent, pOk := evt.(EventWithProtocol)
-	if spOk && pOk && protocolEvent.Protocol() == multicodec.TransportBitswap {
-		return types.BitswapIndentifier
 	}
 	return ""
 }

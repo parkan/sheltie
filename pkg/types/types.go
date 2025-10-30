@@ -263,8 +263,6 @@ type RetrievalEvent interface {
 	RootCid() cid.Cid
 }
 
-const BitswapIndentifier = "Bitswap"
-
 // RetrievalEventSubscriber is a function that receives a stream of retrieval
 // events from all retrievals that are in progress. Various different types
 // implement the RetrievalEvent interface and may contain additional information
