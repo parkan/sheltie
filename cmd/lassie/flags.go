@@ -1,3 +1,9 @@
+// MODIFIED: 2025-10-30
+// - Renamed application from lassie to sheltie
+// - Removed bitswap flags and configuration
+// - Updated logging subsystems for sheltie namespace
+// - Changed default protocols to graphsync,http (removed bitswap)
+
 package main
 
 import (
