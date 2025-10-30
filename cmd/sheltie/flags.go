@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/parkan/sheltie/pkg/heyfil"
-	"github.com/parkan/sheltie/pkg/sheltie"
 	"github.com/parkan/sheltie/pkg/types"
 	"github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -21,7 +20,6 @@ var (
 		"sheltie/retriever",
 		"sheltie/httpserver",
 		"sheltie/indexerlookup",
-		"sheltie/bitswap",
 		"sheltie/client",
 		"sheltie/lp2p/tspt/client",
 		"sheltie/heyfil",
@@ -155,7 +153,7 @@ var FlagAllowProviders = &cli.StringFlag{
 var protocols []multicodec.Code
 var FlagProtocols = &cli.StringFlag{
 	Name:        "protocols",
-	DefaultText: "bitswap,graphsync,http",
+	DefaultText: "graphsync,http",
 	Usage:       "List of retrieval protocols to use, separated by a comma",
 	EnvVars:     []string{"LASSIE_SUPPORTED_PROTOCOLS"},
 	Action: func(cctx *cli.Context, v string) error {
@@ -177,20 +175,6 @@ var FlagTempDir = &cli.StringFlag{
 	Value:       defaultTempDirectory,
 	DefaultText: "os temp directory",
 	EnvVars:     []string{"LASSIE_TEMP_DIRECTORY"},
-}
-
-var FlagBitswapConcurrency = &cli.IntFlag{
-	Name:    "bitswap-concurrency",
-	Usage:   "maximum number of concurrent bitswap requests",
-	Value:   sheltie.DefaultBitswapConcurrency,
-	EnvVars: []string{"LASSIE_BITSWAP_CONCURRENCY"},
-}
-
-var FlagBitswapConcurrencyPerRetrieval = &cli.IntFlag{
-	Name:    "bitswap-concurrency-per-retrieval",
-	Usage:   "maximum number of concurrent bitswap requests per retrieval",
-	Value:   sheltie.DefaultBitswapConcurrencyPerRetrieval,
-	EnvVars: []string{"LASSIE_BITSWAP_CONCURRENCY_PER_RETRIEVAL"},
 }
 
 var FlagGlobalTimeout = &cli.DurationFlag{

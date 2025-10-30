@@ -75,10 +75,10 @@ func TestRequestStringRepresentations(t *testing.T) {
 			name: "protocols",
 			request: RetrievalRequest{
 				Request:   trustlessutils.Request{Root: testCidV1},
-				Protocols: []multicodec.Code{multicodec.TransportBitswap, multicodec.TransportIpfsGatewayHttp},
+				Protocols: []multicodec.Code{multicodec.TransportGraphsyncFilecoinv1, multicodec.TransportIpfsGatewayHttp},
 			},
 			expectedUrlPath:    "?dag-scope=all",
-			expectedDescriptor: "/ipfs/bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi?dag-scope=all&dups=n&protocols=transport-bitswap,transport-ipfs-gateway-http",
+			expectedDescriptor: "/ipfs/bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi?dag-scope=all&dups=n&protocols=transport-graphsync-filecoinv1,transport-ipfs-gateway-http",
 		},
 		{
 			name: "duplicates",
@@ -148,11 +148,11 @@ func TestRequestStringRepresentations(t *testing.T) {
 					Bytes:      &trustlessutils.ByteRange{From: 100, To: ptr(-200)},
 				},
 				MaxBlocks: 222,
-				Protocols: []multicodec.Code{multicodec.TransportBitswap, multicodec.TransportIpfsGatewayHttp},
+				Protocols: []multicodec.Code{multicodec.TransportGraphsyncFilecoinv1, multicodec.TransportIpfsGatewayHttp},
 				Providers: must(ParseProviderStrings("/dns/beep.boop.com/tcp/3747/p2p/12D3KooWDXAVxjSTKbHKpNk8mFVQzHdBDvR4kybu582Xd4Zrvagg,/ip4/127.0.0.1/tcp/5000/p2p/12D3KooWBSTEYMLSu5FnQjshEVah9LFGEZoQt26eacCEVYfedWA4")),
 			},
 			expectedUrlPath:    "/some/path/to/thing?dag-scope=entity&entity-bytes=100:-200",
-			expectedDescriptor: "/ipfs/QmVXsSVjwxMsCwKRCUxEkGb4f4B98gXVy3ih3v4otvcURK/some/path/to/thing?dag-scope=entity&entity-bytes=100:-200&dups=y&blockLimit=222&protocols=transport-bitswap,transport-ipfs-gateway-http&providers=/dns/beep.boop.com/tcp/3747/p2p/12D3KooWDXAVxjSTKbHKpNk8mFVQzHdBDvR4kybu582Xd4Zrvagg,/ip4/127.0.0.1/tcp/5000/p2p/12D3KooWBSTEYMLSu5FnQjshEVah9LFGEZoQt26eacCEVYfedWA4",
+			expectedDescriptor: "/ipfs/QmVXsSVjwxMsCwKRCUxEkGb4f4B98gXVy3ih3v4otvcURK/some/path/to/thing?dag-scope=entity&entity-bytes=100:-200&dups=y&blockLimit=222&protocols=transport-graphsync-filecoinv1,transport-ipfs-gateway-http&providers=/dns/beep.boop.com/tcp/3747/p2p/12D3KooWDXAVxjSTKbHKpNk8mFVQzHdBDvR4kybu582Xd4Zrvagg,/ip4/127.0.0.1/tcp/5000/p2p/12D3KooWBSTEYMLSu5FnQjshEVah9LFGEZoQt26eacCEVYfedWA4",
 		},
 	}
 
@@ -203,16 +203,16 @@ func TestRequestStringRepresentations(t *testing.T) {
 	})
 
 	t.Run("fixed peer, protocol included", func(t *testing.T) {
-		pps, err := ParseProviderStrings("/ip4/127.0.0.1/tcp/5000/p2p/12D3KooWBSTEYMLSu5FnQjshEVah9LFGEZoQt26eacCEVYfedWA4+bitswap")
+		pps, err := ParseProviderStrings("/ip4/127.0.0.1/tcp/5000/p2p/12D3KooWBSTEYMLSu5FnQjshEVah9LFGEZoQt26eacCEVYfedWA4+graphsync")
 		require.NoError(t, err)
-		require.Equal(t, pps[0].Protocols, []metadata.Protocol{metadata.Bitswap{}})
+		require.Equal(t, pps[0].Protocols, []metadata.Protocol{&metadata.GraphsyncFilecoinV1{}})
 		request := RetrievalRequest{
 			Request:   trustlessutils.Request{Root: testCidV1},
 			Providers: pps,
 		}
 		ds, err := request.GetDescriptorString()
 		require.NoError(t, err)
-		expectedStart := "/ipfs/bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi?dag-scope=all&dups=n&providers=/ip4/127.0.0.1/tcp/5000/p2p/12D3KooWBSTEYMLSu5FnQjshEVah9LFGEZoQt26eacCEVYfedWA4+bitswap"
+		expectedStart := "/ipfs/bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi?dag-scope=all&dups=n&providers=/ip4/127.0.0.1/tcp/5000/p2p/12D3KooWBSTEYMLSu5FnQjshEVah9LFGEZoQt26eacCEVYfedWA4+graphsync"
 		require.Equal(t, expectedStart, ds[0:len(expectedStart)])
 	})
 

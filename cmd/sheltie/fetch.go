@@ -17,7 +17,6 @@ import (
 	"github.com/ipld/go-car/v2"
 	"github.com/ipld/go-car/v2/storage/deferred"
 	"github.com/ipld/go-ipld-prime/datamodel"
-	cidlink "github.com/ipld/go-ipld-prime/linking/cid"
 	trustlessutils "github.com/ipld/go-trustless-utils"
 	trustlesshttp "github.com/ipld/go-trustless-utils/http"
 	"github.com/urfave/cli/v2"
@@ -87,7 +86,6 @@ var fetchFlags = []cli.Flag{
 	FlagAllowProviders,
 	FlagExcludeProviders,
 	FlagTempDir,
-	FlagBitswapConcurrency,
 	FlagGlobalTimeout,
 	FlagProviderTimeout,
 }
@@ -385,13 +383,6 @@ func defaultFetchRun(
 	if err != nil {
 		return err
 	}
-	// setup preload storage for bitswap, the temporary CAR store can set up a
-	// separate preload space in its storage
-	request.PreloadLinkSystem = cidlink.DefaultLinkSystem()
-	preloadStore := carStore.PreloadStore()
-	request.PreloadLinkSystem.SetReadStorage(preloadStore)
-	request.PreloadLinkSystem.SetWriteStorage(preloadStore)
-	request.PreloadLinkSystem.TrustedStorage = true
 	request.Duplicates = duplicates
 
 	stats, err := lassie.Fetch(ctx, request)

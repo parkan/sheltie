@@ -72,14 +72,6 @@ func IpfsHandler(fetcher types.Fetcher, cfg HttpServerConfig) func(http.Response
 		request.LinkSystem.SetWriteStorage(carStore)
 		request.LinkSystem.SetReadStorage(carStore)
 
-		// setup preload storage for bitswap, the temporary CAR store can set up a
-		// separate preload space in its storage
-		request.PreloadLinkSystem = cidlink.DefaultLinkSystem()
-		preloadStore := carStore.PreloadStore()
-		request.PreloadLinkSystem.SetReadStorage(preloadStore)
-		request.PreloadLinkSystem.SetWriteStorage(preloadStore)
-		request.PreloadLinkSystem.TrustedStorage = true
-
 		// bytesWritten will be closed once we've started writing CAR content to
 		// the response writer. Once closed, no other content should be written.
 		bytesWritten := make(chan struct{}, 1)

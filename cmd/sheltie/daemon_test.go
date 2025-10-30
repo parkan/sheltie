@@ -37,8 +37,6 @@ func TestDaemonCommandFlags(t *testing.T) {
 				require.Equal(t, 0, len(lCfg.Protocols))
 				require.Equal(t, 0, len(lCfg.ProviderBlockList))
 				require.Equal(t, 0, len(lCfg.ProviderAllowList))
-				require.Equal(t, 32, lCfg.BitswapConcurrency)
-				require.Equal(t, 12, lCfg.BitswapConcurrencyPerRetrieval)
 
 				// http server config
 				require.Equal(t, "127.0.0.1", hCfg.Address)
@@ -100,9 +98,9 @@ func TestDaemonCommandFlags(t *testing.T) {
 		},
 		{
 			name: "with protocols",
-			args: []string{"daemon", "--protocols", "bitswap,graphsync"},
+			args: []string{"daemon", "--protocols", "graphsync,http"},
 			assert: func(ctx context.Context, lCfg *l.SheltieConfig, hCfg h.HttpServerConfig, erCfg *a.EventRecorderConfig) error {
-				require.Equal(t, []multicodec.Code{multicodec.TransportBitswap, multicodec.TransportGraphsyncFilecoinv1}, lCfg.Protocols)
+				require.Equal(t, []multicodec.Code{multicodec.TransportGraphsyncFilecoinv1, multicodec.TransportIpfsGatewayHttp}, lCfg.Protocols)
 				return nil
 			},
 		},
@@ -117,14 +115,6 @@ func TestDaemonCommandFlags(t *testing.T) {
 
 				require.Equal(t, true, lCfg.ProviderBlockList[p1])
 				require.Equal(t, true, lCfg.ProviderBlockList[p2])
-				return nil
-			},
-		},
-		{
-			name: "with bitswap concurrency",
-			args: []string{"daemon", "--bitswap-concurrency", "10"},
-			assert: func(ctx context.Context, lCfg *l.SheltieConfig, hCfg h.HttpServerConfig, erCfg *a.EventRecorderConfig) error {
-				require.Equal(t, 10, lCfg.BitswapConcurrency)
 				return nil
 			},
 		},

@@ -241,9 +241,6 @@ func (s *MockIndexer) handleDelegatedRouting(res http.ResponseWriter, req *http.
 			case multicodec.TransportIpfsGatewayHttp:
 				protoName = "transport-ipfs-gateway-http"
 				provider.Metadata[protoName] = "" // No additional metadata
-			case multicodec.TransportBitswap:
-				protoName = "transport-bitswap"
-				provider.Metadata[protoName] = "" // No additional metadata for bitswap
 			default:
 				continue // Skip unknown protocols
 			}
