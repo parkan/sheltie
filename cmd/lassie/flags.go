@@ -17,11 +17,15 @@ import (
 var (
 	defaultTempDirectory     string   = os.TempDir() // use the system default temp dir
 	verboseLoggingSubsystems []string = []string{    // verbose logging is enabled for these subsystems when using the verbose or very-verbose flags
-		"lassie",
+		"lassie/main",
 		"lassie/retriever",
 		"lassie/httpserver",
 		"lassie/indexerlookup",
 		"lassie/bitswap",
+		"lassie/client",
+		"lassie/lp2p/tspt/client",
+		"lassie/heyfil",
+		"lassie/aggregateeventrecorder",
 	}
 )
 
@@ -204,11 +208,12 @@ var FlagProviderTimeout = &cli.DurationFlag{
 	EnvVars: []string{"LASSIE_PROVIDER_TIMEOUT"},
 }
 
-var FlagIPNIEndpoint = &cli.StringFlag{
-	Name:        "ipni-endpoint",
-	Aliases:     []string{"ipni"},
+var FlagDelegatedRoutingEndpoint = &cli.StringFlag{
+	Name:        "delegated-routing-endpoint",
+	Aliases:     []string{"delegated"},
 	DefaultText: "Defaults to https://cid.contact",
-	Usage:       "HTTP endpoint of the IPNI instance used to discover providers.",
+	Usage:       "HTTP endpoint of the delegated routing service used to discover providers.",
+	EnvVars:     []string{"LASSIE_DELEGATED_ROUTING_ENDPOINT"},
 }
 
 func ResetGlobalFlags() {
