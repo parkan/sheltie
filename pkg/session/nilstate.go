@@ -3,7 +3,7 @@ package session
 import (
 	"time"
 
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/types"
 	"github.com/ipfs/go-cid"
 	"github.com/ipld/go-ipld-prime/datamodel"
 	"github.com/ipni/go-libipni/metadata"

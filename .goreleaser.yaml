@@ -3,12 +3,12 @@
 version: 2
 
 builds:
-  - main: ./cmd/lassie
-    binary: lassie
+  - main: ./cmd/sheltie
+    binary: sheltie
     ldflags:
       # Sets the version variable in the build package to the build version prefixed with a 'v'
       # Sets the main.date to a static date for checksum verification. See https://goreleaser.com/customization/builds/#reproducible-builds.
-      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.CommitDate}} -X main.builtBy=goreleaser -X github.com/filecoin-project/lassie/pkg/build.version=v{{.Version}}
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.CommitDate}} -X main.builtBy=goreleaser -X github.com/parkan/sheltie/pkg/build.version=v{{.Version}}
     goos:
       - linux
       - windows

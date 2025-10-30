@@ -11,10 +11,10 @@ import (
 	"time"
 
 	datatransfer "github.com/filecoin-project/go-data-transfer/v2"
-	"github.com/filecoin-project/lassie/pkg/internal/itest/mocknet"
-	"github.com/filecoin-project/lassie/pkg/internal/itest/testpeer"
-	"github.com/filecoin-project/lassie/pkg/lassie"
-	httpserver "github.com/filecoin-project/lassie/pkg/server/http"
+	"github.com/parkan/sheltie/pkg/internal/itest/mocknet"
+	"github.com/parkan/sheltie/pkg/internal/itest/testpeer"
+	"github.com/parkan/sheltie/pkg/sheltie"
+	httpserver "github.com/parkan/sheltie/pkg/server/http"
 	"github.com/google/uuid"
 	"github.com/ipfs/go-unixfsnode"
 	"github.com/ipld/go-car/v2"
@@ -62,11 +62,11 @@ func TestTrustlessUnixfsFetch(t *testing.T) {
 				require.NoError(t, mrn.MN.LinkAll())
 				mrn.Remotes[0].Cids[tc.Root] = struct{}{}
 
-				lassie, err := lassie.NewLassie(
+				lassie, err := sheltie.NewSheltie(
 					ctx,
-					lassie.WithProviderTimeout(20*time.Second),
-					lassie.WithHost(mrn.Self),
-					lassie.WithCandidateSource(mrn.Source),
+					sheltie.WithProviderTimeout(20*time.Second),
+					sheltie.WithHost(mrn.Self),
+					sheltie.WithCandidateSource(mrn.Source),
 				)
 				req.NoError(err)
 				cfg := httpserver.HttpServerConfig{Address: "127.0.0.1", Port: 0, TempDir: t.TempDir()}

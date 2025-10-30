@@ -18,13 +18,13 @@ import (
 	"time"
 
 	datatransfer "github.com/filecoin-project/go-data-transfer/v2"
-	"github.com/filecoin-project/lassie/pkg/aggregateeventrecorder"
-	"github.com/filecoin-project/lassie/pkg/internal/itest/mocknet"
-	"github.com/filecoin-project/lassie/pkg/internal/itest/testpeer"
-	"github.com/filecoin-project/lassie/pkg/lassie"
-	"github.com/filecoin-project/lassie/pkg/retriever"
-	httpserver "github.com/filecoin-project/lassie/pkg/server/http"
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/aggregateeventrecorder"
+	"github.com/parkan/sheltie/pkg/internal/itest/mocknet"
+	"github.com/parkan/sheltie/pkg/internal/itest/testpeer"
+	"github.com/parkan/sheltie/pkg/sheltie"
+	"github.com/parkan/sheltie/pkg/retriever"
+	httpserver "github.com/parkan/sheltie/pkg/server/http"
+	"github.com/parkan/sheltie/pkg/types"
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	unixfs "github.com/ipfs/go-unixfsnode/testutil"
@@ -97,7 +97,7 @@ func TestHttpFetch(t *testing.T) {
 	}
 	type headerSetter func(http.Header)
 	type queryModifier func(url.Values, []testpeer.TestPeer)
-	type lassieOptsGen func(*testing.T, *mocknet.MockRetrievalNet) []lassie.LassieOption
+	type lassieOptsGen func(*testing.T, *mocknet.MockRetrievalNet) []sheltie.SheltieOption
 
 	testCases := []struct {
 		name                  string
@@ -230,10 +230,10 @@ func TestHttpFetch(t *testing.T) {
 			name:             "bitswap block timeout from missing block",
 			bitswapRemotes:   1,
 			expectUncleanEnd: true,
-			lassieOpts: func(t *testing.T, mrn *mocknet.MockRetrievalNet) []lassie.LassieOption {
+			lassieOpts: func(t *testing.T, mrn *mocknet.MockRetrievalNet) []sheltie.SheltieOption {
 				// this delay is going to depend on CI, if it's too short then a slower machine
 				// won't get bitswap setup in time to get the block
-				return []lassie.LassieOption{lassie.WithProviderTimeout(1 * time.Second)}
+				return []sheltie.SheltieOption{sheltie.WithProviderTimeout(1 * time.Second)}
 			},
 			generate: func(t *testing.T, rndReader io.Reader, remotes []testpeer.TestPeer) []unixfs.DirEntry {
 				file := generateFor(t, unixfsSpec_largeShardedFile, rndReader, *remotes[0].LinkSystem)
@@ -585,8 +585,8 @@ func TestHttpFetch(t *testing.T) {
 				remotes[0].Cids = make(map[cid.Cid]struct{})
 				return []unixfs.DirEntry{fileEntry}
 			},
-			lassieOpts: func(t *testing.T, mrn *mocknet.MockRetrievalNet) []lassie.LassieOption {
-				return []lassie.LassieOption{lassie.WithCandidateSource(retriever.NewDirectCandidateSource([]types.Provider{{Peer: *mrn.Remotes[0].AddrInfo(), Protocols: nil}}, retriever.WithLibp2pCandidateDiscovery(mrn.Self)))}
+			lassieOpts: func(t *testing.T, mrn *mocknet.MockRetrievalNet) []sheltie.SheltieOption {
+				return []sheltie.SheltieOption{sheltie.WithCandidateSource(retriever.NewDirectCandidateSource([]types.Provider{{Peer: *mrn.Remotes[0].AddrInfo(), Protocols: nil}}, retriever.WithLibp2pCandidateDiscovery(mrn.Self)))}
 			},
 		},
 		{
@@ -616,8 +616,8 @@ func TestHttpFetch(t *testing.T) {
 				remotes[0].Cids = make(map[cid.Cid]struct{})
 				return []unixfs.DirEntry{fileEntry}
 			},
-			lassieOpts: func(t *testing.T, mrn *mocknet.MockRetrievalNet) []lassie.LassieOption {
-				return []lassie.LassieOption{lassie.WithCandidateSource(retriever.NewDirectCandidateSource([]types.Provider{{Peer: *mrn.Remotes[0].AddrInfo(), Protocols: nil}}, retriever.WithLibp2pCandidateDiscovery(mrn.Self)))}
+			lassieOpts: func(t *testing.T, mrn *mocknet.MockRetrievalNet) []sheltie.SheltieOption {
+				return []sheltie.SheltieOption{sheltie.WithCandidateSource(retriever.NewDirectCandidateSource([]types.Provider{{Peer: *mrn.Remotes[0].AddrInfo(), Protocols: nil}}, retriever.WithLibp2pCandidateDiscovery(mrn.Self)))}
 			},
 		},
 		{
@@ -893,19 +893,19 @@ func TestHttpFetch(t *testing.T) {
 
 			// Setup a new lassie
 			req := require.New(t)
-			var customOpts []lassie.LassieOption
+			var customOpts []sheltie.SheltieOption
 			if testCase.lassieOpts != nil {
 				customOpts = testCase.lassieOpts(t, mrn)
 			}
-			opts := append([]lassie.LassieOption{
-				lassie.WithProviderTimeout(20 * time.Second),
-				lassie.WithHost(mrn.Self),
-				lassie.WithCandidateSource(mrn.Source),
+			opts := append([]sheltie.SheltieOption{
+				sheltie.WithProviderTimeout(20 * time.Second),
+				sheltie.WithHost(mrn.Self),
+				sheltie.WithCandidateSource(mrn.Source),
 			}, customOpts...)
 			if testCase.disableGraphsync {
-				opts = append(opts, lassie.WithProtocols([]multicodec.Code{multicodec.TransportBitswap, multicodec.TransportIpfsGatewayHttp}))
+				opts = append(opts, sheltie.WithProtocols([]multicodec.Code{multicodec.TransportBitswap, multicodec.TransportIpfsGatewayHttp}))
 			}
-			lassie, err := lassie.NewLassie(ctx, opts...)
+			lassie, err := sheltie.NewSheltie(ctx, opts...)
 			req.NoError(err)
 
 			var aggregateEventsCh = make(chan []aggregateeventrecorder.AggregateEvent)
@@ -1117,7 +1117,7 @@ func verifyHeaders(t *testing.T, resp response, root cid.Cid, path string, expec
 	req.NoError(err)
 }
 
-func setupAggregateEventRecorder(t *testing.T, ctx context.Context, expectCount int, lassie *lassie.Lassie, aggregateEventsCh chan []aggregateeventrecorder.AggregateEvent) interface{ Close() } {
+func setupAggregateEventRecorder(t *testing.T, ctx context.Context, expectCount int, lassie *sheltie.Sheltie, aggregateEventsCh chan []aggregateeventrecorder.AggregateEvent) interface{ Close() } {
 	var aggregateEventsLk sync.Mutex
 	events := make([]aggregateeventrecorder.AggregateEvent, 0)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

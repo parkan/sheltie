@@ -14,7 +14,7 @@ import (
 
 const DefaultHeyfilEndpoint = "https://heyfil.prod.cid.contact/"
 
-var logger = log.Logger("lassie/heyfil")
+var logger = log.Logger("sheltie/heyfil")
 
 func isPeerId(s string) bool {
 	_, err := peer.Decode(s)

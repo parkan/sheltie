@@ -3,7 +3,7 @@ package combinators
 import (
 	"context"
 
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/types"
 )
 
 // RetrieverWithCandidateFinder retrieves from a candidate retriever after first retrieving candidates from a candidate finder

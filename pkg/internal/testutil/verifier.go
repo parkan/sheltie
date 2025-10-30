@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/filecoin-project/go-clock"
-	"github.com/filecoin-project/lassie/pkg/events"
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/events"
+	"github.com/parkan/sheltie/pkg/types"
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p/core/peer"

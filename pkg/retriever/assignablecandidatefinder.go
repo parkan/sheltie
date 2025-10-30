@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/filecoin-project/go-clock"
-	"github.com/filecoin-project/lassie/pkg/events"
-	"github.com/filecoin-project/lassie/pkg/internal/candidatebuffer"
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/events"
+	"github.com/parkan/sheltie/pkg/internal/candidatebuffer"
+	"github.com/parkan/sheltie/pkg/types"
 )
 
 type FilterIndexerCandidate func(types.RetrievalCandidate) (bool, types.RetrievalCandidate)

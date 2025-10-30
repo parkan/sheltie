@@ -6,7 +6,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/types"
 	"github.com/ipfs/boxo/bitswap/client/traceability"
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"

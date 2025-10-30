@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/filecoin-project/lassie/pkg/internal/testutil"
-	"github.com/filecoin-project/lassie/pkg/retriever"
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/internal/testutil"
+	"github.com/parkan/sheltie/pkg/retriever"
+	"github.com/parkan/sheltie/pkg/types"
 	"github.com/ipfs/go-cid"
 	cidlink "github.com/ipld/go-ipld-prime/linking/cid"
 	trustlessutils "github.com/ipld/go-trustless-utils"

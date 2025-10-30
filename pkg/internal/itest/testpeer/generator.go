@@ -14,7 +14,7 @@ import (
 	dtimpl "github.com/filecoin-project/go-data-transfer/v2/impl"
 	dtnet "github.com/filecoin-project/go-data-transfer/v2/network"
 	gstransport "github.com/filecoin-project/go-data-transfer/v2/transport/graphsync"
-	"github.com/filecoin-project/lassie/pkg/internal/itest/linksystemutil"
+	"github.com/parkan/sheltie/pkg/internal/itest/linksystemutil"
 	bsnet "github.com/ipfs/boxo/bitswap/network"
 	"github.com/ipfs/boxo/bitswap/server"
 	"github.com/ipfs/boxo/blockstore"
@@ -41,7 +41,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var logger = log.Logger("lassie/mocknet")
+var logger = log.Logger("sheltie/mocknet")
 
 // NewTestPeerGenerator generates a new TestPeerGenerator for the given
 // mocknet

@@ -1,16 +1,16 @@
-package lassie
+package sheltie
 
 import (
 	"context"
 	"net/http"
 	"time"
 
-	"github.com/filecoin-project/lassie/pkg/indexerlookup"
-	"github.com/filecoin-project/lassie/pkg/net/client"
-	"github.com/filecoin-project/lassie/pkg/net/host"
-	"github.com/filecoin-project/lassie/pkg/retriever"
-	"github.com/filecoin-project/lassie/pkg/session"
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/indexerlookup"
+	"github.com/parkan/sheltie/pkg/net/client"
+	"github.com/parkan/sheltie/pkg/net/host"
+	"github.com/parkan/sheltie/pkg/retriever"
+	"github.com/parkan/sheltie/pkg/session"
+	"github.com/parkan/sheltie/pkg/types"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/sync"
 	"github.com/libp2p/go-libp2p"
@@ -18,20 +18,20 @@ import (
 	"github.com/multiformats/go-multicodec"
 )
 
-var _ types.Fetcher = &Lassie{}
+var _ types.Fetcher = &Sheltie{}
 
 const DefaultProviderTimeout = 20 * time.Second
 const DefaultBitswapConcurrency = 32
 const DefaultBitswapConcurrencyPerRetrieval = 12
 
-// Lassie represents a reusable retrieval client.
-type Lassie struct {
-	cfg       *LassieConfig
+// Sheltie represents a reusable retrieval client.
+type Sheltie struct {
+	cfg       *SheltieConfig
 	retriever *retriever.Retriever
 }
 
-// LassieConfig customizes the behavior of a Lassie instance.
-type LassieConfig struct {
+// SheltieConfig customizes the behavior of a Sheltie instance.
+type SheltieConfig struct {
 	Source                         types.CandidateSource
 	Host                           host.Host
 	ProviderTimeout                time.Duration
@@ -45,26 +45,26 @@ type LassieConfig struct {
 	BitswapConcurrencyPerRetrieval int
 }
 
-type LassieOption func(cfg *LassieConfig)
+type SheltieOption func(cfg *SheltieConfig)
 
-// NewLassie creates a new Lassie instance.
-func NewLassie(ctx context.Context, opts ...LassieOption) (*Lassie, error) {
-	cfg := NewLassieConfig(opts...)
-	return NewLassieWithConfig(ctx, cfg)
+// NewSheltie creates a new Sheltie instance.
+func NewSheltie(ctx context.Context, opts ...SheltieOption) (*Sheltie, error) {
+	cfg := NewSheltieConfig(opts...)
+	return NewSheltieWithConfig(ctx, cfg)
 }
 
-// NewLassieConfig creates a new LassieConfig instance with the given LassieOptions.
-func NewLassieConfig(opts ...LassieOption) *LassieConfig {
-	cfg := &LassieConfig{}
+// NewSheltieConfig creates a new SheltieConfig instance with the given SheltieOptions.
+func NewSheltieConfig(opts ...SheltieOption) *SheltieConfig {
+	cfg := &SheltieConfig{}
 	for _, opt := range opts {
 		opt(cfg)
 	}
 	return cfg
 }
 
-// NewLassieWithConfig creates a new Lassie instance with a custom
+// NewSheltieWithConfig creates a new Sheltie instance with a custom
 // configuration.
-func NewLassieWithConfig(ctx context.Context, cfg *LassieConfig) (*Lassie, error) {
+func NewSheltieWithConfig(ctx context.Context, cfg *SheltieConfig) (*Sheltie, error) {
 	if cfg.Source == nil {
 		var err error
 		cfg.Source, err = indexerlookup.NewCandidateSource(indexerlookup.WithHttpClient(&http.Client{}))
@@ -137,7 +137,7 @@ func NewLassieWithConfig(ctx context.Context, cfg *LassieConfig) (*Lassie, error
 	}
 	retriever.Start()
 
-	lassie := &Lassie{
+	lassie := &Sheltie{
 		cfg:       cfg,
 		retriever: retriever,
 	}
@@ -146,8 +146,8 @@ func NewLassieWithConfig(ctx context.Context, cfg *LassieConfig) (*Lassie, error
 }
 
 // WithCandidateSource allows you to specify a custom candidate finder.
-func WithCandidateSource(finder types.CandidateSource) LassieOption {
-	return func(cfg *LassieConfig) {
+func WithCandidateSource(finder types.CandidateSource) SheltieOption {
+	return func(cfg *SheltieConfig) {
 		cfg.Source = finder
 	}
 }
@@ -155,53 +155,53 @@ func WithCandidateSource(finder types.CandidateSource) LassieOption {
 // WithProviderTimeout allows you to specify a custom timeout for retrieving
 // data from a provider. Beyond this limit, when no data has been received,
 // the retrieval will fail.
-func WithProviderTimeout(timeout time.Duration) LassieOption {
-	return func(cfg *LassieConfig) {
+func WithProviderTimeout(timeout time.Duration) SheltieOption {
+	return func(cfg *SheltieConfig) {
 		cfg.ProviderTimeout = timeout
 	}
 }
 
 // WithGlobalTimeout allows you to specify a custom timeout for the entire
 // retrieval process.
-func WithGlobalTimeout(timeout time.Duration) LassieOption {
-	return func(cfg *LassieConfig) {
+func WithGlobalTimeout(timeout time.Duration) SheltieOption {
+	return func(cfg *SheltieConfig) {
 		cfg.GlobalTimeout = timeout
 	}
 }
 
 // WithHost allows you to specify a custom libp2p host.
-func WithHost(host host.Host) LassieOption {
-	return func(cfg *LassieConfig) {
+func WithHost(host host.Host) SheltieOption {
+	return func(cfg *SheltieConfig) {
 		cfg.Host = host
 	}
 }
 
 // WithLibp2pOpts allows you to specify custom libp2p options.
-func WithLibp2pOpts(libp2pOptions ...libp2p.Option) LassieOption {
-	return func(cfg *LassieConfig) {
+func WithLibp2pOpts(libp2pOptions ...libp2p.Option) SheltieOption {
+	return func(cfg *SheltieConfig) {
 		cfg.Libp2pOptions = libp2pOptions
 	}
 }
 
 // WithConcurrentSPRetrievals allows you to specify a custom number of
 // concurrent retrievals from a single storage provider.
-func WithConcurrentSPRetrievals(maxConcurrentSPRtreievals uint) LassieOption {
-	return func(cfg *LassieConfig) {
+func WithConcurrentSPRetrievals(maxConcurrentSPRtreievals uint) SheltieOption {
+	return func(cfg *SheltieConfig) {
 		cfg.ConcurrentSPRetrievals = maxConcurrentSPRtreievals
 	}
 }
 
 // WithProtocols allows you to specify a custom set of protocols to use for
 // retrieval.
-func WithProtocols(protocols []multicodec.Code) LassieOption {
-	return func(cfg *LassieConfig) {
+func WithProtocols(protocols []multicodec.Code) SheltieOption {
+	return func(cfg *SheltieConfig) {
 		cfg.Protocols = protocols
 	}
 }
 
 // WithProviderBlockList allows you to specify a custom provider block list.
-func WithProviderBlockList(providerBlockList map[peer.ID]bool) LassieOption {
-	return func(cfg *LassieConfig) {
+func WithProviderBlockList(providerBlockList map[peer.ID]bool) SheltieOption {
+	return func(cfg *SheltieConfig) {
 		cfg.ProviderBlockList = providerBlockList
 	}
 }
@@ -209,17 +209,17 @@ func WithProviderBlockList(providerBlockList map[peer.ID]bool) LassieOption {
 // WithProviderAllowList allows you to specify a custom set of providers to
 // allow fetching from. If this is not set, all providers will be allowed unless
 // they are in the block list.
-func WithProviderAllowList(providerAllowList map[peer.ID]bool) LassieOption {
-	return func(cfg *LassieConfig) {
+func WithProviderAllowList(providerAllowList map[peer.ID]bool) SheltieOption {
+	return func(cfg *SheltieConfig) {
 		cfg.ProviderAllowList = providerAllowList
 	}
 }
 
 // WithBitswapConcurrency allows you to specify a custom concurrency for bitswap
-// retrievals across all parallel retrievals in the same Lassie instance. This
+// retrievals across all parallel retrievals in the same Sheltie instance. This
 // is applied using a preloader during traversals. The default is 32.
-func WithBitswapConcurrency(concurrency int) LassieOption {
-	return func(cfg *LassieConfig) {
+func WithBitswapConcurrency(concurrency int) SheltieOption {
+	return func(cfg *SheltieConfig) {
 		cfg.BitswapConcurrency = concurrency
 	}
 }
@@ -227,8 +227,8 @@ func WithBitswapConcurrency(concurrency int) LassieOption {
 // WithBitswapConcurrencyPerRetrieval allows you to specify a custom concurrency
 // for bitswap retrievals for each individual parallel retrieval. This is
 // applied using a preloader during traversals. The default is 8.
-func WithBitswapConcurrencyPerRetrieval(concurrency int) LassieOption {
-	return func(cfg *LassieConfig) {
+func WithBitswapConcurrencyPerRetrieval(concurrency int) SheltieOption {
+	return func(cfg *SheltieConfig) {
 		cfg.BitswapConcurrencyPerRetrieval = concurrency
 	}
 }
@@ -237,7 +237,7 @@ func WithBitswapConcurrencyPerRetrieval(concurrency int) LassieOption {
 // the retrieval or an error. The request should contain all of the parameters
 // of the requested retrieval, including the LinkSystem where the blocks are
 // intended to be stored.
-func (l *Lassie) Fetch(ctx context.Context, request types.RetrievalRequest, opts ...types.FetchOption) (*types.RetrievalStats, error) {
+func (l *Sheltie) Fetch(ctx context.Context, request types.RetrievalRequest, opts ...types.FetchOption) (*types.RetrievalStats, error) {
 	var cancel context.CancelFunc
 	if l.cfg.GlobalTimeout != time.Duration(0) {
 		ctx, cancel = context.WithTimeout(ctx, l.cfg.GlobalTimeout)
@@ -248,6 +248,6 @@ func (l *Lassie) Fetch(ctx context.Context, request types.RetrievalRequest, opts
 
 // RegisterSubscriber registers a subscriber to receive retrieval events.
 // The returned function can be called to unregister the subscriber.
-func (l *Lassie) RegisterSubscriber(subscriber types.RetrievalEventSubscriber) func() {
+func (l *Sheltie) RegisterSubscriber(subscriber types.RetrievalEventSubscriber) func() {
 	return l.retriever.RegisterSubscriber(subscriber)
 }

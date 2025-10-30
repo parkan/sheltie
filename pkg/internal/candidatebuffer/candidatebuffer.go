@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/filecoin-project/go-clock"
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/types"
 )
 
 type CandidateBuffer struct {

@@ -7,9 +7,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/filecoin-project/lassie/pkg/internal/mockfetcher"
-	"github.com/filecoin-project/lassie/pkg/retriever"
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/internal/mockfetcher"
+	"github.com/parkan/sheltie/pkg/retriever"
+	"github.com/parkan/sheltie/pkg/types"
 	trustlessutils "github.com/ipld/go-trustless-utils"
 	"github.com/stretchr/testify/require"
 )

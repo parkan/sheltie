@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/types"
 	"github.com/ipfs/go-cid"
 	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
 	"github.com/libp2p/go-libp2p/core/peer"

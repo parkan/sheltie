@@ -1,4 +1,4 @@
-# Lassie: Returned CAR Specification
+# Sheltie: Returned CAR Specification
 
 ![wip](https://img.shields.io/badge/status-wip-orange.svg?style=flat-square)
 
@@ -30,21 +30,21 @@
 
 ## Introduction
 
-Under normal operation, Lassie only returns IPLD data in CAR format. Specifically, the [CARv1](https://ipld.io/specs/transport/car/carv1/) format. This document describes the nature of the CAR data returned by Lassie and the various options available to the client for varying the data included.
+Under normal operation, Sheltie only returns IPLD data in CAR format. Specifically, the [CARv1](https://ipld.io/specs/transport/car/carv1/) format. This document describes the nature of the CAR data returned by Sheltie and the various options available to the client for varying the data included.
 
 ## Specification
 
 ### Root CIDs
 
-CARv1 allows for multiple roots to be included in a single CAR. Lassie will always return a CAR with a **single root CID**. This root CID will be the CID of the IPLD block that was requested by the client, even when an additional `path` is supplied.
+CARv1 allows for multiple roots to be included in a single CAR. Sheltie will always return a CAR with a **single root CID**. This root CID will be the CID of the IPLD block that was requested by the client, even when an additional `path` is supplied.
 
 ### Verifiability
 
-Lassie will always return a CAR that is **verifiable**. This means that the CAR will contain all blocks required to verify the root CID and any additional path traversals to the requested content. It should always be possible to verify the root block content against the requested CID, and every block that is traversed to reach the content as specified by the final `path`.
+Sheltie will always return a CAR that is **verifiable**. This means that the CAR will contain all blocks required to verify the root CID and any additional path traversals to the requested content. It should always be possible to verify the root block content against the requested CID, and every block that is traversed to reach the content as specified by the final `path`.
 
 ### Block ordering
 
-Lassie will always return a CAR with a stable **block ordering** based on the traversal required to (a) navigate from the root CID to the final content where a `path` is provided, and (b) fetch the required DAG or partial DAG at the termination of that `path`, or from the root block where no `path` is provided. Blocks will be provided as they are encountered during a traversal, which works from "leftmost" link within a block/node to the "rightmost". The precise ordering will depend on how the data has been encoded, although this ordering is stable where standard (and properly implemented) codecs were used to generate the data. See https://ipld.io/specs/codecs/ for more information on IPLD codecs and block ordering, specifically see [DAG-PB Link Sorting](https://ipld.io/specs/codecs/dag-pb/spec/#link-sorting) which defines how UnixFS directory listings are ordered.
+Sheltie will always return a CAR with a stable **block ordering** based on the traversal required to (a) navigate from the root CID to the final content where a `path` is provided, and (b) fetch the required DAG or partial DAG at the termination of that `path`, or from the root block where no `path` is provided. Blocks will be provided as they are encountered during a traversal, which works from "leftmost" link within a block/node to the "rightmost". The precise ordering will depend on how the data has been encoded, although this ordering is stable where standard (and properly implemented) codecs were used to generate the data. See https://ipld.io/specs/codecs/ for more information on IPLD codecs and block ordering, specifically see [DAG-PB Link Sorting](https://ipld.io/specs/codecs/dag-pb/spec/#link-sorting) which defines how UnixFS directory listings are ordered.
 
 ### Block deduplication
 
@@ -52,7 +52,7 @@ Where blocks are referenced multiple times within a DAG, it will only be include
 
 ### Identity CIDs
 
-Identity CIDs will not be present as separate blocks within a CAR returned by Lassie.
+Identity CIDs will not be present as separate blocks within a CAR returned by Sheltie.
 
 ### DAG depth
 

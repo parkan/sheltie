@@ -8,11 +8,11 @@ import (
 	"strings"
 
 	"github.com/dustin/go-humanize"
-	"github.com/filecoin-project/lassie/pkg/aggregateeventrecorder"
-	"github.com/filecoin-project/lassie/pkg/events"
-	"github.com/filecoin-project/lassie/pkg/lassie"
-	"github.com/filecoin-project/lassie/pkg/storage"
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/aggregateeventrecorder"
+	"github.com/parkan/sheltie/pkg/events"
+	"github.com/parkan/sheltie/pkg/sheltie"
+	"github.com/parkan/sheltie/pkg/storage"
+	"github.com/parkan/sheltie/pkg/types"
 	"github.com/ipfs/go-cid"
 	"github.com/ipld/go-car/v2"
 	"github.com/ipld/go-car/v2/storage/deferred"
@@ -279,7 +279,7 @@ func (ow *onlyWriter) Write(p []byte) (n int, err error) {
 
 type fetchRunFunc func(
 	ctx context.Context,
-	lassieCfg *lassie.LassieConfig,
+	lassieCfg *sheltie.SheltieConfig,
 	eventRecorderCfg *aggregateeventrecorder.EventRecorderConfig,
 	msgWriter io.Writer,
 	dataWriter io.Writer,
@@ -300,7 +300,7 @@ var fetchRun fetchRunFunc = defaultFetchRun
 // programmatically for testing.
 func defaultFetchRun(
 	ctx context.Context,
-	lassieCfg *lassie.LassieConfig,
+	lassieCfg *sheltie.SheltieConfig,
 	eventRecorderCfg *aggregateeventrecorder.EventRecorderConfig,
 	msgWriter io.Writer,
 	dataWriter io.Writer,
@@ -313,7 +313,7 @@ func defaultFetchRun(
 	progress bool,
 	outfile string,
 ) error {
-	lassie, err := lassie.NewLassieWithConfig(ctx, lassieCfg)
+	lassie, err := sheltie.NewSheltieWithConfig(ctx, lassieCfg)
 	if err != nil {
 		return err
 	}

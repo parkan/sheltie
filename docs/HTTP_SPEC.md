@@ -1,4 +1,4 @@
-# Lassie: HTTP Specification
+# Sheltie: HTTP Specification
 
 ![wip](https://img.shields.io/badge/status-wip-orange.svg?style=flat-square)
 
@@ -14,7 +14,7 @@
 - [Kyle Huntsman](https://github.com/kylehuntsman)
 - [Rod Vagg](https://github.com/rvagg)
 
-The Lassie HTTP specification is an HTTP interface for retrieving IPLD data from IPFS and Filecoin peers. It fetches content over the GraphSync, Bitswap, and HTTP protocols and provides the resulting data in CAR format.
+The Sheltie HTTP specification is an HTTP interface for retrieving IPLD data from IPFS and Filecoin peers. It fetches content over the GraphSync, Bitswap, and HTTP protocols and provides the resulting data in CAR format.
 
 An implementation of the [Trustless Gateway](https://specs.ipfs.tech/http-gateways/trustless-gateway) specification with a subset of the [Path Gateway](https://specs.ipfs.tech/http-gateways/path-gateway/) specification that focuses on returning verifiable CAR formatted data.
 
@@ -123,14 +123,14 @@ Examples:
 
 #### `order` (CAR content type parameter)
 
-Specified in [IPIP-412](https://github.com/ipfs/specs/blob/746cb5206e2346f8e4a37219898a735a498c3186/src/ipips/ipip-0412.md#order-car-content-type-parameter), but Lassie will only ever produce a `dfs` ordered CAR response.
+Specified in [IPIP-412](https://github.com/ipfs/specs/blob/746cb5206e2346f8e4a37219898a735a498c3186/src/ipips/ipip-0412.md#order-car-content-type-parameter), but Sheltie will only ever produce a `dfs` ordered CAR response.
 
 _OPTIONAL_. `order=<dfs|unk>`. Defaults to `dfs`.
 
 Used to specify preference for a specific block order in the CAR response. Unspecified values will respond with a 400 status code.
 
 - `dfs`: [Depth-First Search](https://en.wikipedia.org/wiki/Depth-first_search) order.
-- `unk`: Unknown order. Although this option is acceptable, Lassie will still produce depth-first ordering regardless.
+- `unk`: Unknown order. Although this option is acceptable, Sheltie will still produce depth-first ordering regardless.
 
 Depth-first traversal enables efficient incremental verifiability of content, as the consumption of the DAG can execute the same traversal on the data as it is received, verifying the content is exactly what is expected and rejecting the content as soon as a discrepancy occurs rather than waiting to consume the entire DAG before being able to reconstruct the ordered content.
 
@@ -195,7 +195,7 @@ _OPTIONAL_. `protocols=<bitswap,graphsync,http>`. Defaults to all of the specifi
 
 Used to specify any of the retrieval protocols to use via a comma delimited list. Unrecognized protocols will respond with a 400 status code.
 
-The `protocols` query parameter is a Lassie specific query parameter and is not part of the [Path Gateway](https://specs.ipfs.tech/http-gateways/path-gateway/) specification.
+The `protocols` query parameter is a Sheltie specific query parameter and is not part of the [Path Gateway](https://specs.ipfs.tech/http-gateways/path-gateway/) specification.
 
 Examples:
 - `protocols=bitswap` will only attempt retrievals with the bitswap protocol
@@ -207,7 +207,7 @@ _OPTIONAL_. `providers=<addr1, addr2, ...>`. Defaults to any providers returned 
 
 Used to specify the providers to retrieve from, delimited by a comma, via their peer [multiaddr](https://github.com/multiformats/multiaddr), including peer ID. Invalid provider multiaddrs will respond with a 400 status code.
 
-The `providers` query parameter is a Lassie specific query parameter and is not part of the [Path Gateway](https://specs.ipfs.tech/http-gateways/path-gateway/) specification.
+The `providers` query parameter is a Sheltie specific query parameter and is not part of the [Path Gateway](https://specs.ipfs.tech/http-gateways/path-gateway/) specification.
 
 Examples:
 - `providers=/ip4/1.2.3.4/tcp/1234/tls/p2p/QmFoo,/dns4/example.com/tcp/1234/tls/p2p/QmFoo` will only attempt to retrieve from these providers
@@ -218,7 +218,7 @@ _OPTIONAL_. `blockLimit=<limit>`. Defaults to `0`, or _infinite_ blocks.
 
 Used to specify the maximum number of blocks to retrieve. Limit should be an unsigned 64-bit integer. A value of `0` translates to _infinite_ blocks.
 
-The `blockLimit` query parameter is a Lassie specific query parameter and is not part of the [Path Gateway](https://specs.ipfs.tech/http-gateways/path-gateway/) specification.
+The `blockLimit` query parameter is a Sheltie specific query parameter and is not part of the [Path Gateway](https://specs.ipfs.tech/http-gateways/path-gateway/) specification.
 
 Examples:
 - `blockLimit=10` will only retrieve ten blocks

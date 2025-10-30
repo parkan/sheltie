@@ -12,7 +12,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 )
 
-var logger = log.Logger("lassie/lp2p/tspt/client")
+var logger = log.Logger("sheltie/lp2p/tspt/client")
 
 // TransportsProtocolID is the protocol for querying which retrieval transports
 // the Storage Provider supports (http, libp2p, etc)

@@ -3,7 +3,7 @@ package mockfetcher
 import (
 	"context"
 
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/types"
 )
 
 var _ types.Fetcher = &MockFetcher{}

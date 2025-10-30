@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/filecoin-project/lassie/pkg/heyfil"
+	"github.com/parkan/sheltie/pkg/heyfil"
 	"github.com/stretchr/testify/require"
 )
 

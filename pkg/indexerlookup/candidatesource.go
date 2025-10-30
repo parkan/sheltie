@@ -9,7 +9,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/types"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-log/v2"
 	"github.com/ipni/go-libipni/find/model"
@@ -20,7 +20,7 @@ import (
 var (
 	_ types.CandidateSource = (*IndexerCandidateSource)(nil)
 
-	logger = log.Logger("lassie/indexerlookup")
+	logger = log.Logger("sheltie/indexerlookup")
 )
 
 type IndexerCandidateSource struct {

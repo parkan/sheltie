@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/filecoin-project/lassie/pkg/retriever/coordinators"
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/retriever/coordinators"
+	"github.com/parkan/sheltie/pkg/types"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/multierr"

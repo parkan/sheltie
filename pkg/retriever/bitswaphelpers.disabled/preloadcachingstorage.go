@@ -7,7 +7,7 @@ import (
 	"math"
 	"sync"
 
-	"github.com/filecoin-project/lassie/pkg/retriever/bitswaphelpers/groupworkpool"
+	"github.com/parkan/sheltie/pkg/retriever/bitswaphelpers/groupworkpool"
 	carstorage "github.com/ipld/go-car/v2/storage"
 	"github.com/ipld/go-ipld-prime"
 	"github.com/ipld/go-ipld-prime/linking"
@@ -312,7 +312,7 @@ func (cs *PreloadCachingStorage) Loader(linkCtx linking.LinkContext, link ipld.L
 		// TODO: if an abstracted form of this code is extracted from here, we
 		// should probably make affordance to allow a "delete" of the preload
 		// entry since it shouldn't be needed in the preloader anymore. For the
-		// Lassie case the underlying store is the same, so a delete would be a
+		// Sheltie case the underlying store is the same, so a delete would be a
 		// noop because we'll need it for the life of the traversal anyway.
 		r, err := linkSystemGetStream(cs.cacheLinkSystem, linkCtx, link)
 		if err != nil {

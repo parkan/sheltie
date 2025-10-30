@@ -3,7 +3,7 @@ package retriever
 import (
 	"context"
 
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/types"
 	"github.com/multiformats/go-multicodec"
 )
 

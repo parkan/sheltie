@@ -7,7 +7,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/types"
 	"github.com/ipfs/go-cid"
 	carstorage "github.com/ipld/go-car/v2/storage"
 	"github.com/ipld/go-ipld-prime/linking"

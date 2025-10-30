@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/filecoin-project/lassie/pkg/retriever/bitswaphelpers/groupworkpool"
+	"github.com/parkan/sheltie/pkg/retriever/bitswaphelpers/groupworkpool"
 	"github.com/stretchr/testify/require"
 )
 
