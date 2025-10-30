@@ -109,7 +109,7 @@ func GenerateRetrievalCandidatesForCID(t *testing.T, n int, c cid.Cid, protocols
 	candidates := make([]types.RetrievalCandidate, 0, n)
 	peers := GeneratePeers(t, n)
 	if len(protocols) == 0 {
-		protocols = []metadata.Protocol{&metadata.Bitswap{}}
+		protocols = []metadata.Protocol{metadata.IpfsGatewayHttp{}}
 	}
 	for i := 0; i < n; i++ {
 		addrs := []multiaddr.Multiaddr{GenerateHTTPMultiAddr()}

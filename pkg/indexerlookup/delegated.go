@@ -10,7 +10,6 @@ import (
 	"github.com/ipni/go-libipni/metadata"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/multiformats/go-multicodec"
 )
 
 // DelegatedRoutingResponse represents the HTTP Routing V1 API response format
@@ -109,13 +108,7 @@ func (dp *DelegatedProvider) ToMetadata() (metadata.Metadata, error) {
 
 		case "transport-ipfs-gateway-http":
 			// HTTP gateway protocol has no additional metadata beyond the protocol ID
-			protocols = append(protocols, &metadata.Unknown{
-				Code: multicodec.TransportIpfsGatewayHttp,
-			})
-
-		case "transport-bitswap":
-			// Bitswap protocol (for test compatibility, though disabled in main code)
-			protocols = append(protocols, &metadata.Bitswap{})
+			protocols = append(protocols, metadata.IpfsGatewayHttp{})
 
 		default:
 			logger.Debugw("Unknown protocol, skipping", "protocol", protoName)

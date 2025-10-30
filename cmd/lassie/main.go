@@ -71,8 +71,6 @@ func after(cctx *cli.Context) error {
 func buildLassieConfigFromCLIContext(cctx *cli.Context, lassieOpts []lassie.LassieOption, libp2pOpts []config.Option) (*lassie.LassieConfig, error) {
 	providerTimeout := cctx.Duration("provider-timeout")
 	globalTimeout := cctx.Duration("global-timeout")
-	bitswapConcurrency := cctx.Int("bitswap-concurrency")
-	bitswapConcurrencyPerRetrieval := cctx.Int("bitswap-concurrency-per-retrieval")
 
 	lassieOpts = append(lassieOpts, sheltie.WithProviderTimeout(providerTimeout))
 
@@ -114,16 +112,6 @@ func buildLassieConfigFromCLIContext(cctx *cli.Context, lassieOpts []lassie.Lass
 
 	if len(providerBlockList) > 0 {
 		lassieOpts = append(lassieOpts, lassie.WithProviderBlockList(providerBlockList))
-	}
-
-	if bitswapConcurrency > 0 {
-		lassieOpts = append(lassieOpts, sheltie.WithBitswapConcurrency(bitswapConcurrency))
-	}
-
-	if bitswapConcurrencyPerRetrieval > 0 {
-		lassieOpts = append(lassieOpts, sheltie.WithBitswapConcurrencyPerRetrieval(bitswapConcurrencyPerRetrieval))
-	} else if bitswapConcurrency > 0 {
-		lassieOpts = append(lassieOpts, sheltie.WithBitswapConcurrencyPerRetrieval(bitswapConcurrency))
 	}
 
 	return lassie.NewLassieConfig(lassieOpts...), nil
