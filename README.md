@@ -30,8 +30,7 @@ Sheltie is the leaner, nimbler cousin of [lassie](https://github.com/filecoin-pr
 - [IN PROGRESS] Sheltie uses **streaming output** to reduce disk uage and **does not support arbitrary selectors**, see https://github.com/filecoin-project/lassie/issues/108
 - [IN PROGRESS] Sheltie will **reconstruct DAGs across HTTP providers** instead of bailing out on unexpected CAR stream termination
 
-This project is a fork of Protocol Labs’s Lassie (https://github.com/filecoin-project/lassie) under Apache 2.0/MIT.“This project is a fork of Protocol Labs’s Lassie (https://github.com/filecoin-project/lassie
-) under Apache 2.0/MIT.”
+This project is a fork of Protocol Labs’s Lassie (https://github.com/filecoin-project/lassie) under Apache 2.0/MIT.
 
 ## Overview
 
