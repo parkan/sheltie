@@ -1,3 +1,6 @@
+// MODIFIED: 2025-10-30
+// - Removed bitswap protocol support from tests
+
 package itest
 
 import (
@@ -39,7 +42,7 @@ func TestTrustlessUnixfsFetch(t *testing.T) {
 	lsys.SetReadStorage(storage)
 
 	for _, tc := range testCases {
-		for _, proto := range []string{"http", "graphsync", "bitswap"} {
+		for _, proto := range []string{"http", "graphsync"} {
 			t.Run(tc.Name+"/"+proto, func(t *testing.T) {
 				req := require.New(t)
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -55,8 +58,6 @@ func TestTrustlessUnixfsFetch(t *testing.T) {
 				case "graphsync":
 					mrn.AddGraphsyncPeers(1, testpeer.WithLinkSystem(lsys))
 					finishedChan = mocknet.SetupRetrieval(t, mrn.Remotes[0])
-				case "bitswap":
-					mrn.AddBitswapPeers(1, testpeer.WithLinkSystem(lsys))
 				}
 
 				require.NoError(t, mrn.MN.LinkAll())

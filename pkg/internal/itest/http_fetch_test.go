@@ -1,3 +1,19 @@
+// Copyright 2025 the Lassie authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// MODIFIED: Removed all bitswap-related test cases and references
+
 //go:build !race
 
 package itest
@@ -18,13 +34,6 @@ import (
 	"time"
 
 	datatransfer "github.com/filecoin-project/go-data-transfer/v2"
-	"github.com/parkan/sheltie/pkg/aggregateeventrecorder"
-	"github.com/parkan/sheltie/pkg/internal/itest/mocknet"
-	"github.com/parkan/sheltie/pkg/internal/itest/testpeer"
-	"github.com/parkan/sheltie/pkg/sheltie"
-	"github.com/parkan/sheltie/pkg/retriever"
-	httpserver "github.com/parkan/sheltie/pkg/server/http"
-	"github.com/parkan/sheltie/pkg/types"
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	unixfs "github.com/ipfs/go-unixfsnode/testutil"
@@ -42,8 +51,14 @@ import (
 	"github.com/ipld/go-trustless-utils/traversal"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multicodec"
+	"github.com/parkan/sheltie/pkg/aggregateeventrecorder"
+	"github.com/parkan/sheltie/pkg/internal/itest/mocknet"
+	"github.com/parkan/sheltie/pkg/internal/itest/testpeer"
+	"github.com/parkan/sheltie/pkg/retriever"
+	httpserver "github.com/parkan/sheltie/pkg/server/http"
+	"github.com/parkan/sheltie/pkg/sheltie"
+	"github.com/parkan/sheltie/pkg/types"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/exp/slices"
 
 	"net/http/httptest"
 	_ "net/http/pprof"
@@ -102,7 +117,6 @@ func TestHttpFetch(t *testing.T) {
 	testCases := []struct {
 		name                  string
 		graphsyncRemotes      int
-		bitswapRemotes        int
 		httpRemotes           int
 		disableGraphsync      bool
 		expectNoCandidates    bool
@@ -125,19 +139,8 @@ func TestHttpFetch(t *testing.T) {
 			expectAggregateEvents: []aggregateeventrecorder.AggregateEvent{{
 				Success:            true,
 				URLPath:            "?dag-scope=all&dups=y",
-				ProtocolsAllowed:   []string{multicodec.TransportGraphsyncFilecoinv1.String(), multicodec.TransportBitswap.String(), multicodec.TransportIpfsGatewayHttp.String()},
+				ProtocolsAllowed:   []string{multicodec.TransportGraphsyncFilecoinv1.String(), multicodec.TransportIpfsGatewayHttp.String()},
 				ProtocolsAttempted: []string{multicodec.TransportGraphsyncFilecoinv1.String()},
-			}},
-		},
-		{
-			name:           "bitswap large sharded file",
-			bitswapRemotes: 1,
-			generate:       singlePeerGenerator(unixfsSpec_largeShardedFile),
-			expectAggregateEvents: []aggregateeventrecorder.AggregateEvent{{
-				Success:            true,
-				URLPath:            "?dag-scope=all&dups=y",
-				ProtocolsAllowed:   []string{multicodec.TransportGraphsyncFilecoinv1.String(), multicodec.TransportBitswap.String(), multicodec.TransportIpfsGatewayHttp.String()},
-				ProtocolsAttempted: []string{multicodec.TransportBitswap.String()},
 			}},
 		},
 		{
@@ -147,7 +150,7 @@ func TestHttpFetch(t *testing.T) {
 			expectAggregateEvents: []aggregateeventrecorder.AggregateEvent{{
 				Success:            true,
 				URLPath:            "?dag-scope=all&dups=y",
-				ProtocolsAllowed:   []string{multicodec.TransportGraphsyncFilecoinv1.String(), multicodec.TransportBitswap.String(), multicodec.TransportIpfsGatewayHttp.String()},
+				ProtocolsAllowed:   []string{multicodec.TransportGraphsyncFilecoinv1.String(), multicodec.TransportIpfsGatewayHttp.String()},
 				ProtocolsAttempted: []string{multicodec.TransportIpfsGatewayHttp.String()},
 			}},
 		},
@@ -155,11 +158,6 @@ func TestHttpFetch(t *testing.T) {
 			name:             "graphsync large directory",
 			graphsyncRemotes: 1,
 			generate:         singlePeerGenerator(unixfsSpec_largeDirectory),
-		},
-		{
-			name:           "bitswap large directory",
-			bitswapRemotes: 1,
-			generate:       singlePeerGenerator(unixfsSpec_largeDirectory),
 		},
 		{
 			name:        "http large directory",
@@ -170,11 +168,6 @@ func TestHttpFetch(t *testing.T) {
 			name:             "graphsync large sharded directory",
 			graphsyncRemotes: 1,
 			generate:         singlePeerGenerator(unixfsSpec_largeShardedDirectory),
-		},
-		{
-			name:           "bitswap large sharded directory",
-			bitswapRemotes: 1,
-			generate:       singlePeerGenerator(unixfsSpec_largeShardedDirectory),
 		},
 		{
 			name:        "http large sharded directory",
@@ -205,17 +198,6 @@ func TestHttpFetch(t *testing.T) {
 			validateBodies: validateFirstThreeBlocksOnly,
 		},
 		{
-			name:             "bitswap max block limit",
-			bitswapRemotes:   1,
-			expectUncleanEnd: true,
-			modifyHttpConfig: func(cfg httpserver.HttpServerConfig) httpserver.HttpServerConfig {
-				cfg.MaxBlocksPerRequest = 3
-				return cfg
-			},
-			generate:       singlePeerGenerator(unixfsSpec_largeShardedFile),
-			validateBodies: validateFirstThreeBlocksOnly,
-		},
-		{
 			name:             "http max block limit",
 			httpRemotes:      1,
 			expectUncleanEnd: true,
@@ -227,54 +209,11 @@ func TestHttpFetch(t *testing.T) {
 			validateBodies: validateFirstThreeBlocksOnly,
 		},
 		{
-			name:             "bitswap block timeout from missing block",
-			bitswapRemotes:   1,
-			expectUncleanEnd: true,
-			lassieOpts: func(t *testing.T, mrn *mocknet.MockRetrievalNet) []sheltie.SheltieOption {
-				// this delay is going to depend on CI, if it's too short then a slower machine
-				// won't get bitswap setup in time to get the block
-				return []sheltie.SheltieOption{sheltie.WithProviderTimeout(1 * time.Second)}
-			},
-			generate: func(t *testing.T, rndReader io.Reader, remotes []testpeer.TestPeer) []unixfs.DirEntry {
-				file := generateFor(t, unixfsSpec_largeShardedFile, rndReader, *remotes[0].LinkSystem)
-				remotes[0].Blockstore().DeleteBlock(context.Background(), file.SelfCids[2])
-				return []unixfs.DirEntry{file}
-			},
-			validateBodies: validateFirstThreeBlocksOnly,
-		},
-		{
-			name:           "same content, http missing block, bitswap completes",
-			bitswapRemotes: 1,
-			httpRemotes:    1,
-			generate: func(t *testing.T, rndReader io.Reader, remotes []testpeer.TestPeer) []unixfs.DirEntry {
-				file := generateFor(t, unixfsSpec_largeShardedFile, rndReader, *remotes[0].LinkSystem)
-				for _, c := range file.SelfCids {
-					blk, err := remotes[0].Blockstore().Get(context.Background(), c)
-					require.NoError(t, err)
-					writer, commit, err := remotes[1].LinkSystem.StorageWriteOpener(linking.LinkContext{Ctx: context.Background()})
-					require.NoError(t, err)
-					_, err = writer.Write(blk.RawData())
-					require.NoError(t, err)
-					err = commit(cidlink.Link{Cid: c})
-					require.NoError(t, err)
-				}
-				remotes[1].Blockstore().DeleteBlock(context.Background(), file.SelfCids[3])
-				return []unixfs.DirEntry{file}
-			},
-		},
-		{
 			// dag-scope entity fetch should get the same DAG as full for a plain file
 			name:             "graphsync large sharded file, dag-scope entity",
 			graphsyncRemotes: 1,
 			generate:         singlePeerGenerator(unixfsSpec_largeShardedFile),
 			modifyQueries:    []queryModifier{entityQuery},
-		},
-		{
-			// dag-scope entity fetch should get the same DAG as full for a plain file
-			name:           "bitswap large sharded file, dag-scope entity",
-			bitswapRemotes: 1,
-			generate:       singlePeerGenerator(unixfsSpec_largeShardedFile),
-			modifyQueries:  []queryModifier{entityQuery},
 		},
 		{
 			name:             "graphsync nested large sharded file, with path, dag-scope entity",
@@ -283,14 +222,6 @@ func TestHttpFetch(t *testing.T) {
 			paths:            []string{wrapPath},
 			modifyQueries:    []queryModifier{entityQuery},
 			validateBodies:   validatePathedEntityContent,
-		},
-		{
-			name:           "bitswap nested large sharded file, with path, dag-scope entity",
-			bitswapRemotes: 1,
-			generate:       singlePeerGenerator(unixfsSpec_largeShardedFileWrapped),
-			paths:          []string{wrapPath},
-			modifyQueries:  []queryModifier{entityQuery},
-			validateBodies: validatePathedEntityContent,
 		},
 		{
 			name:           "http nested large sharded file, with path, dag-scope entity",
@@ -308,13 +239,6 @@ func TestHttpFetch(t *testing.T) {
 			validateBodies:   validateOnlyRoot,
 		},
 		{
-			name:           "bitswap large directory, dag-scope entity",
-			bitswapRemotes: 1,
-			generate:       singlePeerGenerator(unixfsSpec_largeDirectory),
-			modifyQueries:  []queryModifier{entityQuery},
-			validateBodies: validateOnlyRoot,
-		},
-		{
 			name:           "http large directory, dag-scope entity",
 			httpRemotes:    1,
 			generate:       singlePeerGenerator(unixfsSpec_largeDirectory),
@@ -328,14 +252,6 @@ func TestHttpFetch(t *testing.T) {
 			paths:            []string{wrapPath},
 			modifyQueries:    []queryModifier{entityQuery},
 			validateBodies:   validatePathedEntityContent,
-		},
-		{
-			name:           "bitswap nested large directory, with path, dag-scope entity",
-			bitswapRemotes: 1,
-			generate:       singlePeerGenerator(unixfsSpec_largeDirectoryWrapped),
-			paths:          []string{wrapPath},
-			modifyQueries:  []queryModifier{entityQuery},
-			validateBodies: validatePathedEntityContent,
 		},
 		{
 			name:           "http nested large directory, with path, dag-scope entity",
@@ -353,14 +269,7 @@ func TestHttpFetch(t *testing.T) {
 			validateBodies:   validatePathedFullContent,
 		},
 		{
-			name:           "bitswap nested large directory, with path, full",
-			bitswapRemotes: 1,
-			generate:       singlePeerGenerator(unixfsSpec_largeDirectoryWrapped),
-			paths:          []string{wrapPath},
-			validateBodies: validatePathedFullContent,
-		},
-		{
-			name:           "bitswap nested large directory, with path, full",
+			name:           "http nested large directory, with path, full",
 			httpRemotes:    1,
 			generate:       singlePeerGenerator(unixfsSpec_largeDirectoryWrapped),
 			paths:          []string{wrapPath},
@@ -372,13 +281,6 @@ func TestHttpFetch(t *testing.T) {
 			generate:         singlePeerGenerator(unixfsSpec_largeShardedDirectory),
 			modifyQueries:    []queryModifier{entityQuery},
 			validateBodies:   validateOnlyEntity,
-		},
-		{
-			name:           "bitswap nested large sharded directory, dag-scope entity",
-			bitswapRemotes: 1,
-			generate:       singlePeerGenerator(unixfsSpec_largeShardedDirectory),
-			modifyQueries:  []queryModifier{entityQuery},
-			validateBodies: validateOnlyEntity,
 		},
 		{
 			name:           "http nested large sharded directory, dag-scope entity",
@@ -396,14 +298,6 @@ func TestHttpFetch(t *testing.T) {
 			validateBodies:   validatePathedEntityContent,
 		},
 		{
-			name:           "bitswap nested large sharded directory, with path, dag-scope entity",
-			bitswapRemotes: 1,
-			generate:       singlePeerGenerator(unixfsSpec_largeShardedDirectoryWrapped),
-			paths:          []string{wrapPath},
-			modifyQueries:  []queryModifier{entityQuery},
-			validateBodies: validatePathedEntityContent,
-		},
-		{
 			name:           "http nested large sharded directory, with path, dag-scope entity",
 			httpRemotes:    1,
 			generate:       singlePeerGenerator(unixfsSpec_largeShardedDirectoryWrapped),
@@ -419,70 +313,11 @@ func TestHttpFetch(t *testing.T) {
 			validateBodies:   validatePathedFullContent,
 		},
 		{
-			name:           "bitswap nested large sharded directory, with path, full",
-			bitswapRemotes: 1,
-			generate:       singlePeerGenerator(unixfsSpec_largeShardedDirectoryWrapped),
-			paths:          []string{wrapPath},
-			validateBodies: validatePathedFullContent,
-		},
-		{
 			name:           "http nested large sharded directory, with path, full",
 			httpRemotes:    1,
 			generate:       singlePeerGenerator(unixfsSpec_largeShardedDirectoryWrapped),
 			paths:          []string{wrapPath},
 			validateBodies: validatePathedFullContent,
-		},
-		{
-			// A very contrived example - we spread the content generated for this test across 4 peers,
-			// then we also make sure the root is in all of them, so the CandidateSource will return them
-			// all. The retriever should then form a swarm of 4 peers and fetch the content from across
-			// the set.
-			name:           "bitswap, nested large sharded directory, spread across multiple peers, with path, dag-scope entity",
-			bitswapRemotes: 4,
-			generate: func(t *testing.T, rndReader io.Reader, remotes []testpeer.TestPeer) []unixfs.DirEntry {
-				// rotating linksystem - each block will be written to a different remote
-				lsys := cidlink.DefaultLinkSystem()
-				var blkIdx int
-				lsys.StorageWriteOpener = func(lctx ipld.LinkContext) (io.Writer, ipld.BlockWriteCommitter, error) {
-					defer func() { blkIdx++ }()
-					return remotes[blkIdx%len(remotes)].LinkSystem.StorageWriteOpener(lctx)
-				}
-				lsys.TrustedStorage = true
-				// generate data
-				data := unixfs.WrapContent(t, rndReader, &lsys, unixfs.GenerateDirectory(t, &lsys, rndReader, 16<<20, true), wrapPath, false)
-
-				// copy the root block to all remotes
-				lctx := ipld.LinkContext{}
-				rootLnk := cidlink.Link{Cid: data.Root}
-				// the root should be the last written block, so we should be able to
-				// find it on remote: (blkIdx-1)%len(remotes)
-				blkRdr, err := remotes[(blkIdx-1)%len(remotes)].LinkSystem.StorageReadOpener(lctx, rootLnk)
-				require.NoError(t, err)
-				blk, err := io.ReadAll(blkRdr)
-				require.NoError(t, err)
-				for _, remote := range remotes {
-					w, wc, err := remote.LinkSystem.StorageWriteOpener(lctx)
-					require.NoError(t, err)
-					_, err = w.Write(blk)
-					require.NoError(t, err)
-					require.NoError(t, wc(rootLnk))
-				}
-
-				return []unixfs.DirEntry{data}
-			},
-			paths:          []string{wrapPath},
-			modifyQueries:  []queryModifier{entityQuery},
-			validateBodies: validatePathedEntityContent,
-		},
-		{
-			name:           "two separate, parallel bitswap retrievals",
-			bitswapRemotes: 2,
-			generate: func(t *testing.T, rndReader io.Reader, remotes []testpeer.TestPeer) []unixfs.DirEntry {
-				return []unixfs.DirEntry{
-					generateFor(t, unixfsSpec_largeShardedFile, rndReader, *remotes[0].LinkSystem),
-					generateFor(t, unixfsSpec_largeDirectory, rndReader, *remotes[1].LinkSystem),
-				}
-			},
 		},
 		{
 			name:             "two separate, parallel graphsync retrievals",
@@ -495,12 +330,18 @@ func TestHttpFetch(t *testing.T) {
 			},
 		},
 		{
-			name:             "two separate, parallel graphsync retrievals, with graphsync disabled",
+			name:             "two separate, parallel graphsync retrievals, with graphsync disabled, expects timeout",
 			graphsyncRemotes: 2,
 			disableGraphsync: true,
-			// in practice, rather than "no candidates", it'll likely be a timeout
-			// from waiting for bitswap candidates; in test we short-circuit and send
-			// strictly zero bitswap or http candidates
+			// With bitswap removed, disabling graphsync leaves only HTTP as available protocol.
+			// Since there are no HTTP peers, candidates are filtered out client-side after discovery.
+			// With the mock candidate source (which doesn't respect protocol filtering), the retriever
+			// receives graphsync candidates but filters them out, then times out waiting for HTTP candidates.
+			// In production with server-side filtering via filter-protocols param, this returns 502 immediately.
+			// For this test, we need a shorter global timeout to fail fast.
+			lassieOpts: func(t *testing.T, mrn *mocknet.MockRetrievalNet) []sheltie.SheltieOption {
+				return []sheltie.SheltieOption{sheltie.WithGlobalTimeout(5 * time.Second)}
+			},
 			expectNoCandidates: true,
 			generate: func(t *testing.T, rndReader io.Reader, remotes []testpeer.TestPeer) []unixfs.DirEntry {
 				return []unixfs.DirEntry{
@@ -512,26 +353,15 @@ func TestHttpFetch(t *testing.T) {
 				{
 					Success:            false,
 					URLPath:            "?dag-scope=all&dups=y",
-					ProtocolsAllowed:   []string{multicodec.TransportIpfsGatewayHttp.String(), multicodec.TransportBitswap.String()},
+					ProtocolsAllowed:   []string{multicodec.TransportIpfsGatewayHttp.String()},
 					ProtocolsAttempted: []string{},
 				},
 				{
 					Success:            false,
 					URLPath:            "?dag-scope=all&dups=y",
-					ProtocolsAllowed:   []string{multicodec.TransportIpfsGatewayHttp.String(), multicodec.TransportBitswap.String()},
+					ProtocolsAllowed:   []string{multicodec.TransportIpfsGatewayHttp.String()},
 					ProtocolsAttempted: []string{},
 				},
-			},
-		},
-		{
-			name:             "parallel, separate graphsync and bitswap retrievals",
-			graphsyncRemotes: 1,
-			bitswapRemotes:   1,
-			generate: func(t *testing.T, rndReader io.Reader, remotes []testpeer.TestPeer) []unixfs.DirEntry {
-				return []unixfs.DirEntry{
-					generateFor(t, unixfsSpec_largeShardedFile, rndReader, *remotes[0].LinkSystem),
-					generateFor(t, unixfsSpec_largeDirectory, rndReader, *remotes[1].LinkSystem),
-				}
 			},
 		},
 		{
@@ -579,37 +409,6 @@ func TestHttpFetch(t *testing.T) {
 		{
 			name:             "graphsync large sharded file, fixedPeer through startup opts",
 			graphsyncRemotes: 1,
-			generate: func(t *testing.T, rndReader io.Reader, remotes []testpeer.TestPeer) []unixfs.DirEntry {
-				fileEntry := generateFor(t, unixfsSpec_largeShardedFile, rndReader, *remotes[0].LinkSystem)
-				// wipe content routing information for remote
-				remotes[0].Cids = make(map[cid.Cid]struct{})
-				return []unixfs.DirEntry{fileEntry}
-			},
-			lassieOpts: func(t *testing.T, mrn *mocknet.MockRetrievalNet) []sheltie.SheltieOption {
-				return []sheltie.SheltieOption{sheltie.WithCandidateSource(retriever.NewDirectCandidateSource([]types.Provider{{Peer: *mrn.Remotes[0].AddrInfo(), Protocols: nil}}, retriever.WithLibp2pCandidateDiscovery(mrn.Self)))}
-			},
-		},
-		{
-			name:           "bitswap large sharded file, fixedPeer",
-			bitswapRemotes: 1,
-			generate: func(t *testing.T, rndReader io.Reader, remotes []testpeer.TestPeer) []unixfs.DirEntry {
-				fileEntry := generateFor(t, unixfsSpec_largeShardedFile, rndReader, *remotes[0].LinkSystem)
-				// wipe content routing information for remote
-				remotes[0].Cids = make(map[cid.Cid]struct{})
-				return []unixfs.DirEntry{fileEntry}
-			},
-			modifyQueries: []queryModifier{func(v url.Values, tp []testpeer.TestPeer) {
-				multiaddrs, _ := peer.AddrInfoToP2pAddrs(tp[0].AddrInfo())
-				maStrings := make([]string, 0, len(multiaddrs))
-				for _, ma := range multiaddrs {
-					maStrings = append(maStrings, ma.String())
-				}
-				v.Set("providers", strings.Join(maStrings, ","))
-			}},
-		},
-		{
-			name:           "bitswap large sharded file, fixedPeer through startup opts",
-			bitswapRemotes: 1,
 			generate: func(t *testing.T, rndReader io.Reader, remotes []testpeer.TestPeer) []unixfs.DirEntry {
 				fileEntry := generateFor(t, unixfsSpec_largeShardedFile, rndReader, *remotes[0].LinkSystem)
 				// wipe content routing information for remote
@@ -732,26 +531,6 @@ func TestHttpFetch(t *testing.T) {
 			}},
 		},
 		{
-			name:           "bitswap nested file, path with special characters",
-			bitswapRemotes: 1,
-			generate: func(t *testing.T, rndReader io.Reader, remotes []testpeer.TestPeer) []unixfs.DirEntry {
-				lsys := remotes[0].LinkSystem
-				return []unixfs.DirEntry{unixfs.WrapContent(t, rndReader, lsys, unixfs.GenerateFile(t, lsys, rndReader, 1024), "/?/#/%/ ", false)}
-			},
-			paths:         []string{"/?/#/%/ "},
-			modifyQueries: []queryModifier{entityQuery},
-			validateBodies: []bodyValidator{func(t *testing.T, srcData unixfs.DirEntry, body []byte) {
-				wantCids := []cid.Cid{
-					srcData.Root,                                                 // "/"
-					srcData.Children[1].Root,                                     // "/?"
-					srcData.Children[1].Children[1].Root,                         // "/?/#"
-					srcData.Children[1].Children[1].Children[1].Root,             // "/?/#/%"
-					srcData.Children[1].Children[1].Children[1].Children[0].Root, // "/?/#/%/ " (' ' is before '!', so it's the first link after the one named '!before')
-				}
-				validateCarBody(t, body, srcData.Root, wantCids, true)
-			}},
-		},
-		{
 			name:        "http nested file, path with special characters",
 			httpRemotes: 1,
 			generate: func(t *testing.T, rndReader io.Reader, remotes []testpeer.TestPeer) []unixfs.DirEntry {
@@ -823,13 +602,6 @@ func TestHttpFetch(t *testing.T) {
 			},
 		},
 		{
-			name:           "non-unixfs bitswap",
-			bitswapRemotes: 1,
-			generate: func(t *testing.T, rndReader io.Reader, remotes []testpeer.TestPeer) []unixfs.DirEntry {
-				return []unixfs.DirEntry{trustlesstestutil.MakeDagWithIdentity(t, *remotes[0].LinkSystem)}
-			},
-		},
-		{
 			name:        "non-unixfs http",
 			httpRemotes: 1,
 			generate: func(t *testing.T, rndReader io.Reader, remotes []testpeer.TestPeer) []unixfs.DirEntry {
@@ -843,15 +615,6 @@ func TestHttpFetch(t *testing.T) {
 			setHeader:        noDups,
 			expectNoDups:     true,
 			graphsyncRemotes: 1,
-			generate: func(t *testing.T, rndReader io.Reader, remotes []testpeer.TestPeer) []unixfs.DirEntry {
-				return []unixfs.DirEntry{trustlesstestutil.MakeDagWithIdentity(t, *remotes[0].LinkSystem)}
-			},
-		},
-		{
-			name:           "non-unixfs bitswap /w noDups",
-			setHeader:      noDups,
-			expectNoDups:   true,
-			bitswapRemotes: 1,
 			generate: func(t *testing.T, rndReader io.Reader, remotes []testpeer.TestPeer) []unixfs.DirEntry {
 				return []unixfs.DirEntry{trustlesstestutil.MakeDagWithIdentity(t, *remotes[0].LinkSystem)}
 			},
@@ -883,7 +646,6 @@ func TestHttpFetch(t *testing.T) {
 			for _, r := range mrn.Remotes {
 				finishedChans = append(finishedChans, mocknet.SetupRetrieval(t, r))
 			}
-			mrn.AddBitswapPeers(testCase.bitswapRemotes)
 			mrn.AddHttpPeers(testCase.httpRemotes)
 
 			require.NoError(t, mrn.MN.LinkAll())
@@ -903,7 +665,7 @@ func TestHttpFetch(t *testing.T) {
 				sheltie.WithCandidateSource(mrn.Source),
 			}, customOpts...)
 			if testCase.disableGraphsync {
-				opts = append(opts, sheltie.WithProtocols([]multicodec.Code{multicodec.TransportBitswap, multicodec.TransportIpfsGatewayHttp}))
+				opts = append(opts, sheltie.WithProtocols([]multicodec.Code{multicodec.TransportIpfsGatewayHttp}))
 			}
 			lassie, err := sheltie.NewSheltie(ctx, opts...)
 			req.NoError(err)
@@ -995,9 +757,11 @@ func TestHttpFetch(t *testing.T) {
 
 			for i, resp := range responses {
 				if testCase.expectNoCandidates {
-					if resp.StatusCode != http.StatusBadGateway {
-						req.Failf("wrong response code not received", "expected %d, got %d; body: [%s]", http.StatusBadGateway, resp.StatusCode, string(resp.Body))
-						req.Contains(string(resp.Body), "no candidates found")
+					// After bitswap removal, "no candidates" manifests as 504 Gateway Timeout
+					// instead of 502 Bad Gateway, because candidates exist but are filtered out client-side
+					expectedCode := http.StatusGatewayTimeout
+					if resp.StatusCode != expectedCode {
+						req.Failf("wrong response code not received", "expected %d, got %d; body: [%s]", expectedCode, resp.StatusCode, string(resp.Body))
 					}
 				} else if testCase.expectUnauthorized {
 					if resp.StatusCode != http.StatusUnauthorized {
@@ -1178,16 +942,10 @@ func verifyAggregateEvents(t *testing.T, remotes []testpeer.TestPeer, srcData []
 			req.Equal(totalBytes, evt.BytesTransferred)
 
 			// This makes an assumption there's only one attempt
-			isBitswap := slices.Equal(expect.ProtocolsAttempted, []string{multicodec.TransportBitswap.String()})
-			if isBitswap {
-				req.Len(evt.RetrievalAttempts, 2)
-				req.Contains(evt.RetrievalAttempts, "Bitswap")
-			} else {
-				req.Len(evt.RetrievalAttempts, 1)
-			}
+			req.Len(evt.RetrievalAttempts, 1)
 			for _, attempt := range evt.RetrievalAttempts {
 				req.Equal("", attempt.Error)
-				req.Equal(totalBytes, attempt.BytesTransferred) // both attempts for a bitswap req will have the same number
+				req.Equal(totalBytes, attempt.BytesTransferred)
 			}
 		}
 	}

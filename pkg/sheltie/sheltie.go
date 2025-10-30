@@ -3,6 +3,8 @@
 // - Removed bitswap concurrency configuration and constants
 // - Removed bitswap protocol initialization
 // - Updated default protocols to [graphsync, http] (removed bitswap)
+// - Added protocol filtering to IndexerCandidateSource initialization
+// - Moved protocol defaults before candidate source creation
 
 package sheltie
 
@@ -67,9 +69,17 @@ func NewSheltieConfig(opts ...SheltieOption) *SheltieConfig {
 // NewSheltieWithConfig creates a new Sheltie instance with a custom
 // configuration.
 func NewSheltieWithConfig(ctx context.Context, cfg *SheltieConfig) (*Sheltie, error) {
+	// Set default protocols first, before creating candidate source
+	if len(cfg.Protocols) == 0 {
+		cfg.Protocols = []multicodec.Code{multicodec.TransportGraphsyncFilecoinv1, multicodec.TransportIpfsGatewayHttp}
+	}
+
 	if cfg.Source == nil {
 		var err error
-		cfg.Source, err = indexerlookup.NewCandidateSource(indexerlookup.WithHttpClient(&http.Client{}))
+		cfg.Source, err = indexerlookup.NewCandidateSource(
+			indexerlookup.WithHttpClient(&http.Client{}),
+			indexerlookup.WithProtocols(cfg.Protocols),
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -97,10 +107,6 @@ func NewSheltieWithConfig(ctx context.Context, cfg *SheltieConfig) (*Sheltie, er
 			MaxConcurrentRetrievals: cfg.ConcurrentSPRetrievals,
 		})
 	session := session.NewSession(sessionConfig, true)
-
-	if len(cfg.Protocols) == 0 {
-		cfg.Protocols = []multicodec.Code{multicodec.TransportGraphsyncFilecoinv1, multicodec.TransportIpfsGatewayHttp}
-	}
 
 	protocolRetrievers := make(map[multicodec.Code]types.CandidateRetriever)
 	for _, protocol := range cfg.Protocols {

@@ -4,6 +4,7 @@
 // - Updated to use JSON response format instead of NDJSON
 // - Added CIDv1 base32 normalization for better HTTP caching
 // - Added HTTP 429 rate limiting handling
+// - Added filter-protocols query parameter support for protocol filtering
 
 package indexerlookup
 
@@ -13,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/parkan/sheltie/pkg/types"
 	"github.com/ipfs/go-cid"
@@ -77,6 +79,20 @@ func (idxf *IndexerCandidateSource) newFindHttpRequest(ctx context.Context, c ci
 	if idxf.httpUserAgent != "" {
 		req.Header.Set("User-Agent", idxf.httpUserAgent)
 	}
+
+	// Add filter-protocols query parameter if protocols are specified
+	// Per https://specs.ipfs.tech/routing/http-routing-v1/
+	// Note: cid.contact doesn't support this yet, so we also do client-side filtering
+	if len(idxf.protocols) > 0 {
+		query := req.URL.Query()
+		protocols := make([]string, len(idxf.protocols))
+		for i, p := range idxf.protocols {
+			protocols[i] = "transport-" + p.String()
+		}
+		query.Add("filter-protocols", strings.Join(protocols, ","))
+		req.URL.RawQuery = query.Encode()
+	}
+
 	return req, nil
 }
 
@@ -106,6 +122,13 @@ func (idxf *IndexerCandidateSource) decodeDelegatedRoutingResponse(ctx context.C
 				continue
 			}
 
+			// Client-side protocol filtering (fallback for non-compliant servers)
+			// If protocols are specified, check if provider has any matching protocol
+			if len(idxf.protocols) > 0 && !idxf.providerMatchesProtocols(&provider) {
+				logger.Debugw("Provider protocols don't match filter, skipping", "id", provider.ID, "protocols", provider.Protocols, "filter", idxf.protocols)
+				continue
+			}
+
 			// Convert protocols to metadata
 			md, err := provider.ToMetadata()
 			if err != nil {
@@ -124,6 +147,23 @@ func (idxf *IndexerCandidateSource) decodeDelegatedRoutingResponse(ctx context.C
 	}
 
 	return nil
+}
+
+// providerMatchesProtocols checks if a provider supports any of the allowed protocols
+func (idxf *IndexerCandidateSource) providerMatchesProtocols(provider *DelegatedProvider) bool {
+	// Build a map of allowed protocol strings for fast lookup
+	allowed := make(map[string]bool)
+	for _, p := range idxf.protocols {
+		allowed["transport-"+p.String()] = true
+	}
+
+	// Check if provider has any matching protocol
+	for _, protoName := range provider.Protocols {
+		if allowed[protoName] {
+			return true
+		}
+	}
+	return false
 }
 
 // findByDelegatedRoutingEndpoint constructs the delegated routing API endpoint for a CID
