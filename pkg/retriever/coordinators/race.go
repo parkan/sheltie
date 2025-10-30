@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/types"
 	"go.uber.org/multierr"
 )
 

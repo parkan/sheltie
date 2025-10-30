@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/filecoin-project/lassie/pkg/internal/testutil"
-	"github.com/filecoin-project/lassie/pkg/retriever/bitswaphelpers"
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/internal/testutil"
+	"github.com/parkan/sheltie/pkg/retriever/bitswaphelpers"
+	"github.com/parkan/sheltie/pkg/types"
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"

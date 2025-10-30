@@ -5,9 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/filecoin-project/lassie/pkg/heyfil"
-	"github.com/filecoin-project/lassie/pkg/lassie"
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/heyfil"
+	"github.com/parkan/sheltie/pkg/sheltie"
+	"github.com/parkan/sheltie/pkg/types"
 	"github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multicodec"
@@ -178,14 +178,14 @@ var FlagTempDir = &cli.StringFlag{
 var FlagBitswapConcurrency = &cli.IntFlag{
 	Name:    "bitswap-concurrency",
 	Usage:   "maximum number of concurrent bitswap requests",
-	Value:   lassie.DefaultBitswapConcurrency,
+	Value:   sheltie.DefaultBitswapConcurrency,
 	EnvVars: []string{"LASSIE_BITSWAP_CONCURRENCY"},
 }
 
 var FlagBitswapConcurrencyPerRetrieval = &cli.IntFlag{
 	Name:    "bitswap-concurrency-per-retrieval",
 	Usage:   "maximum number of concurrent bitswap requests per retrieval",
-	Value:   lassie.DefaultBitswapConcurrencyPerRetrieval,
+	Value:   sheltie.DefaultBitswapConcurrencyPerRetrieval,
 	EnvVars: []string{"LASSIE_BITSWAP_CONCURRENCY_PER_RETRIEVAL"},
 }
 

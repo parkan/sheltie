@@ -9,8 +9,8 @@ import (
 
 	datatransfer "github.com/filecoin-project/go-data-transfer/v2"
 	retrievaltypes "github.com/filecoin-project/go-retrieval-types"
-	"github.com/filecoin-project/lassie/pkg/internal/itest/testpeer"
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/internal/itest/testpeer"
+	"github.com/parkan/sheltie/pkg/types"
 	bsnet "github.com/ipfs/boxo/bitswap/network"
 	bssrv "github.com/ipfs/boxo/bitswap/server"
 	"github.com/ipfs/go-cid"

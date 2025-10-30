@@ -8,18 +8,18 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/filecoin-project/lassie/pkg/aggregateeventrecorder"
-	"github.com/filecoin-project/lassie/pkg/indexerlookup"
-	"github.com/filecoin-project/lassie/pkg/lassie"
-	"github.com/filecoin-project/lassie/pkg/net/host"
-	"github.com/filecoin-project/lassie/pkg/retriever"
+	"github.com/parkan/sheltie/pkg/aggregateeventrecorder"
+	"github.com/parkan/sheltie/pkg/indexerlookup"
+	"github.com/parkan/sheltie/pkg/sheltie"
+	"github.com/parkan/sheltie/pkg/net/host"
+	"github.com/parkan/sheltie/pkg/retriever"
 	"github.com/google/uuid"
 	"github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/config"
 	"github.com/urfave/cli/v2"
 )
 
-var logger = log.Logger("lassie/main")
+var logger = log.Logger("sheltie/main")
 
 func main() {
 	// set up a context that is canceled when a command is interrupted
@@ -44,8 +44,8 @@ func main() {
 	}()
 
 	app := &cli.App{
-		Name:    "lassie",
-		Usage:   "Utility for retrieving content from the Filecoin network",
+		Name:    "sheltie",
+		Usage:   "Sheltie - Utility for retrieving content from the Filecoin network",
 		Suggest: true,
 		Flags: []cli.Flag{
 			FlagVerbose,
@@ -68,30 +68,30 @@ func after(cctx *cli.Context) error {
 	return nil
 }
 
-func buildLassieConfigFromCLIContext(cctx *cli.Context, lassieOpts []lassie.LassieOption, libp2pOpts []config.Option) (*lassie.LassieConfig, error) {
+func buildLassieConfigFromCLIContext(cctx *cli.Context, lassieOpts []sheltie.SheltieOption, libp2pOpts []config.Option) (*sheltie.SheltieConfig, error) {
 	providerTimeout := cctx.Duration("provider-timeout")
 	globalTimeout := cctx.Duration("global-timeout")
 	bitswapConcurrency := cctx.Int("bitswap-concurrency")
 	bitswapConcurrencyPerRetrieval := cctx.Int("bitswap-concurrency-per-retrieval")
 
-	lassieOpts = append(lassieOpts, lassie.WithProviderTimeout(providerTimeout))
+	lassieOpts = append(lassieOpts, sheltie.WithProviderTimeout(providerTimeout))
 
 	if globalTimeout > 0 {
-		lassieOpts = append(lassieOpts, lassie.WithGlobalTimeout(globalTimeout))
+		lassieOpts = append(lassieOpts, sheltie.WithGlobalTimeout(globalTimeout))
 	}
 
 	if len(protocols) > 0 {
-		lassieOpts = append(lassieOpts, lassie.WithProtocols(protocols))
+		lassieOpts = append(lassieOpts, sheltie.WithProtocols(protocols))
 	}
 
 	host, err := host.InitHost(cctx.Context, libp2pOpts)
 	if err != nil {
 		return nil, err
 	}
-	lassieOpts = append(lassieOpts, lassie.WithHost(host))
+	lassieOpts = append(lassieOpts, sheltie.WithHost(host))
 
 	if len(fetchProviders) > 0 {
-		finderOpt := lassie.WithCandidateSource(retriever.NewDirectCandidateSource(fetchProviders, retriever.WithLibp2pCandidateDiscovery(host)))
+		finderOpt := sheltie.WithCandidateSource(retriever.NewDirectCandidateSource(fetchProviders, retriever.WithLibp2pCandidateDiscovery(host)))
 		if cctx.IsSet("ipni-endpoint") {
 			logger.Warn("Ignoring ipni-endpoint flag since direct provider is specified")
 		}
@@ -108,25 +108,25 @@ func buildLassieConfigFromCLIContext(cctx *cli.Context, lassieOpts []lassie.Lass
 			logger.Errorw("Failed to instantiate IPNI candidate finder", "err", err)
 			return nil, err
 		}
-		lassieOpts = append(lassieOpts, lassie.WithCandidateSource(finder))
+		lassieOpts = append(lassieOpts, sheltie.WithCandidateSource(finder))
 		logger.Debug("Using explicit IPNI endpoint to find candidates", "endpoint", endpoint)
 	}
 
 	if len(providerBlockList) > 0 {
-		lassieOpts = append(lassieOpts, lassie.WithProviderBlockList(providerBlockList))
+		lassieOpts = append(lassieOpts, sheltie.WithProviderBlockList(providerBlockList))
 	}
 
 	if bitswapConcurrency > 0 {
-		lassieOpts = append(lassieOpts, lassie.WithBitswapConcurrency(bitswapConcurrency))
+		lassieOpts = append(lassieOpts, sheltie.WithBitswapConcurrency(bitswapConcurrency))
 	}
 
 	if bitswapConcurrencyPerRetrieval > 0 {
-		lassieOpts = append(lassieOpts, lassie.WithBitswapConcurrencyPerRetrieval(bitswapConcurrencyPerRetrieval))
+		lassieOpts = append(lassieOpts, sheltie.WithBitswapConcurrencyPerRetrieval(bitswapConcurrencyPerRetrieval))
 	} else if bitswapConcurrency > 0 {
-		lassieOpts = append(lassieOpts, lassie.WithBitswapConcurrencyPerRetrieval(bitswapConcurrency))
+		lassieOpts = append(lassieOpts, sheltie.WithBitswapConcurrencyPerRetrieval(bitswapConcurrency))
 	}
 
-	return lassie.NewLassieConfig(lassieOpts...), nil
+	return sheltie.NewSheltieConfig(lassieOpts...), nil
 }
 
 func getEventRecorderConfig(endpointURL string, authToken string, instanceID string) *aggregateeventrecorder.EventRecorderConfig {
@@ -141,7 +141,7 @@ func getEventRecorderConfig(endpointURL string, authToken string, instanceID str
 func setupLassieEventRecorder(
 	ctx context.Context,
 	cfg *aggregateeventrecorder.EventRecorderConfig,
-	lassie *lassie.Lassie,
+	lassie *sheltie.Sheltie,
 ) {
 	if cfg.EndpointURL != "" {
 		if cfg.InstanceID == "" {

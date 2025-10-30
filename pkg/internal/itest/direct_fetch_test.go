@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/filecoin-project/lassie/pkg/internal/itest/mocknet"
-	"github.com/filecoin-project/lassie/pkg/internal/lp2ptransports"
-	"github.com/filecoin-project/lassie/pkg/lassie"
-	"github.com/filecoin-project/lassie/pkg/retriever"
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/internal/itest/mocknet"
+	"github.com/parkan/sheltie/pkg/internal/lp2ptransports"
+	"github.com/parkan/sheltie/pkg/sheltie"
+	"github.com/parkan/sheltie/pkg/retriever"
+	"github.com/parkan/sheltie/pkg/types"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-unixfsnode"
 	unixfs "github.com/ipfs/go-unixfsnode/testutil"
@@ -126,7 +126,7 @@ func TestDirectFetch(t *testing.T) {
 			}
 
 			directFinder := retriever.NewDirectCandidateSource([]types.Provider{{Peer: addr, Protocols: nil}}, retriever.WithLibp2pCandidateDiscovery(mrn.Self))
-			lassie, err := lassie.NewLassie(ctx, lassie.WithCandidateSource(directFinder), lassie.WithHost(mrn.Self), lassie.WithGlobalTimeout(5*time.Second))
+			lassie, err := sheltie.NewSheltie(ctx, sheltie.WithCandidateSource(directFinder), sheltie.WithHost(mrn.Self), sheltie.WithGlobalTimeout(5*time.Second))
 			req.NoError(err)
 			outFile, err := os.CreateTemp(t.TempDir(), "lassie-test-")
 			req.NoError(err)

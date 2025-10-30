@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/filecoin-project/lassie/pkg/internal/itest/mocknet"
-	"github.com/filecoin-project/lassie/pkg/lassie"
+	"github.com/parkan/sheltie/pkg/internal/itest/mocknet"
+	"github.com/parkan/sheltie/pkg/sheltie"
 	unixfs "github.com/ipfs/go-unixfsnode/testutil"
 	"github.com/multiformats/go-multicodec"
 	"github.com/stretchr/testify/require"
@@ -36,12 +36,12 @@ func TestHttpClientClose(t *testing.T) {
 
 	// Setup a new lassie
 	req := require.New(t)
-	lassie, err := lassie.NewLassie(
+	lassie, err := sheltie.NewSheltie(
 		ctx,
-		lassie.WithProviderTimeout(20*time.Second),
-		lassie.WithHost(mrn.Self),
-		lassie.WithCandidateSource(mrn.Source),
-		lassie.WithProtocols([]multicodec.Code{multicodec.TransportBitswap}),
+		sheltie.WithProviderTimeout(20*time.Second),
+		sheltie.WithHost(mrn.Self),
+		sheltie.WithCandidateSource(mrn.Source),
+		sheltie.WithProtocols([]multicodec.Code{multicodec.TransportBitswap}),
 	)
 	req.NoError(err)
 

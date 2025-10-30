@@ -3,7 +3,7 @@ package combinators
 import (
 	"context"
 
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/types"
 )
 
 // AsyncCandidateSplitter creates an splitter for a candidate stream from a simple function to split a set of candidates.

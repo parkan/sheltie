@@ -3,7 +3,7 @@ package host
 import (
 	"context"
 
-	"github.com/filecoin-project/lassie/pkg/build"
+	"github.com/parkan/sheltie/pkg/build"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"

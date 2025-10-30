@@ -7,12 +7,12 @@ import (
 	"net/http"
 	"net/http/pprof"
 
-	"github.com/filecoin-project/lassie/pkg/lassie"
+	"github.com/parkan/sheltie/pkg/sheltie"
 	"github.com/ipfs/go-log/v2"
 	servertiming "github.com/mitchellh/go-server-timing"
 )
 
-var logger = log.Logger("lassie/httpserver")
+var logger = log.Logger("sheltie/httpserver")
 
 // HttpServer is a Lassie server for fetching data from the network via HTTP
 type HttpServer struct {
@@ -41,7 +41,7 @@ func saveConnInCTX(ctx context.Context, c net.Conn) context.Context {
 }
 
 // NewHttpServer creates a new HttpServer
-func NewHttpServer(ctx context.Context, lassie *lassie.Lassie, cfg HttpServerConfig) (*HttpServer, error) {
+func NewHttpServer(ctx context.Context, s *sheltie.Sheltie, cfg HttpServerConfig) (*HttpServer, error) {
 	addr := fmt.Sprintf("%s:%d", cfg.Address, cfg.Port)
 	listener, err := net.Listen("tcp", addr) // assigns a port if port is 0
 	if err != nil {
@@ -73,7 +73,7 @@ func NewHttpServer(ctx context.Context, lassie *lassie.Lassie, cfg HttpServerCon
 	}
 
 	// Routes
-	mux.HandleFunc("/ipfs/", IpfsHandler(lassie, cfg))
+	mux.HandleFunc("/ipfs/", IpfsHandler(s, cfg))
 
 	// Handle pprof endpoints
 	mux.HandleFunc("/debug/pprof/", pprof.Index)

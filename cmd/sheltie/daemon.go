@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/filecoin-project/lassie/pkg/aggregateeventrecorder"
-	"github.com/filecoin-project/lassie/pkg/lassie"
-	httpserver "github.com/filecoin-project/lassie/pkg/server/http"
+	"github.com/parkan/sheltie/pkg/aggregateeventrecorder"
+	"github.com/parkan/sheltie/pkg/sheltie"
+	httpserver "github.com/parkan/sheltie/pkg/server/http"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/config"
 	"github.com/libp2p/go-libp2p/p2p/net/connmgr"
@@ -85,7 +85,7 @@ var daemonFlags = []cli.Flag{
 
 var daemonCmd = &cli.Command{
 	Name:   "daemon",
-	Usage:  "Starts a lassie daemon, accepting http requests",
+	Usage:  "Starts a sheltie daemon, accepting http requests",
 	After:  after,
 	Flags:  daemonFlags,
 	Action: daemonAction,
@@ -100,10 +100,10 @@ func daemonAction(cctx *cli.Context) error {
 	libp2pLowWater := cctx.Int("libp2p-conns-lowwater")
 	libp2pHighWater := cctx.Int("libp2p-conns-highwater")
 	concurrentSPRetrievals := cctx.Uint("concurrent-sp-retrievals")
-	lassieOpts := []lassie.LassieOption{}
+	lassieOpts := []sheltie.SheltieOption{}
 
 	if concurrentSPRetrievals > 0 {
-		lassieOpts = append(lassieOpts, lassie.WithConcurrentSPRetrievals(concurrentSPRetrievals))
+		lassieOpts = append(lassieOpts, sheltie.WithConcurrentSPRetrievals(concurrentSPRetrievals))
 	}
 
 	libp2pOpts := []config.Option{}
@@ -150,7 +150,7 @@ func daemonAction(cctx *cli.Context) error {
 // daemonRunFunc is the function signature for the daemonRun function.
 type daemonRunFunc func(
 	ctx context.Context,
-	lassieCfg *lassie.LassieConfig,
+	lassieCfg *sheltie.SheltieConfig,
 	httpServerCfg httpserver.HttpServerConfig,
 	eventRecorderCfg *aggregateeventrecorder.EventRecorderConfig,
 ) error
@@ -163,11 +163,11 @@ var daemonRun daemonRunFunc = defaultDaemonRun
 // defaultDaemonRun is the default implementation for the daemonRun function.
 func defaultDaemonRun(
 	ctx context.Context,
-	lassieCfg *lassie.LassieConfig,
+	lassieCfg *sheltie.SheltieConfig,
 	httpServerCfg httpserver.HttpServerConfig,
 	eventRecorderCfg *aggregateeventrecorder.EventRecorderConfig,
 ) error {
-	lassie, err := lassie.NewLassieWithConfig(ctx, lassieCfg)
+	lassie, err := sheltie.NewSheltieWithConfig(ctx, lassieCfg)
 	if err != nil {
 		return nil
 	}

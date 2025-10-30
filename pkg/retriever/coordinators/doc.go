@@ -6,7 +6,7 @@ package coordinators
 import (
 	"errors"
 
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/types"
 )
 
 func Coordinator(kind types.CoordinationKind) (types.RetrievalCoordinator, error) {

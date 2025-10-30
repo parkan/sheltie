@@ -1,14 +1,14 @@
 FROM golang:1.24-bullseye as build
 
-WORKDIR /go/src/lassie
+WORKDIR /go/src/sheltie
 
 COPY go.* .
 RUN go mod download
 COPY . .
 
-RUN CGO_ENABLED=0 go build -o /go/bin/lassie ./cmd/lassie
+RUN CGO_ENABLED=0 go build -o /go/bin/sheltie ./cmd/sheltie
 
 FROM gcr.io/distroless/static-debian12
-COPY --from=build /go/bin/lassie /usr/bin/
+COPY --from=build /go/bin/sheltie /usr/bin/
 
-ENTRYPOINT ["/usr/bin/lassie"]
+ENTRYPOINT ["/usr/bin/sheltie"]

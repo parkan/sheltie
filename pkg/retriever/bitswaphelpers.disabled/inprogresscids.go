@@ -3,7 +3,7 @@ package bitswaphelpers
 import (
 	"sync"
 
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/types"
 	"github.com/ipfs/go-cid"
 )
 

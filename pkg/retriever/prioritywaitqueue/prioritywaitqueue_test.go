@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/filecoin-project/lassie/pkg/retriever/prioritywaitqueue"
+	"github.com/parkan/sheltie/pkg/retriever/prioritywaitqueue"
 )
 
 type worker struct {

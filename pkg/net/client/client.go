@@ -21,8 +21,8 @@ import (
 
 	"github.com/filecoin-project/go-state-types/abi"
 
-	"github.com/filecoin-project/lassie/pkg/retriever"
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/retriever"
+	"github.com/parkan/sheltie/pkg/types"
 
 	"github.com/ipfs/go-datastore"
 
@@ -39,7 +39,7 @@ import (
 )
 
 // Logging
-var logger = log.Logger("lassie/client")
+var logger = log.Logger("sheltie/client")
 var tracer trace.Tracer = otel.Tracer("lassie")
 
 const RetrievalQueryProtocol = "/fil/retrieval/qry/1.0.0"

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/types"
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	basicnode "github.com/ipld/go-ipld-prime/node/basic"

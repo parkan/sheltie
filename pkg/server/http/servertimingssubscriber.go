@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/filecoin-project/lassie/pkg/events"
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/events"
+	"github.com/parkan/sheltie/pkg/types"
 	servertiming "github.com/mitchellh/go-server-timing"
 )
 

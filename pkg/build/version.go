@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/filecoin-project/lassie/pkg/internal/revision"
+	"github.com/parkan/sheltie/pkg/internal/revision"
 )
 
 var (
 	// version is the built version.
-	// Set with ldflags in .goreleaser.yaml via -ldflags="-X github.com/filecoin-project/lassie/pkg/build.version=v{{.Version}}".
+	// Set with ldflags in .goreleaser.yaml via -ldflags="-X github.com/parkan/sheltie/pkg/build.version=v{{.Version}}".
 	version string
 	// Version returns the current version of the Lassie application
 	Version   string

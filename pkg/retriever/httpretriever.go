@@ -10,9 +10,9 @@ import (
 
 	"github.com/filecoin-project/go-clock"
 	"github.com/filecoin-project/go-state-types/big"
-	"github.com/filecoin-project/lassie/pkg/build"
-	"github.com/filecoin-project/lassie/pkg/events"
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/build"
+	"github.com/parkan/sheltie/pkg/events"
+	"github.com/parkan/sheltie/pkg/types"
 	"github.com/ipfs/go-cid"
 	trustlesshttp "github.com/ipld/go-trustless-utils/http"
 	"github.com/ipld/go-trustless-utils/traversal"

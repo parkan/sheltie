@@ -8,13 +8,13 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/filecoin-project/lassie/pkg/events"
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/events"
+	"github.com/parkan/sheltie/pkg/types"
 	"github.com/ipfs/go-log/v2"
 	"github.com/multiformats/go-multicodec"
 )
 
-var logger = log.Logger("lassie/aggregateeventrecorder")
+var logger = log.Logger("sheltie/aggregateeventrecorder")
 
 const (
 	httpTimeout     = 5 * time.Second // The timeout for HTTP requests
@@ -48,7 +48,7 @@ type RetrievalAttempt struct {
 }
 
 type AggregateEvent struct {
-	InstanceID        string    `json:"instanceId"`                  // The ID of the Lassie instance generating the event
+	InstanceID        string    `json:"instanceId"`                  // The ID of the Sheltie instance generating the event
 	RetrievalID       string    `json:"retrievalId"`                 // The unique ID of the retrieval
 	RootCid           string    `json:"rootCid"`                     // The root cid being fetched
 	URLPath           string    `json:"urlPath"`                     // The path url after the root cid, including scope
