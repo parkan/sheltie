@@ -233,7 +233,7 @@ func TestHttpFetch(t *testing.T) {
 			lassieOpts: func(t *testing.T, mrn *mocknet.MockRetrievalNet) []lassie.LassieOption {
 				// this delay is going to depend on CI, if it's too short then a slower machine
 				// won't get bitswap setup in time to get the block
-				return []lassie.LassieOption{lassie.WithProviderTimeout(1 * time.Second)}
+				return []lassie.LassieOption{sheltie.WithProviderTimeout(1 * time.Second)}
 			},
 			generate: func(t *testing.T, rndReader io.Reader, remotes []testpeer.TestPeer) []unixfs.DirEntry {
 				file := generateFor(t, unixfsSpec_largeShardedFile, rndReader, *remotes[0].LinkSystem)
@@ -898,14 +898,14 @@ func TestHttpFetch(t *testing.T) {
 				customOpts = testCase.lassieOpts(t, mrn)
 			}
 			opts := append([]lassie.LassieOption{
-				lassie.WithProviderTimeout(20 * time.Second),
-				lassie.WithHost(mrn.Self),
+				sheltie.WithProviderTimeout(20 * time.Second),
+				sheltie.WithHost(mrn.Self),
 				lassie.WithCandidateSource(mrn.Source),
 			}, customOpts...)
 			if testCase.disableGraphsync {
-				opts = append(opts, lassie.WithProtocols([]multicodec.Code{multicodec.TransportBitswap, multicodec.TransportIpfsGatewayHttp}))
+				opts = append(opts, sheltie.WithProtocols([]multicodec.Code{multicodec.TransportBitswap, multicodec.TransportIpfsGatewayHttp}))
 			}
-			lassie, err := lassie.NewLassie(ctx, opts...)
+			lassie, err := sheltie.NewLassie(ctx, opts...)
 			req.NoError(err)
 
 			var aggregateEventsCh = make(chan []aggregateeventrecorder.AggregateEvent)

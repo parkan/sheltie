@@ -103,7 +103,7 @@ func daemonAction(cctx *cli.Context) error {
 	lassieOpts := []lassie.LassieOption{}
 
 	if concurrentSPRetrievals > 0 {
-		lassieOpts = append(lassieOpts, lassie.WithConcurrentSPRetrievals(concurrentSPRetrievals))
+		lassieOpts = append(lassieOpts, sheltie.WithConcurrentSPRetrievals(concurrentSPRetrievals))
 	}
 
 	libp2pOpts := []config.Option{}

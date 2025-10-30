@@ -1,7 +1,7 @@
 /.vscode
 
-/cmd/lassie/lassie
-/lassie
+/cmd/lassie/sheltie
+/sheltie
 *.car
 
 dist/

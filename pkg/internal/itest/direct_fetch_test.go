@@ -126,7 +126,7 @@ func TestDirectFetch(t *testing.T) {
 			}
 
 			directFinder := retriever.NewDirectCandidateSource([]types.Provider{{Peer: addr, Protocols: nil}}, retriever.WithLibp2pCandidateDiscovery(mrn.Self))
-			lassie, err := lassie.NewLassie(ctx, lassie.WithCandidateSource(directFinder), lassie.WithHost(mrn.Self), lassie.WithGlobalTimeout(5*time.Second))
+			lassie, err := sheltie.NewLassie(ctx, lassie.WithCandidateSource(directFinder), sheltie.WithHost(mrn.Self), lassie.WithGlobalTimeout(5*time.Second))
 			req.NoError(err)
 			outFile, err := os.CreateTemp(t.TempDir(), "lassie-test-")
 			req.NoError(err)

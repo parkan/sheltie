@@ -62,10 +62,10 @@ func TestTrustlessUnixfsFetch(t *testing.T) {
 				require.NoError(t, mrn.MN.LinkAll())
 				mrn.Remotes[0].Cids[tc.Root] = struct{}{}
 
-				lassie, err := lassie.NewLassie(
+				lassie, err := sheltie.NewLassie(
 					ctx,
-					lassie.WithProviderTimeout(20*time.Second),
-					lassie.WithHost(mrn.Self),
+					sheltie.WithProviderTimeout(20*time.Second),
+					sheltie.WithHost(mrn.Self),
 					lassie.WithCandidateSource(mrn.Source),
 				)
 				req.NoError(err)

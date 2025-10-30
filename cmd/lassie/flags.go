@@ -178,14 +178,14 @@ var FlagTempDir = &cli.StringFlag{
 var FlagBitswapConcurrency = &cli.IntFlag{
 	Name:    "bitswap-concurrency",
 	Usage:   "maximum number of concurrent bitswap requests",
-	Value:   lassie.DefaultBitswapConcurrency,
+	Value:   sheltie.DefaultBitswapConcurrency,
 	EnvVars: []string{"LASSIE_BITSWAP_CONCURRENCY"},
 }
 
 var FlagBitswapConcurrencyPerRetrieval = &cli.IntFlag{
 	Name:    "bitswap-concurrency-per-retrieval",
 	Usage:   "maximum number of concurrent bitswap requests per retrieval",
-	Value:   lassie.DefaultBitswapConcurrencyPerRetrieval,
+	Value:   sheltie.DefaultBitswapConcurrencyPerRetrieval,
 	EnvVars: []string{"LASSIE_BITSWAP_CONCURRENCY_PER_RETRIEVAL"},
 }
 

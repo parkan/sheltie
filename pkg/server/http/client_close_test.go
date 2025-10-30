@@ -36,12 +36,12 @@ func TestHttpClientClose(t *testing.T) {
 
 	// Setup a new lassie
 	req := require.New(t)
-	lassie, err := lassie.NewLassie(
+	lassie, err := sheltie.NewLassie(
 		ctx,
-		lassie.WithProviderTimeout(20*time.Second),
-		lassie.WithHost(mrn.Self),
+		sheltie.WithProviderTimeout(20*time.Second),
+		sheltie.WithHost(mrn.Self),
 		lassie.WithCandidateSource(mrn.Source),
-		lassie.WithProtocols([]multicodec.Code{multicodec.TransportBitswap}),
+		sheltie.WithProtocols([]multicodec.Code{multicodec.TransportBitswap}),
 	)
 	req.NoError(err)
 

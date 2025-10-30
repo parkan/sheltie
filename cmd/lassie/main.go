@@ -45,7 +45,7 @@ func main() {
 
 	app := &cli.App{
 		Name:    "lassie",
-		Usage:   "Utility for retrieving content from the Filecoin network",
+		Usage:   "Lassie - Utility for retrieving content from the Filecoin network",
 		Suggest: true,
 		Flags: []cli.Flag{
 			FlagVerbose,
@@ -74,21 +74,21 @@ func buildLassieConfigFromCLIContext(cctx *cli.Context, lassieOpts []lassie.Lass
 	bitswapConcurrency := cctx.Int("bitswap-concurrency")
 	bitswapConcurrencyPerRetrieval := cctx.Int("bitswap-concurrency-per-retrieval")
 
-	lassieOpts = append(lassieOpts, lassie.WithProviderTimeout(providerTimeout))
+	lassieOpts = append(lassieOpts, sheltie.WithProviderTimeout(providerTimeout))
 
 	if globalTimeout > 0 {
 		lassieOpts = append(lassieOpts, lassie.WithGlobalTimeout(globalTimeout))
 	}
 
 	if len(protocols) > 0 {
-		lassieOpts = append(lassieOpts, lassie.WithProtocols(protocols))
+		lassieOpts = append(lassieOpts, sheltie.WithProtocols(protocols))
 	}
 
 	host, err := host.InitHost(cctx.Context, libp2pOpts)
 	if err != nil {
 		return nil, err
 	}
-	lassieOpts = append(lassieOpts, lassie.WithHost(host))
+	lassieOpts = append(lassieOpts, sheltie.WithHost(host))
 
 	if len(fetchProviders) > 0 {
 		finderOpt := lassie.WithCandidateSource(retriever.NewDirectCandidateSource(fetchProviders, retriever.WithLibp2pCandidateDiscovery(host)))
@@ -117,13 +117,13 @@ func buildLassieConfigFromCLIContext(cctx *cli.Context, lassieOpts []lassie.Lass
 	}
 
 	if bitswapConcurrency > 0 {
-		lassieOpts = append(lassieOpts, lassie.WithBitswapConcurrency(bitswapConcurrency))
+		lassieOpts = append(lassieOpts, sheltie.WithBitswapConcurrency(bitswapConcurrency))
 	}
 
 	if bitswapConcurrencyPerRetrieval > 0 {
-		lassieOpts = append(lassieOpts, lassie.WithBitswapConcurrencyPerRetrieval(bitswapConcurrencyPerRetrieval))
+		lassieOpts = append(lassieOpts, sheltie.WithBitswapConcurrencyPerRetrieval(bitswapConcurrencyPerRetrieval))
 	} else if bitswapConcurrency > 0 {
-		lassieOpts = append(lassieOpts, lassie.WithBitswapConcurrencyPerRetrieval(bitswapConcurrency))
+		lassieOpts = append(lassieOpts, sheltie.WithBitswapConcurrencyPerRetrieval(bitswapConcurrency))
 	}
 
 	return lassie.NewLassieConfig(lassieOpts...), nil
