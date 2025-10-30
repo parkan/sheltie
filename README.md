@@ -27,6 +27,7 @@ Lassie is the leaner, nimbler cousin of [lassie](https://github.com/filecoin-pro
 ## Changes from Lassie
 - Lassie **does not support Bitswap**, see https://github.com/filecoin-project/lassie/pull/512
 - Lassie **uses delegated routing V1 API** to find providers instead of legacy IPNI, see https://github.com/filecoin-project/lassie/issues/489
+- options for cascading have been removed (controlled by the delegated routing instance) and `filter-protocols` is used for protocol selection
 - [IN PROGRESS] Lassie uses **streaming output** to reduce disk uage and **does not support arbitrary selectors**, see https://github.com/filecoin-project/lassie/issues/108
 - [IN PROGRESS] Lassie will **reconstruct DAGs across HTTP providers** instead of bailing out on unexpected CAR stream termination
 
