@@ -3,10 +3,10 @@ package session
 import (
 	"time"
 
-	"github.com/filecoin-project/lassie/pkg/types"
 	"github.com/ipni/go-libipni/metadata"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multicodec"
+	"github.com/filecoin-project/lassie/pkg/types"
 )
 
 // Session and State both deal with per-storage provider data and usage
@@ -90,10 +90,6 @@ func (session *Session) isAcceptableCandidate(storageProviderId peer.ID) bool {
 }
 
 func (session *Session) isAcceptableCandidateForProtocol(storageProviderId peer.ID, protocol multicodec.Code) bool {
-	if protocol == multicodec.TransportBitswap {
-		return true
-	}
-
 	// check if we are currently retrieving from the candidate with its maximum
 	// concurrency
 	minerConfig := session.config.getProviderConfig(storageProviderId)

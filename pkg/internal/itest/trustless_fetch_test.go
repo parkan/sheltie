@@ -1,3 +1,6 @@
+// MODIFIED: 2025-10-30
+// - Removed bitswap protocol support from tests
+
 package itest
 
 import (
@@ -11,16 +14,16 @@ import (
 	"time"
 
 	datatransfer "github.com/filecoin-project/go-data-transfer/v2"
-	"github.com/filecoin-project/lassie/pkg/internal/itest/mocknet"
-	"github.com/filecoin-project/lassie/pkg/internal/itest/testpeer"
-	"github.com/filecoin-project/lassie/pkg/lassie"
-	httpserver "github.com/filecoin-project/lassie/pkg/server/http"
 	"github.com/google/uuid"
 	"github.com/ipfs/go-unixfsnode"
 	"github.com/ipld/go-car/v2"
 	cidlink "github.com/ipld/go-ipld-prime/linking/cid"
 	trustlessutils "github.com/ipld/go-trustless-utils"
 	trustlesspathing "github.com/ipld/ipld/specs/pkg-go/trustless-pathing"
+	"github.com/filecoin-project/lassie/pkg/internal/itest/mocknet"
+	"github.com/filecoin-project/lassie/pkg/internal/itest/testpeer"
+	httpserver "github.com/filecoin-project/lassie/pkg/server/http"
+	"github.com/filecoin-project/lassie/pkg/lassie"
 	"github.com/stretchr/testify/require"
 )
 
@@ -39,7 +42,7 @@ func TestTrustlessUnixfsFetch(t *testing.T) {
 	lsys.SetReadStorage(storage)
 
 	for _, tc := range testCases {
-		for _, proto := range []string{"http", "graphsync", "bitswap"} {
+		for _, proto := range []string{"http", "graphsync"} {
 			t.Run(tc.Name+"/"+proto, func(t *testing.T) {
 				req := require.New(t)
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -55,8 +58,6 @@ func TestTrustlessUnixfsFetch(t *testing.T) {
 				case "graphsync":
 					mrn.AddGraphsyncPeers(1, testpeer.WithLinkSystem(lsys))
 					finishedChan = mocknet.SetupRetrieval(t, mrn.Remotes[0])
-				case "bitswap":
-					mrn.AddBitswapPeers(1, testpeer.WithLinkSystem(lsys))
 				}
 
 				require.NoError(t, mrn.MN.LinkAll())

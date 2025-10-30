@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/filecoin-project/lassie/pkg/types"
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	blocksutil "github.com/ipfs/go-ipfs-blocksutil"
@@ -23,6 +22,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr/net"
+	"github.com/filecoin-project/lassie/pkg/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -109,7 +109,7 @@ func GenerateRetrievalCandidatesForCID(t *testing.T, n int, c cid.Cid, protocols
 	candidates := make([]types.RetrievalCandidate, 0, n)
 	peers := GeneratePeers(t, n)
 	if len(protocols) == 0 {
-		protocols = []metadata.Protocol{&metadata.Bitswap{}}
+		protocols = []metadata.Protocol{metadata.IpfsGatewayHttp{}}
 	}
 	for i := 0; i < n; i++ {
 		addrs := []multiaddr.Multiaddr{GenerateHTTPMultiAddr()}

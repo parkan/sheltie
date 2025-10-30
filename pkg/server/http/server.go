@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"net/http/pprof"
 
-	"github.com/filecoin-project/lassie/pkg/lassie"
 	"github.com/ipfs/go-log/v2"
 	servertiming "github.com/mitchellh/go-server-timing"
+	"github.com/filecoin-project/lassie/pkg/lassie"
 )
 
 var logger = log.Logger("lassie/httpserver")

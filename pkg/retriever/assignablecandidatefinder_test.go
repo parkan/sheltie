@@ -7,14 +7,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/filecoin-project/lassie/pkg/internal/testutil"
-	"github.com/filecoin-project/lassie/pkg/retriever"
-	"github.com/filecoin-project/lassie/pkg/types"
 	"github.com/ipfs/go-cid"
 	cidlink "github.com/ipld/go-ipld-prime/linking/cid"
 	trustlessutils "github.com/ipld/go-trustless-utils"
 	"github.com/ipni/go-libipni/metadata"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/filecoin-project/lassie/pkg/internal/testutil"
+	"github.com/filecoin-project/lassie/pkg/retriever"
+	"github.com/filecoin-project/lassie/pkg/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -154,7 +154,7 @@ func TestAssignableCandidateFinder(t *testing.T) {
 				for _, stringResult := range stringResults {
 					providers = append(providers, types.Provider{
 						Peer:      peer.AddrInfo{ID: peer.ID(stringResult)},
-						Protocols: []metadata.Protocol{&metadata.GraphsyncFilecoinV1{}, &metadata.Bitswap{}, &metadata.IpfsGatewayHttp{}},
+						Protocols: []metadata.Protocol{&metadata.GraphsyncFilecoinV1{}, &metadata.IpfsGatewayHttp{}},
 					})
 				}
 				allProviders[c] = providers

@@ -9,11 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/filecoin-project/lassie/pkg/build"
-	"github.com/filecoin-project/lassie/pkg/heyfil"
-	"github.com/filecoin-project/lassie/pkg/retriever"
-	"github.com/filecoin-project/lassie/pkg/storage"
-	"github.com/filecoin-project/lassie/pkg/types"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-unixfsnode"
 	"github.com/ipld/go-car/v2/storage/deferred"
@@ -21,6 +16,11 @@ import (
 	trustlessutils "github.com/ipld/go-trustless-utils"
 	trustlesshttp "github.com/ipld/go-trustless-utils/http"
 	"github.com/multiformats/go-multicodec"
+	"github.com/filecoin-project/lassie/pkg/build"
+	"github.com/filecoin-project/lassie/pkg/heyfil"
+	"github.com/filecoin-project/lassie/pkg/retriever"
+	"github.com/filecoin-project/lassie/pkg/storage"
+	"github.com/filecoin-project/lassie/pkg/types"
 )
 
 func IpfsHandler(fetcher types.Fetcher, cfg HttpServerConfig) func(http.ResponseWriter, *http.Request) {
@@ -71,14 +71,6 @@ func IpfsHandler(fetcher types.Fetcher, cfg HttpServerConfig) func(http.Response
 
 		request.LinkSystem.SetWriteStorage(carStore)
 		request.LinkSystem.SetReadStorage(carStore)
-
-		// setup preload storage for bitswap, the temporary CAR store can set up a
-		// separate preload space in its storage
-		request.PreloadLinkSystem = cidlink.DefaultLinkSystem()
-		preloadStore := carStore.PreloadStore()
-		request.PreloadLinkSystem.SetReadStorage(preloadStore)
-		request.PreloadLinkSystem.SetWriteStorage(preloadStore)
-		request.PreloadLinkSystem.TrustedStorage = true
 
 		// bytesWritten will be closed once we've started writing CAR content to
 		// the response writer. Once closed, no other content should be written.

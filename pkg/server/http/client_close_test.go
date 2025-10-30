@@ -1,3 +1,6 @@
+// MODIFIED: 2025-10-30
+// - Changed from bitswap to graphsync protocol
+
 package httpserver
 
 import (
@@ -9,10 +12,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/filecoin-project/lassie/pkg/internal/itest/mocknet"
-	"github.com/filecoin-project/lassie/pkg/lassie"
 	unixfs "github.com/ipfs/go-unixfsnode/testutil"
 	"github.com/multiformats/go-multicodec"
+	"github.com/filecoin-project/lassie/pkg/internal/itest/mocknet"
+	"github.com/filecoin-project/lassie/pkg/lassie"
 	"github.com/stretchr/testify/require"
 )
 
@@ -29,7 +32,8 @@ func TestHttpClientClose(t *testing.T) {
 	var rndReader io.Reader = rand.New(rand.NewSource(rndSeed))
 
 	mrn := mocknet.NewMockRetrievalNet(ctx, t)
-	mrn.AddBitswapPeers(1)
+	mrn.AddGraphsyncPeers(1)
+	mocknet.SetupRetrieval(t, mrn.Remotes[0])
 	require.NoError(t, mrn.MN.LinkAll())
 
 	srcData := unixfs.GenerateFile(t, mrn.Remotes[0].LinkSystem, rndReader, 20<<20)
@@ -41,7 +45,7 @@ func TestHttpClientClose(t *testing.T) {
 		sheltie.WithProviderTimeout(20*time.Second),
 		sheltie.WithHost(mrn.Self),
 		lassie.WithCandidateSource(mrn.Source),
-		sheltie.WithProtocols([]multicodec.Code{multicodec.TransportBitswap}),
+		sheltie.WithProtocols([]multicodec.Code{multicodec.TransportGraphsyncFilecoinv1}),
 	)
 	req.NoError(err)
 

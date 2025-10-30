@@ -8,18 +8,17 @@ import (
 	"strings"
 
 	"github.com/dustin/go-humanize"
+	"github.com/ipfs/go-cid"
+	"github.com/ipld/go-car/v2"
+	"github.com/ipld/go-car/v2/storage/deferred"
+	"github.com/ipld/go-ipld-prime/datamodel"
+	trustlessutils "github.com/ipld/go-trustless-utils"
+	trustlesshttp "github.com/ipld/go-trustless-utils/http"
 	"github.com/filecoin-project/lassie/pkg/aggregateeventrecorder"
 	"github.com/filecoin-project/lassie/pkg/events"
 	"github.com/filecoin-project/lassie/pkg/lassie"
 	"github.com/filecoin-project/lassie/pkg/storage"
 	"github.com/filecoin-project/lassie/pkg/types"
-	"github.com/ipfs/go-cid"
-	"github.com/ipld/go-car/v2"
-	"github.com/ipld/go-car/v2/storage/deferred"
-	"github.com/ipld/go-ipld-prime/datamodel"
-	cidlink "github.com/ipld/go-ipld-prime/linking/cid"
-	trustlessutils "github.com/ipld/go-trustless-utils"
-	trustlesshttp "github.com/ipld/go-trustless-utils/http"
 	"github.com/urfave/cli/v2"
 )
 
@@ -87,7 +86,6 @@ var fetchFlags = []cli.Flag{
 	FlagAllowProviders,
 	FlagExcludeProviders,
 	FlagTempDir,
-	FlagBitswapConcurrency,
 	FlagGlobalTimeout,
 	FlagProviderTimeout,
 }
@@ -385,13 +383,6 @@ func defaultFetchRun(
 	if err != nil {
 		return err
 	}
-	// setup preload storage for bitswap, the temporary CAR store can set up a
-	// separate preload space in its storage
-	request.PreloadLinkSystem = cidlink.DefaultLinkSystem()
-	preloadStore := carStore.PreloadStore()
-	request.PreloadLinkSystem.SetReadStorage(preloadStore)
-	request.PreloadLinkSystem.SetWriteStorage(preloadStore)
-	request.PreloadLinkSystem.TrustedStorage = true
 	request.Duplicates = duplicates
 
 	stats, err := lassie.Fetch(ctx, request)
@@ -401,7 +392,7 @@ func defaultFetchRun(
 	}
 	spid := stats.StorageProviderId.String()
 	if spid == "" {
-		spid = types.BitswapIndentifier
+		spid = "Unknown"
 	}
 	fmt.Fprintf(msgWriter, "\nFetched [%s] from [%s]:\n"+
 		"\tDuration: %s\n"+

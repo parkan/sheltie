@@ -7,10 +7,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	trustlessutils "github.com/ipld/go-trustless-utils"
 	"github.com/filecoin-project/lassie/pkg/internal/mockfetcher"
 	"github.com/filecoin-project/lassie/pkg/retriever"
 	"github.com/filecoin-project/lassie/pkg/types"
-	trustlessutils "github.com/ipld/go-trustless-utils"
 	"github.com/stretchr/testify/require"
 )
 
