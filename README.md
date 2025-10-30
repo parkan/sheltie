@@ -1,9 +1,16 @@
 # Sheltie
 
-> Fetches from Filecoin, every time
+<img width="1024" height="1530" alt="image" src="https://github.com/user-attachments/assets/4933d6c9-2335-4a34-b797-c2a8e9b7d9c8" />
+<a href="https://www.flickr.com/photos/8842985@N03">Chris</a>, <a href="https://commons.wikimedia.org/wiki/File:Shetland_Sheepdog_and_Rough_Collie.jpg">Shetland Sheepdog and Rough Collie</a>, <a href="https://creativecommons.org/licenses/by/2.0/legalcode" rel="license">CC BY 2.0</a>
+
+---
+
+Sheltie is the leaner, nimbler cousin of [lassie](https://github.com/filecoin-project/lassie) that knows a few more tricks. She specializes in highly performant retrievals via HTTP and Graphsync.
+
 
 ## Table of Contents
 
+* [Changes from Lassie](#changes-from-lassie)
 * [Overview](#overview)
 * [Installation](#installation)
 * [Methods of Retrieval](#methods-of-retrieval)
@@ -16,6 +23,15 @@
 	* [Roots, pieces and payloads](#roots-pieces-and-payloads)
 * [Contribute](#contribute)
 * [License](#license)
+
+## Changes from Lassie
+- Sheltie **does not support Bitswap**, see https://github.com/filecoin-project/lassie/pull/512
+- Sheltie **uses delegated routing V1 API** to find providers instead of legacy IPNI, see https://github.com/filecoin-project/lassie/issues/489
+- [IN PROGRESS] Sheltie uses **streaming output** to reduce disk uage and **does not support arbitrary selectors**, see https://github.com/filecoin-project/lassie/issues/108
+- [IN PROGRESS] Sheltie will **reconstruct DAGs across HTTP providers** instead of bailing out on unexpected CAR stream termination
+
+This project is a fork of Protocol Labs’s Lassie (https://github.com/filecoin-project/lassie) under Apache 2.0/MIT.“This project is a fork of Protocol Labs’s Lassie (https://github.com/filecoin-project/lassie
+) under Apache 2.0/MIT.”
 
 ## Overview
 
@@ -294,4 +310,7 @@ Early days PRs are welcome!
 
 This library is dual-licensed under Apache 2.0 and MIT terms.
 
-Copyright 2022. Protocol Labs, Inc.
+Copyright 2025 Arkadiy Kukarkin
+Derived from Lassie, © 2022 Protocol Labs, Inc.
+Modifications licensed under Apache License 2.0 / MIT
+
