@@ -17,11 +17,15 @@ import (
 var (
 	defaultTempDirectory     string   = os.TempDir() // use the system default temp dir
 	verboseLoggingSubsystems []string = []string{    // verbose logging is enabled for these subsystems when using the verbose or very-verbose flags
-		"lassie",
+		"lassie/main",
 		"lassie/retriever",
 		"lassie/httpserver",
 		"lassie/indexerlookup",
 		"lassie/bitswap",
+		"lassie/client",
+		"lassie/lp2p/tspt/client",
+		"lassie/heyfil",
+		"lassie/aggregateeventrecorder",
 	}
 )
 
