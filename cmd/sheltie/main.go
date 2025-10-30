@@ -1,3 +1,8 @@
+// MODIFIED: 2025-10-30
+// - Renamed application from lassie to sheltie
+// - Removed bitswap concurrency configuration
+// - Updated to use delegated routing endpoint (renamed from ipni-endpoint)
+
 package main
 
 import (
@@ -71,8 +76,6 @@ func after(cctx *cli.Context) error {
 func buildLassieConfigFromCLIContext(cctx *cli.Context, lassieOpts []sheltie.SheltieOption, libp2pOpts []config.Option) (*sheltie.SheltieConfig, error) {
 	providerTimeout := cctx.Duration("provider-timeout")
 	globalTimeout := cctx.Duration("global-timeout")
-	bitswapConcurrency := cctx.Int("bitswap-concurrency")
-	bitswapConcurrencyPerRetrieval := cctx.Int("bitswap-concurrency-per-retrieval")
 
 	lassieOpts = append(lassieOpts, sheltie.WithProviderTimeout(providerTimeout))
 
@@ -92,38 +95,28 @@ func buildLassieConfigFromCLIContext(cctx *cli.Context, lassieOpts []sheltie.She
 
 	if len(fetchProviders) > 0 {
 		finderOpt := sheltie.WithCandidateSource(retriever.NewDirectCandidateSource(fetchProviders, retriever.WithLibp2pCandidateDiscovery(host)))
-		if cctx.IsSet("ipni-endpoint") {
-			logger.Warn("Ignoring ipni-endpoint flag since direct provider is specified")
+		if cctx.IsSet("delegated-routing-endpoint") {
+			logger.Warn("Ignoring delegated-routing-endpoint flag since direct provider is specified")
 		}
 		lassieOpts = append(lassieOpts, finderOpt)
-	} else if cctx.IsSet("ipni-endpoint") {
-		endpoint := cctx.String("ipni-endpoint")
+	} else if cctx.IsSet("delegated-routing-endpoint") {
+		endpoint := cctx.String("delegated-routing-endpoint")
 		endpointUrl, err := url.ParseRequestURI(endpoint)
 		if err != nil {
-			logger.Errorw("Failed to parse IPNI endpoint as URL", "err", err)
-			return nil, fmt.Errorf("cannot parse given IPNI endpoint %s as valid URL: %w", endpoint, err)
+			logger.Errorw("Failed to parse delegated routing endpoint as URL", "err", err)
+			return nil, fmt.Errorf("cannot parse given delegated routing endpoint %s as valid URL: %w", endpoint, err)
 		}
 		finder, err := indexerlookup.NewCandidateSource(indexerlookup.WithHttpEndpoint(endpointUrl))
 		if err != nil {
-			logger.Errorw("Failed to instantiate IPNI candidate finder", "err", err)
+			logger.Errorw("Failed to instantiate delegated routing candidate finder", "err", err)
 			return nil, err
 		}
 		lassieOpts = append(lassieOpts, sheltie.WithCandidateSource(finder))
-		logger.Debug("Using explicit IPNI endpoint to find candidates", "endpoint", endpoint)
+		logger.Debug("Using explicit delegated routing endpoint to find candidates", "endpoint", endpoint)
 	}
 
 	if len(providerBlockList) > 0 {
 		lassieOpts = append(lassieOpts, sheltie.WithProviderBlockList(providerBlockList))
-	}
-
-	if bitswapConcurrency > 0 {
-		lassieOpts = append(lassieOpts, sheltie.WithBitswapConcurrency(bitswapConcurrency))
-	}
-
-	if bitswapConcurrencyPerRetrieval > 0 {
-		lassieOpts = append(lassieOpts, sheltie.WithBitswapConcurrencyPerRetrieval(bitswapConcurrencyPerRetrieval))
-	} else if bitswapConcurrency > 0 {
-		lassieOpts = append(lassieOpts, sheltie.WithBitswapConcurrencyPerRetrieval(bitswapConcurrency))
 	}
 
 	return sheltie.NewSheltieConfig(lassieOpts...), nil

@@ -1,3 +1,9 @@
+// MODIFIED: 2025-10-30
+// - Renamed application from lassie to sheltie
+// - Removed bitswap flags and configuration
+// - Updated logging subsystems for sheltie namespace
+// - Changed default protocols to graphsync,http (removed bitswap)
+
 package main
 
 import (
@@ -6,7 +12,6 @@ import (
 	"time"
 
 	"github.com/parkan/sheltie/pkg/heyfil"
-	"github.com/parkan/sheltie/pkg/sheltie"
 	"github.com/parkan/sheltie/pkg/types"
 	"github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -17,11 +22,14 @@ import (
 var (
 	defaultTempDirectory     string   = os.TempDir() // use the system default temp dir
 	verboseLoggingSubsystems []string = []string{    // verbose logging is enabled for these subsystems when using the verbose or very-verbose flags
-		"lassie",
-		"lassie/retriever",
-		"lassie/httpserver",
-		"lassie/indexerlookup",
-		"lassie/bitswap",
+		"sheltie/main",
+		"sheltie/retriever",
+		"sheltie/httpserver",
+		"sheltie/indexerlookup",
+		"sheltie/client",
+		"sheltie/lp2p/tspt/client",
+		"sheltie/heyfil",
+		"sheltie/aggregateeventrecorder",
 	}
 )
 
@@ -151,7 +159,7 @@ var FlagAllowProviders = &cli.StringFlag{
 var protocols []multicodec.Code
 var FlagProtocols = &cli.StringFlag{
 	Name:        "protocols",
-	DefaultText: "bitswap,graphsync,http",
+	DefaultText: "graphsync,http",
 	Usage:       "List of retrieval protocols to use, separated by a comma",
 	EnvVars:     []string{"LASSIE_SUPPORTED_PROTOCOLS"},
 	Action: func(cctx *cli.Context, v string) error {
@@ -175,20 +183,6 @@ var FlagTempDir = &cli.StringFlag{
 	EnvVars:     []string{"LASSIE_TEMP_DIRECTORY"},
 }
 
-var FlagBitswapConcurrency = &cli.IntFlag{
-	Name:    "bitswap-concurrency",
-	Usage:   "maximum number of concurrent bitswap requests",
-	Value:   sheltie.DefaultBitswapConcurrency,
-	EnvVars: []string{"LASSIE_BITSWAP_CONCURRENCY"},
-}
-
-var FlagBitswapConcurrencyPerRetrieval = &cli.IntFlag{
-	Name:    "bitswap-concurrency-per-retrieval",
-	Usage:   "maximum number of concurrent bitswap requests per retrieval",
-	Value:   sheltie.DefaultBitswapConcurrencyPerRetrieval,
-	EnvVars: []string{"LASSIE_BITSWAP_CONCURRENCY_PER_RETRIEVAL"},
-}
-
 var FlagGlobalTimeout = &cli.DurationFlag{
 	Name:    "global-timeout",
 	Aliases: []string{"gt"},
@@ -204,11 +198,12 @@ var FlagProviderTimeout = &cli.DurationFlag{
 	EnvVars: []string{"LASSIE_PROVIDER_TIMEOUT"},
 }
 
-var FlagIPNIEndpoint = &cli.StringFlag{
-	Name:        "ipni-endpoint",
-	Aliases:     []string{"ipni"},
+var FlagDelegatedRoutingEndpoint = &cli.StringFlag{
+	Name:        "delegated-routing-endpoint",
+	Aliases:     []string{"delegated"},
 	DefaultText: "Defaults to https://cid.contact",
-	Usage:       "HTTP endpoint of the IPNI instance used to discover providers.",
+	Usage:       "HTTP endpoint of the delegated routing service used to discover providers.",
+	EnvVars:     []string{"SHELTIE_DELEGATED_ROUTING_ENDPOINT"},
 }
 
 func ResetGlobalFlags() {

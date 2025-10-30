@@ -1,3 +1,8 @@
+// MODIFIED: 2025-10-30
+// - Removed cascade-related options (ipfsDhtCascade, legacyCascade)
+// - Updated User-Agent from "lassie" to "sheltie"
+// - Updated comments to reference delegated routing instead of indexer
+
 package indexerlookup
 
 import (
@@ -14,8 +19,6 @@ type (
 		httpClient             *http.Client
 		httpClientTimeout      time.Duration
 		httpUserAgent          string
-		ipfsDhtCascade         bool
-		legacyCascade          bool
 	}
 )
 
@@ -25,9 +28,7 @@ func newOptions(o ...Option) (*options, error) {
 		asyncResultsChanBuffer: 1,
 		httpClient:             http.DefaultClient,
 		httpClientTimeout:      time.Minute,
-		httpUserAgent:          "lassie",
-		ipfsDhtCascade:         true,
-		legacyCascade:          true,
+		httpUserAgent:          "sheltie",
 	}
 	for _, apply := range o {
 		if err := apply(&opts); err != nil {
@@ -48,7 +49,7 @@ func newOptions(o ...Option) (*options, error) {
 	return &opts, nil
 }
 
-// WithHttpClient sets the http.Client used to contact the indexer.
+// WithHttpClient sets the http.Client used to contact the delegated routing service.
 // Defaults to http.DefaultClient if unspecified.
 func WithHttpClient(c *http.Client) Option {
 	return func(o *options) error {
@@ -57,7 +58,7 @@ func WithHttpClient(c *http.Client) Option {
 	}
 }
 
-// WithHttpClientTimeout sets the timeout for the HTTP requests sent to the indexer.
+// WithHttpClientTimeout sets the timeout for the HTTP requests sent to the delegated routing service.
 // Defaults to one minute if unspecified.
 func WithHttpClientTimeout(t time.Duration) Option {
 	return func(o *options) error {
@@ -66,7 +67,7 @@ func WithHttpClientTimeout(t time.Duration) Option {
 	}
 }
 
-// WithHttpEndpoint sets the indexer HTTP API endpoint.
+// WithHttpEndpoint sets the delegated routing HTTP API endpoint.
 // Defaults to https://cid.contact if unspecified.
 func WithHttpEndpoint(e *url.URL) Option {
 	return func(o *options) error {
@@ -75,9 +76,9 @@ func WithHttpEndpoint(e *url.URL) Option {
 	}
 }
 
-// WithHttpUserAgent sets the User-Agent header value when contacting the indexer HTTP API.
+// WithHttpUserAgent sets the User-Agent header value when contacting the delegated routing HTTP API.
 // Setting this option to empty string will disable inclusion of User-Agent header.
-// Defaults to "lassie" if unspecified.
+// Defaults to "sheltie" if unspecified.
 func WithHttpUserAgent(a string) Option {
 	return func(o *options) error {
 		o.httpUserAgent = a
@@ -90,24 +91,6 @@ func WithHttpUserAgent(a string) Option {
 func WithAsyncResultsChanBuffer(i int) Option {
 	return func(o *options) error {
 		o.asyncResultsChanBuffer = i
-		return nil
-	}
-}
-
-// WithIpfsDhtCascade sets weather to cascade lookups onto the IPFS DHT.
-// Enabled by default if unspecified.
-func WithIpfsDhtCascade(b bool) Option {
-	return func(o *options) error {
-		o.ipfsDhtCascade = b
-		return nil
-	}
-}
-
-// WithLegacyCascade sets weather to cascade finds legacy providers connecting only over bitswap
-// Enabled by default if unspecified.
-func WithLegacyCascade(b bool) Option {
-	return func(o *options) error {
-		o.legacyCascade = b
 		return nil
 	}
 }
