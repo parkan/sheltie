@@ -1,3 +1,7 @@
+// MODIFIED: 2025-10-30
+// - Renamed application from lassie to sheltie
+// - Removed bitswap concurrency flags
+
 package main
 
 import (
@@ -62,7 +66,7 @@ var daemonFlags = []cli.Flag{
 		DefaultText: "no limit",
 		EnvVars:     []string{"LASSIE_CONCURRENT_SP_RETRIEVALS"},
 	},
-	FlagIPNIEndpoint,
+	FlagDelegatedRoutingEndpoint,
 	FlagEventRecorderAuth,
 	FlagEventRecorderInstanceId,
 	FlagEventRecorderUrl,
@@ -72,8 +76,6 @@ var daemonFlags = []cli.Flag{
 	FlagAllowProviders,
 	FlagExcludeProviders,
 	FlagTempDir,
-	FlagBitswapConcurrency,
-	FlagBitswapConcurrencyPerRetrieval,
 	FlagGlobalTimeout,
 	FlagProviderTimeout,
 	&cli.StringFlag{

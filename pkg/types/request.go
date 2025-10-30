@@ -1,3 +1,10 @@
+// MODIFIED: 2025-10-30
+// - Removed PreloadLinkSystem field (bitswap-specific)
+// - Removed HasPreloadLinkSystem() method
+// - Removed bitswap from ParseProtocolsString()
+// - Removed bitswap from ParseProviderStrings()
+// - Removed bitswap from ToProviderString()
+
 package types
 
 import (
@@ -71,11 +78,6 @@ type RetrievalRequest struct {
 	// Protocols is an optional list of protocols to use when fetching the DAG.
 	// If nil, the default protocols will be used.
 	Protocols []multicodec.Code
-
-	// PreloadLinkSystem must be setup to enable Bitswap preload behavior. This
-	// LinkSystem must be thread-safe as multiple goroutines may be using it to
-	// store and retrieve blocks concurrently.
-	PreloadLinkSystem ipld.LinkSystem
 
 	// MaxBlocks optionally specifies the maximum number of blocks to fetch.
 	// If zero, no limit is applied.
@@ -213,18 +215,12 @@ func (r RetrievalRequest) GetSupportedProtocols(allSupportedProtocols []multicod
 	return supportedProtocols
 }
 
-func (r RetrievalRequest) HasPreloadLinkSystem() bool {
-	return r.PreloadLinkSystem.StorageReadOpener != nil && r.PreloadLinkSystem.StorageWriteOpener != nil
-}
-
 func ParseProtocolsString(v string) ([]multicodec.Code, error) {
 	vs := strings.Split(v, ",")
 	protocols := make([]multicodec.Code, 0, len(vs))
 	for _, v := range vs {
 		var protocol multicodec.Code
 		switch v {
-		case "bitswap":
-			protocol = multicodec.TransportBitswap
 		case "graphsync":
 			protocol = multicodec.TransportGraphsyncFilecoinv1
 		case "http":
@@ -265,9 +261,6 @@ func ParseProviderStrings(v string) ([]Provider, error) {
 				var foundProtocol bool
 				for _, part := range parts[1:] {
 					switch part {
-					case "bitswap":
-						foundProtocol = true
-						protocols = append(protocols, metadata.Bitswap{})
 					case "graphsync":
 						foundProtocol = true
 						protocols = append(protocols, &metadata.GraphsyncFilecoinV1{})
@@ -346,8 +339,6 @@ func ToProviderString(ai []Provider) (string, error) {
 		sb.WriteString(ma[0].String())
 		for _, protocol := range v.Protocols {
 			switch protocol.(type) {
-			case metadata.Bitswap, *metadata.Bitswap:
-				sb.WriteString("+bitswap")
 			case metadata.IpfsGatewayHttp, *metadata.IpfsGatewayHttp:
 				sb.WriteString("+http")
 			case *metadata.GraphsyncFilecoinV1:

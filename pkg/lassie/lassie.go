@@ -1,3 +1,9 @@
+// MODIFIED: 2025-10-30
+// - Renamed package from lassie to sheltie
+// - Removed bitswap concurrency configuration and constants
+// - Removed bitswap protocol initialization
+// - Updated default protocols to [graphsync, http] (removed bitswap)
+
 package lassie
 
 import (
@@ -21,8 +27,6 @@ import (
 var _ types.Fetcher = &Lassie{}
 
 const DefaultProviderTimeout = 20 * time.Second
-const DefaultBitswapConcurrency = 32
-const DefaultBitswapConcurrencyPerRetrieval = 12
 
 // Lassie represents a reusable retrieval client.
 type Lassie struct {
@@ -32,17 +36,15 @@ type Lassie struct {
 
 // LassieConfig customizes the behavior of a Lassie instance.
 type LassieConfig struct {
-	Source                         types.CandidateSource
-	Host                           host.Host
-	ProviderTimeout                time.Duration
-	ConcurrentSPRetrievals         uint
-	GlobalTimeout                  time.Duration
-	Libp2pOptions                  []libp2p.Option
-	Protocols                      []multicodec.Code
-	ProviderBlockList              map[peer.ID]bool
-	ProviderAllowList              map[peer.ID]bool
-	BitswapConcurrency             int
-	BitswapConcurrencyPerRetrieval int
+	Source                 types.CandidateSource
+	Host                   host.Host
+	ProviderTimeout        time.Duration
+	ConcurrentSPRetrievals uint
+	GlobalTimeout          time.Duration
+	Libp2pOptions          []libp2p.Option
+	Protocols              []multicodec.Code
+	ProviderBlockList      map[peer.ID]bool
+	ProviderAllowList      map[peer.ID]bool
 }
 
 type LassieOption func(cfg *LassieConfig)
@@ -76,12 +78,6 @@ func NewLassieWithConfig(ctx context.Context, cfg *LassieConfig) (*Lassie, error
 	if cfg.ProviderTimeout == 0 {
 		cfg.ProviderTimeout = DefaultProviderTimeout
 	}
-	if cfg.BitswapConcurrency == 0 {
-		cfg.BitswapConcurrency = DefaultBitswapConcurrency
-	}
-	if cfg.BitswapConcurrencyPerRetrieval == 0 {
-		cfg.BitswapConcurrencyPerRetrieval = DefaultBitswapConcurrencyPerRetrieval
-	}
 
 	datastore := sync.MutexWrap(datastore.NewMapDatastore())
 
@@ -103,7 +99,7 @@ func NewLassieWithConfig(ctx context.Context, cfg *LassieConfig) (*Lassie, error
 	session := session.NewSession(sessionConfig, true)
 
 	if len(cfg.Protocols) == 0 {
-		cfg.Protocols = []multicodec.Code{multicodec.TransportBitswap, multicodec.TransportGraphsyncFilecoinv1, multicodec.TransportIpfsGatewayHttp}
+		cfg.Protocols = []multicodec.Code{multicodec.TransportGraphsyncFilecoinv1, multicodec.TransportIpfsGatewayHttp}
 	}
 
 	protocolRetrievers := make(map[multicodec.Code]types.CandidateRetriever)
@@ -119,13 +115,6 @@ func NewLassieWithConfig(ctx context.Context, cfg *LassieConfig) (*Lassie, error
 				return nil, err
 			}
 			protocolRetrievers[protocol] = retriever.NewGraphsyncRetriever(session, retrievalClient)
-		// DISABLED: bitswap support removed for boxo v0.35.0 compatibility
-		// case multicodec.TransportBitswap:
-		// 	protocolRetrievers[protocol] = retriever.NewBitswapRetrieverFromHost(ctx, cfg.Host, retriever.BitswapConfig{
-		// 		BlockTimeout:            cfg.ProviderTimeout,
-		// 		Concurrency:             cfg.BitswapConcurrency,
-		// 		ConcurrencyPerRetrieval: cfg.BitswapConcurrencyPerRetrieval,
-		// 	})
 		case multicodec.TransportIpfsGatewayHttp:
 			protocolRetrievers[protocol] = retriever.NewHttpRetriever(session, http.DefaultClient)
 		}
@@ -212,24 +201,6 @@ func WithProviderBlockList(providerBlockList map[peer.ID]bool) LassieOption {
 func WithProviderAllowList(providerAllowList map[peer.ID]bool) LassieOption {
 	return func(cfg *LassieConfig) {
 		cfg.ProviderAllowList = providerAllowList
-	}
-}
-
-// WithBitswapConcurrency allows you to specify a custom concurrency for bitswap
-// retrievals across all parallel retrievals in the same Lassie instance. This
-// is applied using a preloader during traversals. The default is 32.
-func WithBitswapConcurrency(concurrency int) LassieOption {
-	return func(cfg *LassieConfig) {
-		cfg.BitswapConcurrency = concurrency
-	}
-}
-
-// WithBitswapConcurrencyPerRetrieval allows you to specify a custom concurrency
-// for bitswap retrievals for each individual parallel retrieval. This is
-// applied using a preloader during traversals. The default is 8.
-func WithBitswapConcurrencyPerRetrieval(concurrency int) LassieOption {
-	return func(cfg *LassieConfig) {
-		cfg.BitswapConcurrencyPerRetrieval = concurrency
 	}
 }
 
