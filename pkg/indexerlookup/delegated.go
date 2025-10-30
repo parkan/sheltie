@@ -1,3 +1,8 @@
+// MODIFIED: 2025-10-30
+// - Created new file for delegated routing API support
+// - Added JSON response structures for HTTP Routing V1 API
+// - Removed bitswap protocol support
+
 package indexerlookup
 
 import (

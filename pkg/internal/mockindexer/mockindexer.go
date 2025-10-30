@@ -1,3 +1,7 @@
+// MODIFIED: 2025-10-30
+// - Added delegated routing endpoint handler
+// - Removed bitswap protocol support
+
 package mockindexer
 
 import (

@@ -1,3 +1,10 @@
+// MODIFIED: 2025-10-30
+// - Migrated from IPNI multihash API to HTTP Delegated Routing V1 API
+// - Changed endpoint from /multihash/{hash} to /routing/v1/providers/{cid}
+// - Updated to use JSON response format instead of NDJSON
+// - Added CIDv1 base32 normalization for better HTTP caching
+// - Added HTTP 429 rate limiting handling
+
 package indexerlookup
 
 import (
