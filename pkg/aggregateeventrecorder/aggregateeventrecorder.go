@@ -11,7 +11,6 @@ import (
 	"github.com/parkan/sheltie/pkg/events"
 	"github.com/parkan/sheltie/pkg/types"
 	"github.com/ipfs/go-log/v2"
-	"github.com/multiformats/go-multicodec"
 )
 
 var logger = log.Logger("sheltie/aggregateeventrecorder")
@@ -211,12 +210,6 @@ func (a *aggregateEventRecorder) ingestEvents() {
 					tempData.retrievalAttempts[spid] = attempt
 				}
 				attempt.BytesTransferred += ret.ByteCount()
-				if ret.Protocol() == multicodec.TransportBitswap {
-					// record the total under the bitswap identifier as well
-					if _, ok := tempData.retrievalAttempts[types.BitswapIndentifier]; ok {
-						tempData.retrievalAttempts[types.BitswapIndentifier].BytesTransferred += ret.ByteCount()
-					}
-				}
 
 			case events.FailedRetrievalEvent:
 				// Add an error message to the retrieval attempt

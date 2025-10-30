@@ -90,10 +90,6 @@ func (session *Session) isAcceptableCandidate(storageProviderId peer.ID) bool {
 }
 
 func (session *Session) isAcceptableCandidateForProtocol(storageProviderId peer.ID, protocol multicodec.Code) bool {
-	if protocol == multicodec.TransportBitswap {
-		return true
-	}
-
 	// check if we are currently retrieving from the candidate with its maximum
 	// concurrency
 	minerConfig := session.config.getProviderConfig(storageProviderId)

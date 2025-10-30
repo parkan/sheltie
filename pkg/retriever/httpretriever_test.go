@@ -1,3 +1,6 @@
+// MODIFIED: 2025-10-30
+// - Added makeLsys and sizeOf helper functions (moved from removed bitswap test file)
+
 package retriever_test
 
 import (
@@ -1091,4 +1094,28 @@ func must[T any](t T, err error) T {
 		panic(err)
 	}
 	return t
+}
+
+func makeLsys(blocks []blocks.Block, threadsafe bool) *linking.LinkSystem {
+	bag := make(map[string][]byte, len(blocks))
+	for _, block := range blocks {
+		bag[cidlink.Link{Cid: block.Cid()}.Binary()] = block.RawData()
+	}
+	lsys := cidlink.DefaultLinkSystem()
+	var store testutil.ParentStore = &trustlesstestutil.CorrectedMemStore{ParentStore: &memstore.Store{Bag: bag}}
+	if threadsafe {
+		store = &testutil.ThreadsafeStore{ParentStore: store}
+	}
+	lsys.SetReadStorage(store)
+	lsys.SetWriteStorage(store)
+	lsys.TrustedStorage = true
+	return &lsys
+}
+
+func sizeOf(blocks []blocks.Block) uint64 {
+	total := uint64(0)
+	for _, block := range blocks {
+		total += uint64(len(block.RawData()))
+	}
+	return total
 }

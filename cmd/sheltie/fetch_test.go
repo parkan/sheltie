@@ -262,11 +262,11 @@ func TestFetchCommandFlags(t *testing.T) {
 			args: []string{
 				"fetch",
 				"--protocols",
-				"bitswap,graphsync",
+				"graphsync,http",
 				"bafybeic56z3yccnla3cutmvqsn5zy3g24muupcsjtoyp3pu5pm5amurjx4",
 			},
 			assertRun: func(ctx context.Context, lCfg *l.SheltieConfig, erCfg *a.EventRecorderConfig, msgWriter io.Writer, dataWriter io.Writer, rootCid cid.Cid, path datamodel.Path, dagScope trustlessutils.DagScope, entityBytes *trustlessutils.ByteRange, duplicates bool, tempDir string, progress bool, outfile string) error {
-				require.Equal(t, []multicodec.Code{multicodec.TransportBitswap, multicodec.TransportGraphsyncFilecoinv1}, lCfg.Protocols)
+				require.Equal(t, []multicodec.Code{multicodec.TransportGraphsyncFilecoinv1, multicodec.TransportIpfsGatewayHttp}, lCfg.Protocols)
 				return nil
 			},
 		},

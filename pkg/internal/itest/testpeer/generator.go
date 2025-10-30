@@ -15,8 +15,6 @@ import (
 	dtnet "github.com/filecoin-project/go-data-transfer/v2/network"
 	gstransport "github.com/filecoin-project/go-data-transfer/v2/transport/graphsync"
 	"github.com/parkan/sheltie/pkg/internal/itest/linksystemutil"
-	bsnet "github.com/ipfs/boxo/bitswap/network"
-	"github.com/ipfs/boxo/bitswap/server"
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/go-cid"
 	ds "github.com/ipfs/go-datastore"
@@ -30,7 +28,6 @@ import (
 	"github.com/ipld/go-ipld-prime"
 	"github.com/ipld/go-ipld-prime/linking"
 	cidlink "github.com/ipld/go-ipld-prime/linking/cid"
-	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
 	tnet "github.com/libp2p/go-libp2p-testing/net"
 	p2ptestutil "github.com/libp2p/go-libp2p-testing/netutil"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -45,45 +42,30 @@ var logger = log.Logger("sheltie/mocknet")
 
 // NewTestPeerGenerator generates a new TestPeerGenerator for the given
 // mocknet
-func NewTestPeerGenerator(ctx context.Context, t *testing.T, mn mocknet.Mocknet, netOptions []bsnet.NetOpt, bsOptions []server.Option) TestPeerGenerator {
+func NewTestPeerGenerator(ctx context.Context, t *testing.T, mn mocknet.Mocknet) TestPeerGenerator {
 	ctx, cancel := context.WithCancel(ctx)
 	return TestPeerGenerator{
-		seq:        0,
-		t:          t,
-		ctx:        ctx, // TODO take ctx as param to Next, Instances
-		mn:         mn,
-		cancel:     cancel,
-		bsOptions:  bsOptions,
-		netOptions: netOptions,
+		seq:    0,
+		t:      t,
+		ctx:    ctx, // TODO take ctx as param to Next, Instances
+		mn:     mn,
+		cancel: cancel,
 	}
 }
 
-// TestPeerGenerator generates new test peers bitswap+dependencies
-// TODO: add graphsync/markets stack, make protocols choosable
+// TestPeerGenerator generates new test peers with graphsync/http dependencies
 type TestPeerGenerator struct {
-	seq        int
-	t          *testing.T
-	mn         mocknet.Mocknet
-	ctx        context.Context
-	cancel     context.CancelFunc
-	bsOptions  []server.Option
-	netOptions []bsnet.NetOpt
+	seq    int
+	t      *testing.T
+	mn     mocknet.Mocknet
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 // Close closes the clobal context, shutting down all test peers
 func (g *TestPeerGenerator) Close() error {
 	g.cancel()
 	return nil // for Closer interface
-}
-
-// NextBitswap generates a new test peer with bitswap + dependencies
-func (g *TestPeerGenerator) NextBitswap(opts ...PeerOption) TestPeer {
-	g.seq++
-	p, err := RandTestPeerIdentity()
-	require.NoError(g.t, err)
-	tp, err := NewTestBitswapPeer(g.ctx, g.mn, p, g.netOptions, g.bsOptions, opts...)
-	require.NoError(g.t, err)
-	return tp
 }
 
 // NextGraphsync generates a new test peer with graphsync + dependencies
@@ -104,16 +86,6 @@ func (g *TestPeerGenerator) NextHttp(opts ...PeerOption) TestPeer {
 	tp, err := NewTestHttpPeer(g.ctx, g.mn, p, g.t, opts...)
 	require.NoError(g.t, err)
 	return tp
-}
-
-// BitswapPeers creates N test peers with bitswap + dependencies
-func (g *TestPeerGenerator) BitswapPeers(n int, opts ...PeerOption) []TestPeer {
-	var instances []TestPeer
-	for j := 0; j < n; j++ {
-		inst := g.NextBitswap(opts...)
-		instances = append(instances, inst)
-	}
-	return instances
 }
 
 // GraphsyncPeers creates N test peers with graphsync + dependencies
@@ -149,11 +121,9 @@ func ConnectPeers(instances []TestPeer) {
 	}
 }
 
-// TestPeer is a test instance of bitswap + dependencies for integration testing
+// TestPeer is a test instance with graphsync/http dependencies for integration testing
 type TestPeer struct {
 	ID                 peer.ID
-	BitswapServer      *server.Server
-	BitswapNetwork     bsnet.BitSwapNetwork
 	DatatransferServer datatransfer.Manager
 	HttpServer         *TestPeerHttpServer
 	blockstore         blockstore.Blockstore
@@ -180,36 +150,6 @@ func (i TestPeer) AddrInfo() *peer.AddrInfo {
 		ID:    i.ID,
 		Addrs: i.Host.Addrs(),
 	}
-}
-
-// NewTestBitswapPeer creates a test peer instance.
-//
-// NB: It's easy make mistakes by providing the same peer ID to two different
-// instances. To safeguard, use the InstanceGenerator to generate instances. It's
-// just a much better idea.
-func NewTestBitswapPeer(
-	ctx context.Context,
-	mn mocknet.Mocknet,
-	p tnet.Identity,
-	netOptions []bsnet.NetOpt,
-	bsOptions []server.Option,
-	opts ...PeerOption,
-) (TestPeer, error) {
-	peer, _, err := newTestPeer(ctx, mn, p, opts...)
-	if err != nil {
-		return TestPeer{}, err
-	}
-	bsNet := bsnet.NewFromIpfsHost(peer.Host, routinghelpers.Null{}, netOptions...)
-	bs := server.New(ctx, bsNet, peer.blockstore, bsOptions...)
-	bsNet.Start(bs)
-	go func() {
-		<-ctx.Done()
-		bsNet.Stop()
-	}()
-	peer.BitswapServer = bs
-	peer.BitswapNetwork = bsNet
-	peer.Protocol = multicodec.TransportBitswap
-	return peer, nil
 }
 
 func NewTestGraphsyncPeer(ctx context.Context, mn mocknet.Mocknet, p tnet.Identity, opts ...PeerOption) (TestPeer, error) {

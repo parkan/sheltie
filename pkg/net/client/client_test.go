@@ -1,3 +1,7 @@
+// MODIFIED: 2025-10-30
+// - Added ResetWithError method to fakeStream
+// - Added CloseWithError method to fakeConn
+
 package client
 
 import (
@@ -170,7 +174,8 @@ func (f fakeStream) Write(p []byte) (n int, err error) { return 0, nil }
 func (f fakeStream) CloseWrite() error                 { return nil }
 func (f fakeStream) CloseRead() error                  { return nil }
 func (f fakeStream) Close() error                      { return nil }
-func (f fakeStream) Reset() error                      { return nil }
+func (f fakeStream) Reset() error                                 { return nil }
+func (f fakeStream) ResetWithError(network.StreamErrorCode) error { return nil }
 func (f fakeStream) SetDeadline(time.Time) error       { return nil }
 func (f fakeStream) SetReadDeadline(time.Time) error   { return nil }
 func (f fakeStream) SetWriteDeadline(time.Time) error  { return nil }
@@ -183,7 +188,8 @@ func (f fakeStream) Scope() network.StreamScope        { return nil }
 
 type fakeConn struct{}
 
-func (f fakeConn) Close() error                                      { return nil }
+func (f fakeConn) Close() error                                   { return nil }
+func (f fakeConn) CloseWithError(network.ConnErrorCode) error    { return nil }
 func (f fakeConn) LocalPeer() peer.ID                                { return peer.ID("") }
 func (f fakeConn) RemotePeer() peer.ID                               { return peer.ID("") }
 func (f fakeConn) RemotePublicKey() ic.PubKey                        { return nil }

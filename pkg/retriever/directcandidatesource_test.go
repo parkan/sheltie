@@ -32,7 +32,7 @@ func TestDirectCandidateSourceNoLibp2p(t *testing.T) {
 					ID:    p,
 					Addrs: []multiaddr.Multiaddr{rawMultiaddr},
 				},
-				Protocols: []metadata.Protocol{metadata.IpfsGatewayHttp{}, metadata.Bitswap{}},
+				Protocols: []metadata.Protocol{metadata.IpfsGatewayHttp{}},
 			},
 			expectedCandidate: types.RetrievalCandidate{
 				MinerPeer: peer.AddrInfo{
@@ -40,7 +40,7 @@ func TestDirectCandidateSourceNoLibp2p(t *testing.T) {
 					Addrs: []multiaddr.Multiaddr{rawMultiaddr},
 				},
 				RootCid:  rootCid,
-				Metadata: metadata.Default.New(metadata.IpfsGatewayHttp{}, metadata.Bitswap{}),
+				Metadata: metadata.Default.New(metadata.IpfsGatewayHttp{}),
 			},
 		},
 		{
@@ -57,7 +57,7 @@ func TestDirectCandidateSourceNoLibp2p(t *testing.T) {
 					Addrs: []multiaddr.Multiaddr{rawMultiaddr},
 				},
 				RootCid:  rootCid,
-				Metadata: metadata.Default.New(metadata.IpfsGatewayHttp{}, metadata.Bitswap{}, &metadata.GraphsyncFilecoinV1{}),
+				Metadata: metadata.Default.New(metadata.IpfsGatewayHttp{}, &metadata.GraphsyncFilecoinV1{}),
 			},
 		},
 		{

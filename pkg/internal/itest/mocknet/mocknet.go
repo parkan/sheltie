@@ -11,8 +11,6 @@ import (
 	retrievaltypes "github.com/filecoin-project/go-retrieval-types"
 	"github.com/parkan/sheltie/pkg/internal/itest/testpeer"
 	"github.com/parkan/sheltie/pkg/types"
-	bsnet "github.com/ipfs/boxo/bitswap/network"
-	bssrv "github.com/ipfs/boxo/bitswap/server"
 	"github.com/ipfs/go-cid"
 	"github.com/ipld/go-ipld-prime"
 	"github.com/ipld/go-ipld-prime/datamodel"
@@ -54,15 +52,11 @@ func NewMockRetrievalNet(ctx context.Context, t *testing.T) *MockRetrievalNet {
 	})
 	// Setup network
 	mrn.MN = lpmock.New()
-	mrn.testPeerGenerator = testpeer.NewTestPeerGenerator(mrn.ctx, mrn.t, mrn.MN, []bsnet.NetOpt{}, []bssrv.Option{})
+	mrn.testPeerGenerator = testpeer.NewTestPeerGenerator(mrn.ctx, mrn.t, mrn.MN)
 	h, err := mrn.MN.GenPeer()
 	mrn.Self = h
 	require.NoError(mrn.t, err)
 	return mrn
-}
-
-func (mrn *MockRetrievalNet) AddBitswapPeers(n int, opts ...testpeer.PeerOption) {
-	mrn.addPeers(mrn.testPeerGenerator.BitswapPeers(n, opts...))
 }
 
 func (mrn *MockRetrievalNet) AddGraphsyncPeers(n int, opts ...testpeer.PeerOption) {
@@ -126,12 +120,6 @@ func (mrn *MockRetrievalNet) TearDown() error {
 			if h.DatatransferServer != nil {
 				h.DatatransferServer.Stop(context.Background())
 			}
-			if h.BitswapServer != nil {
-				h.BitswapServer.Close()
-			}
-			if h.BitswapNetwork != nil {
-				h.BitswapNetwork.Stop()
-			}
 			if h.HttpServer != nil {
 				h.HttpServer.Close()
 			}
@@ -151,8 +139,6 @@ func (mcf *mockCandidateSource) findCandidates(ctx context.Context, cid cid.Cid)
 		if _, has := h.Cids[cid]; has {
 			var md metadata.Metadata
 			switch h.Protocol {
-			case multicodec.TransportBitswap:
-				md = metadata.Default.New(metadata.Bitswap{})
 			case multicodec.TransportGraphsyncFilecoinv1:
 				md = metadata.Default.New(&metadata.GraphsyncFilecoinV1{PieceCID: cid})
 			case multicodec.TransportIpfsGatewayHttp:

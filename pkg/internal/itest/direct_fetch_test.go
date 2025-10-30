@@ -1,3 +1,8 @@
+// MODIFIED: 2025-10-30
+// - Removed bitswap protocol support and test cases
+// - Updated peer indexing after bitswap removal
+// - Fixed http peer test case to use correct constant
+
 package itest
 
 import (
@@ -18,6 +23,7 @@ import (
 	"github.com/ipfs/go-unixfsnode"
 	unixfs "github.com/ipfs/go-unixfsnode/testutil"
 	carv2 "github.com/ipld/go-car/v2"
+	"github.com/ipni/go-libipni/metadata"
 	"github.com/ipld/go-car/v2/storage"
 	"github.com/ipld/go-ipld-prime/codec/dagcbor"
 	cidlink "github.com/ipld/go-ipld-prime/linking/cid"
@@ -30,10 +36,9 @@ import (
 )
 
 const (
-	bitswapDirect    = 0
-	graphsyncDirect  = 1
-	httpDirect       = 2
-	transportsDirect = 3
+	graphsyncDirect  = 0
+	httpDirect       = 1
+	transportsDirect = 2
 )
 
 func TestDirectFetch(t *testing.T) {
@@ -42,16 +47,12 @@ func TestDirectFetch(t *testing.T) {
 		directPeer int
 	}{
 		{
-			name:       "direct bitswap peer",
-			directPeer: bitswapDirect,
-		},
-		{
 			name:       "direct graphsync peer",
 			directPeer: graphsyncDirect,
 		},
 		{
 			name:       "direct http peer",
-			directPeer: graphsyncDirect,
+			directPeer: httpDirect,
 		},
 		{
 			name:       "peer responding on transports protocol",
@@ -71,7 +72,6 @@ func TestDirectFetch(t *testing.T) {
 
 			mrn := mocknet.NewMockRetrievalNet(ctx, t)
 			mrn.AddGraphsyncPeers(1)
-			mrn.AddBitswapPeers(1)
 			mrn.AddHttpPeers(1)
 
 			// generate separate 4MiB random unixfs file DAGs on both peers
@@ -82,23 +82,13 @@ func TestDirectFetch(t *testing.T) {
 			srcData1 := unixfs.GenerateFile(t, mrn.Remotes[0].LinkSystem, rndReader, 4<<20)
 			mocknet.SetupRetrieval(t, mrn.Remotes[0])
 
-			// bitswap peer (1)
+			// http peer (1)
 			srcData2 := unixfs.GenerateFile(t, mrn.Remotes[1].LinkSystem, bytes.NewReader(srcData1.Content), 4<<20)
 			req.Equal(srcData2.Root, srcData1.Root)
-			bitswapMAs, err := peer.AddrInfoToP2pAddrs(mrn.Remotes[1].AddrInfo())
-			req.NoError(err)
-
-			// http peer (1)
-			srcData3 := unixfs.GenerateFile(t, mrn.Remotes[2].LinkSystem, bytes.NewReader(srcData1.Content), 4<<20)
-			req.Equal(srcData3.Root, srcData1.Root)
-			httpMAs, err := peer.AddrInfoToP2pAddrs(mrn.Remotes[2].AddrInfo())
+			httpMAs, err := peer.AddrInfoToP2pAddrs(mrn.Remotes[1].AddrInfo())
 			req.NoError(err)
 
 			transportsAddr, clear := handleTransports(t, mrn.MN, []lp2ptransports.Protocol{
-				{
-					Name:      "bitswap",
-					Addresses: bitswapMAs,
-				},
 				{
 					Name:      "libp2p",
 					Addresses: graphsyncMAs,
@@ -112,23 +102,28 @@ func TestDirectFetch(t *testing.T) {
 			defer clear()
 
 			var addr peer.AddrInfo
+			var protocols []metadata.Protocol
 			switch testCase.directPeer {
 			case graphsyncDirect:
 				addr = *mrn.Remotes[0].AddrInfo()
-			case bitswapDirect:
-				addr = *mrn.Remotes[1].AddrInfo()
+				// Graphsync speaks libp2p, so we can use nil to auto-discover via libp2p
+				protocols = nil
 			case httpDirect:
-				addr = *mrn.Remotes[2].AddrInfo()
+				addr = *mrn.Remotes[1].AddrInfo()
+				// HTTP peers don't speak libp2p, so we must explicitly specify the protocol
+				protocols = []metadata.Protocol{metadata.IpfsGatewayHttp{}}
 			case transportsDirect:
 				addr = transportsAddr
+				// Transports protocol will advertise available protocols
+				protocols = nil
 			default:
 				req.FailNow("unrecognized direct peer test")
 			}
 
-			directFinder := retriever.NewDirectCandidateSource([]types.Provider{{Peer: addr, Protocols: nil}}, retriever.WithLibp2pCandidateDiscovery(mrn.Self))
+			directFinder := retriever.NewDirectCandidateSource([]types.Provider{{Peer: addr, Protocols: protocols}}, retriever.WithLibp2pCandidateDiscovery(mrn.Self))
 			lassie, err := sheltie.NewSheltie(ctx, sheltie.WithCandidateSource(directFinder), sheltie.WithHost(mrn.Self), sheltie.WithGlobalTimeout(5*time.Second))
 			req.NoError(err)
-			outFile, err := os.CreateTemp(t.TempDir(), "lassie-test-")
+			outFile, err := os.CreateTemp(t.TempDir(), "sheltie-test-")
 			req.NoError(err)
 			defer func() {
 				req.NoError(outFile.Close())

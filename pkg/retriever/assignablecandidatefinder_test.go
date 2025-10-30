@@ -154,7 +154,7 @@ func TestAssignableCandidateFinder(t *testing.T) {
 				for _, stringResult := range stringResults {
 					providers = append(providers, types.Provider{
 						Peer:      peer.AddrInfo{ID: peer.ID(stringResult)},
-						Protocols: []metadata.Protocol{&metadata.GraphsyncFilecoinV1{}, &metadata.Bitswap{}, &metadata.IpfsGatewayHttp{}},
+						Protocols: []metadata.Protocol{&metadata.GraphsyncFilecoinV1{}, &metadata.IpfsGatewayHttp{}},
 					})
 				}
 				allProviders[c] = providers
