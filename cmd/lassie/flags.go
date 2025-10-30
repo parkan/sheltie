@@ -204,11 +204,12 @@ var FlagProviderTimeout = &cli.DurationFlag{
 	EnvVars: []string{"LASSIE_PROVIDER_TIMEOUT"},
 }
 
-var FlagIPNIEndpoint = &cli.StringFlag{
-	Name:        "ipni-endpoint",
-	Aliases:     []string{"ipni"},
+var FlagDelegatedRoutingEndpoint = &cli.StringFlag{
+	Name:        "delegated-routing-endpoint",
+	Aliases:     []string{"delegated"},
 	DefaultText: "Defaults to https://cid.contact",
-	Usage:       "HTTP endpoint of the IPNI instance used to discover providers.",
+	Usage:       "HTTP endpoint of the delegated routing service used to discover providers.",
+	EnvVars:     []string{"LASSIE_DELEGATED_ROUTING_ENDPOINT"},
 }
 
 func ResetGlobalFlags() {
