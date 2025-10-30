@@ -1,3 +1,8 @@
+// MODIFIED: 2025-10-30
+// - Removed cascade-related options (ipfsDhtCascade, legacyCascade)
+// - Updated User-Agent from "lassie" to "sheltie"
+// - Updated comments to reference delegated routing instead of indexer
+
 package indexerlookup
 
 import (

@@ -1,3 +1,9 @@
+// MODIFIED: 2025-10-30
+// - Renamed package from lassie to sheltie
+// - Removed bitswap concurrency configuration and constants
+// - Removed bitswap protocol initialization
+// - Updated default protocols to [graphsync, http] (removed bitswap)
+
 package sheltie
 
 import (

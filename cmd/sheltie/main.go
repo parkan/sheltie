@@ -1,3 +1,8 @@
+// MODIFIED: 2025-10-30
+// - Renamed application from lassie to sheltie
+// - Removed bitswap concurrency configuration
+// - Updated to use delegated routing endpoint (renamed from ipni-endpoint)
+
 package main
 
 import (

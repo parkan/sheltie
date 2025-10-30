@@ -1,3 +1,10 @@
+// MODIFIED: 2025-10-30
+// - Removed PreloadLinkSystem field (bitswap-specific)
+// - Removed HasPreloadLinkSystem() method
+// - Removed bitswap from ParseProtocolsString()
+// - Removed bitswap from ParseProviderStrings()
+// - Removed bitswap from ToProviderString()
+
 package types
 
 import (
