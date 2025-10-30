@@ -153,16 +153,16 @@ func TestDaemonCommandFlags(t *testing.T) {
 			},
 		},
 		{
-			name: "with ipni endpoint",
-			args: []string{"daemon", "--ipni-endpoint", "https://cid.contact"},
+			name: "with delegated routing endpoint",
+			args: []string{"daemon", "--delegated-routing-endpoint", "https://cid.contact"},
 			assert: func(ctx context.Context, lCfg *l.SheltieConfig, hCfg h.HttpServerConfig, erCfg *a.EventRecorderConfig) error {
-				require.IsType(t, &indexerlookup.IndexerCandidateSource{}, lCfg.Source, "finder should be an IndexerCandidateSource when providing an ipni endpoint")
+				require.IsType(t, &indexerlookup.IndexerCandidateSource{}, lCfg.Source, "finder should be an IndexerCandidateSource when providing a delegated routing endpoint")
 				return nil
 			},
 		},
 		{
-			name:        "with bad ipni endpoint",
-			args:        []string{"daemon", "--ipni-endpoint", "not-a-url"},
+			name:        "with bad delegated routing endpoint",
+			args:        []string{"daemon", "--delegated-routing-endpoint", "not-a-url"},
 			shouldError: true,
 		},
 		{
