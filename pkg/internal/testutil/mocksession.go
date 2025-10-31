@@ -5,12 +5,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/filecoin-project/lassie/pkg/session"
-	"github.com/filecoin-project/lassie/pkg/types"
 	"github.com/ipfs/go-cid"
 	"github.com/ipld/go-ipld-prime/datamodel"
 	"github.com/ipni/go-libipni/metadata"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/filecoin-project/lassie/pkg/session"
+	"github.com/filecoin-project/lassie/pkg/types"
 	"github.com/stretchr/testify/require"
 )
 

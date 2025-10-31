@@ -1,9 +1,9 @@
 package events
 
 import (
-	"github.com/filecoin-project/lassie/pkg/types"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multicodec"
+	"github.com/filecoin-project/lassie/pkg/types"
 )
 
 // Identifier returns the peer ID of the storage provider if this retrieval was

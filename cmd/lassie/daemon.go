@@ -8,12 +8,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/filecoin-project/lassie/pkg/aggregateeventrecorder"
-	"github.com/filecoin-project/lassie/pkg/lassie"
-	httpserver "github.com/filecoin-project/lassie/pkg/server/http"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/config"
 	"github.com/libp2p/go-libp2p/p2p/net/connmgr"
+	"github.com/filecoin-project/lassie/pkg/aggregateeventrecorder"
+	httpserver "github.com/filecoin-project/lassie/pkg/server/http"
+	"github.com/filecoin-project/lassie/pkg/lassie"
 	"github.com/urfave/cli/v2"
 )
 

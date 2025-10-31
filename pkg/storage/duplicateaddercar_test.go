@@ -6,8 +6,6 @@ import (
 	"io"
 	"testing"
 
-	"github.com/filecoin-project/lassie/pkg/internal/testutil"
-	"github.com/filecoin-project/lassie/pkg/storage"
 	blocks "github.com/ipfs/go-block-format"
 	unixfs "github.com/ipfs/go-unixfsnode/testutil"
 	carv2 "github.com/ipld/go-car/v2"
@@ -16,6 +14,8 @@ import (
 	selectorparse "github.com/ipld/go-ipld-prime/traversal/selector/parse"
 	trustlessutils "github.com/ipld/go-trustless-utils"
 	trustlesstestutil "github.com/ipld/go-trustless-utils/testutil"
+	"github.com/filecoin-project/lassie/pkg/internal/testutil"
+	"github.com/filecoin-project/lassie/pkg/storage"
 	"github.com/stretchr/testify/require"
 )
 

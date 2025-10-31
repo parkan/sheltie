@@ -9,14 +9,14 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/filecoin-project/go-clock"
-	"github.com/filecoin-project/lassie/pkg/events"
-	"github.com/filecoin-project/lassie/pkg/retriever/combinators"
-	"github.com/filecoin-project/lassie/pkg/types"
 	"github.com/ipfs/go-cid"
 	"github.com/ipld/go-ipld-prime/datamodel"
 	"github.com/ipni/go-libipni/metadata"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multicodec"
+	"github.com/filecoin-project/lassie/pkg/events"
+	"github.com/filecoin-project/lassie/pkg/retriever/combinators"
+	"github.com/filecoin-project/lassie/pkg/types"
 )
 
 var (

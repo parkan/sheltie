@@ -13,14 +13,14 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/filecoin-project/lassie/pkg/aggregateeventrecorder"
-	"github.com/filecoin-project/lassie/pkg/indexerlookup"
-	"github.com/filecoin-project/lassie/pkg/lassie"
-	"github.com/filecoin-project/lassie/pkg/net/host"
-	"github.com/filecoin-project/lassie/pkg/retriever"
 	"github.com/google/uuid"
 	"github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/config"
+	"github.com/filecoin-project/lassie/pkg/aggregateeventrecorder"
+	"github.com/filecoin-project/lassie/pkg/indexerlookup"
+	"github.com/filecoin-project/lassie/pkg/net/host"
+	"github.com/filecoin-project/lassie/pkg/retriever"
+	"github.com/filecoin-project/lassie/pkg/lassie"
 	"github.com/urfave/cli/v2"
 )
 

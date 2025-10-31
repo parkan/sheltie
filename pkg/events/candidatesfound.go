@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/filecoin-project/lassie/pkg/types"
 	"github.com/ipfs/go-cid"
+	"github.com/filecoin-project/lassie/pkg/types"
 )
 
 var (

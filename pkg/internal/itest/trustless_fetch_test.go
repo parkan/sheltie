@@ -14,16 +14,16 @@ import (
 	"time"
 
 	datatransfer "github.com/filecoin-project/go-data-transfer/v2"
-	"github.com/filecoin-project/lassie/pkg/internal/itest/mocknet"
-	"github.com/filecoin-project/lassie/pkg/internal/itest/testpeer"
-	"github.com/filecoin-project/lassie/pkg/lassie"
-	httpserver "github.com/filecoin-project/lassie/pkg/server/http"
 	"github.com/google/uuid"
 	"github.com/ipfs/go-unixfsnode"
 	"github.com/ipld/go-car/v2"
 	cidlink "github.com/ipld/go-ipld-prime/linking/cid"
 	trustlessutils "github.com/ipld/go-trustless-utils"
 	trustlesspathing "github.com/ipld/ipld/specs/pkg-go/trustless-pathing"
+	"github.com/filecoin-project/lassie/pkg/internal/itest/mocknet"
+	"github.com/filecoin-project/lassie/pkg/internal/itest/testpeer"
+	httpserver "github.com/filecoin-project/lassie/pkg/server/http"
+	"github.com/filecoin-project/lassie/pkg/lassie"
 	"github.com/stretchr/testify/require"
 )
 

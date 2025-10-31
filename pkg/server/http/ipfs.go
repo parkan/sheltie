@@ -12,11 +12,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/filecoin-project/lassie/pkg/build"
-	"github.com/filecoin-project/lassie/pkg/heyfil"
-	"github.com/filecoin-project/lassie/pkg/retriever"
-	"github.com/filecoin-project/lassie/pkg/storage"
-	"github.com/filecoin-project/lassie/pkg/types"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-unixfsnode"
 	"github.com/ipld/go-car/v2/storage/deferred"
@@ -24,6 +19,11 @@ import (
 	trustlessutils "github.com/ipld/go-trustless-utils"
 	trustlesshttp "github.com/ipld/go-trustless-utils/http"
 	"github.com/multiformats/go-multicodec"
+	"github.com/filecoin-project/lassie/pkg/build"
+	"github.com/filecoin-project/lassie/pkg/heyfil"
+	"github.com/filecoin-project/lassie/pkg/retriever"
+	"github.com/filecoin-project/lassie/pkg/storage"
+	"github.com/filecoin-project/lassie/pkg/types"
 )
 
 func IpfsHandler(fetcher types.Fetcher, cfg HttpServerConfig) func(http.ResponseWriter, *http.Request) {

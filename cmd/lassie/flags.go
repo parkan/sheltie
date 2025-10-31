@@ -11,11 +11,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/filecoin-project/lassie/pkg/heyfil"
-	"github.com/filecoin-project/lassie/pkg/types"
 	"github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multicodec"
+	"github.com/filecoin-project/lassie/pkg/heyfil"
+	"github.com/filecoin-project/lassie/pkg/types"
 	"github.com/urfave/cli/v2"
 )
 

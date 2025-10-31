@@ -8,13 +8,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/filecoin-project/lassie/pkg/types"
 	"github.com/ipfs/go-cid"
 	"github.com/ipld/go-ipld-prime"
 	"github.com/ipld/go-ipld-prime/codec/dagjson"
 	"github.com/ipld/go-ipld-prime/datamodel"
 	"github.com/ipni/go-libipni/metadata"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/filecoin-project/lassie/pkg/types"
 )
 
 var _ State = (*SessionState)(nil)

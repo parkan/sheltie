@@ -10,8 +10,6 @@ import (
 	datatransfer "github.com/filecoin-project/go-data-transfer/v2"
 	retrievaltypes "github.com/filecoin-project/go-retrieval-types"
 	"github.com/filecoin-project/go-state-types/big"
-	"github.com/filecoin-project/lassie/pkg/internal/itest/mocknet"
-	"github.com/filecoin-project/lassie/pkg/net/client"
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
@@ -22,6 +20,8 @@ import (
 	unixfs "github.com/ipfs/go-unixfsnode/testutil"
 	"github.com/ipld/go-ipld-prime/linking"
 	selectorparse "github.com/ipld/go-ipld-prime/traversal/selector/parse"
+	"github.com/filecoin-project/lassie/pkg/internal/itest/mocknet"
+	"github.com/filecoin-project/lassie/pkg/net/client"
 	"github.com/stretchr/testify/require"
 )
 

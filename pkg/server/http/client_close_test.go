@@ -12,10 +12,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/filecoin-project/lassie/pkg/internal/itest/mocknet"
-	"github.com/filecoin-project/lassie/pkg/lassie"
 	unixfs "github.com/ipfs/go-unixfsnode/testutil"
 	"github.com/multiformats/go-multicodec"
+	"github.com/filecoin-project/lassie/pkg/internal/itest/mocknet"
+	"github.com/filecoin-project/lassie/pkg/lassie"
 	"github.com/stretchr/testify/require"
 )
 

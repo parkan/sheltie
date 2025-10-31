@@ -5,13 +5,13 @@ import (
 	"testing"
 	"time"
 
-	a "github.com/filecoin-project/lassie/pkg/aggregateeventrecorder"
-	"github.com/filecoin-project/lassie/pkg/indexerlookup"
-	l "github.com/filecoin-project/lassie/pkg/lassie"
-	h "github.com/filecoin-project/lassie/pkg/server/http"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/p2p/net/connmgr"
 	"github.com/multiformats/go-multicodec"
+	a "github.com/filecoin-project/lassie/pkg/aggregateeventrecorder"
+	"github.com/filecoin-project/lassie/pkg/indexerlookup"
+	h "github.com/filecoin-project/lassie/pkg/server/http"
+	l "github.com/filecoin-project/lassie/pkg/lassie"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
 )
