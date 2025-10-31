@@ -14,7 +14,6 @@ import (
 	dtimpl "github.com/filecoin-project/go-data-transfer/v2/impl"
 	dtnet "github.com/filecoin-project/go-data-transfer/v2/network"
 	gstransport "github.com/filecoin-project/go-data-transfer/v2/transport/graphsync"
-	"github.com/parkan/sheltie/pkg/internal/itest/linksystemutil"
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/go-cid"
 	ds "github.com/ipfs/go-datastore"
@@ -35,6 +34,7 @@ import (
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/multiformats/go-multicodec"
+	"github.com/parkan/sheltie/pkg/internal/itest/linksystemutil"
 	"github.com/stretchr/testify/require"
 )
 

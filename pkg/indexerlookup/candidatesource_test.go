@@ -7,12 +7,12 @@ import (
 	"time"
 
 	"github.com/filecoin-project/go-clock"
+	goipfscid "github.com/ipfs/go-cid"
+	"github.com/ipni/go-libipni/find/model"
 	"github.com/parkan/sheltie/pkg/indexerlookup"
 	"github.com/parkan/sheltie/pkg/internal/mockindexer"
 	"github.com/parkan/sheltie/pkg/internal/testutil"
 	"github.com/parkan/sheltie/pkg/types"
-	goipfscid "github.com/ipfs/go-cid"
-	"github.com/ipni/go-libipni/find/model"
 	"github.com/stretchr/testify/require"
 )
 

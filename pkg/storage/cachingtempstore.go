@@ -7,11 +7,11 @@ import (
 	"io"
 	"sync"
 
-	"github.com/parkan/sheltie/pkg/types"
 	"github.com/ipfs/go-cid"
 	carstorage "github.com/ipld/go-car/v2/storage"
 	"github.com/ipld/go-ipld-prime/linking"
 	cidlink "github.com/ipld/go-ipld-prime/linking/cid"
+	"github.com/parkan/sheltie/pkg/types"
 )
 
 var _ types.ReadableWritableStorage = (*CachingTempStore)(nil)

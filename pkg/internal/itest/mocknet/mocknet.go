@@ -9,8 +9,6 @@ import (
 
 	datatransfer "github.com/filecoin-project/go-data-transfer/v2"
 	retrievaltypes "github.com/filecoin-project/go-retrieval-types"
-	"github.com/parkan/sheltie/pkg/internal/itest/testpeer"
-	"github.com/parkan/sheltie/pkg/types"
 	"github.com/ipfs/go-cid"
 	"github.com/ipld/go-ipld-prime"
 	"github.com/ipld/go-ipld-prime/datamodel"
@@ -20,6 +18,8 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	lpmock "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/multiformats/go-multicodec"
+	"github.com/parkan/sheltie/pkg/internal/itest/testpeer"
+	"github.com/parkan/sheltie/pkg/types"
 	"github.com/stretchr/testify/require"
 )
 

@@ -16,10 +16,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/parkan/sheltie/pkg/types"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-log/v2"
 	"github.com/multiformats/go-multibase"
+	"github.com/parkan/sheltie/pkg/types"
 )
 
 var (

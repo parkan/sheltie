@@ -3,8 +3,8 @@ package retriever
 import (
 	"context"
 
-	"github.com/parkan/sheltie/pkg/types"
 	"github.com/multiformats/go-multicodec"
+	"github.com/parkan/sheltie/pkg/types"
 )
 
 type ProtocolSplitter struct {

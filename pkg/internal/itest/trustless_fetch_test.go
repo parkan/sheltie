@@ -14,16 +14,16 @@ import (
 	"time"
 
 	datatransfer "github.com/filecoin-project/go-data-transfer/v2"
-	"github.com/parkan/sheltie/pkg/internal/itest/mocknet"
-	"github.com/parkan/sheltie/pkg/internal/itest/testpeer"
-	"github.com/parkan/sheltie/pkg/sheltie"
-	httpserver "github.com/parkan/sheltie/pkg/server/http"
 	"github.com/google/uuid"
 	"github.com/ipfs/go-unixfsnode"
 	"github.com/ipld/go-car/v2"
 	cidlink "github.com/ipld/go-ipld-prime/linking/cid"
 	trustlessutils "github.com/ipld/go-trustless-utils"
 	trustlesspathing "github.com/ipld/ipld/specs/pkg-go/trustless-pathing"
+	"github.com/parkan/sheltie/pkg/internal/itest/mocknet"
+	"github.com/parkan/sheltie/pkg/internal/itest/testpeer"
+	httpserver "github.com/parkan/sheltie/pkg/server/http"
+	"github.com/parkan/sheltie/pkg/sheltie"
 	"github.com/stretchr/testify/require"
 )
 

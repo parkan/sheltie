@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/filecoin-project/go-clock"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/parkan/sheltie/pkg/retriever/coordinators"
 	"github.com/parkan/sheltie/pkg/types"
-	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/multierr"
 )

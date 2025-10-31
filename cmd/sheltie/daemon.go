@@ -8,12 +8,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/parkan/sheltie/pkg/aggregateeventrecorder"
-	"github.com/parkan/sheltie/pkg/sheltie"
-	httpserver "github.com/parkan/sheltie/pkg/server/http"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/config"
 	"github.com/libp2p/go-libp2p/p2p/net/connmgr"
+	"github.com/parkan/sheltie/pkg/aggregateeventrecorder"
+	httpserver "github.com/parkan/sheltie/pkg/server/http"
+	"github.com/parkan/sheltie/pkg/sheltie"
 	"github.com/urfave/cli/v2"
 )
 

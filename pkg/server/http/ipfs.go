@@ -12,11 +12,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/parkan/sheltie/pkg/build"
-	"github.com/parkan/sheltie/pkg/heyfil"
-	"github.com/parkan/sheltie/pkg/retriever"
-	"github.com/parkan/sheltie/pkg/storage"
-	"github.com/parkan/sheltie/pkg/types"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-unixfsnode"
 	"github.com/ipld/go-car/v2/storage/deferred"
@@ -24,6 +19,11 @@ import (
 	trustlessutils "github.com/ipld/go-trustless-utils"
 	trustlesshttp "github.com/ipld/go-trustless-utils/http"
 	"github.com/multiformats/go-multicodec"
+	"github.com/parkan/sheltie/pkg/build"
+	"github.com/parkan/sheltie/pkg/heyfil"
+	"github.com/parkan/sheltie/pkg/retriever"
+	"github.com/parkan/sheltie/pkg/storage"
+	"github.com/parkan/sheltie/pkg/types"
 )
 
 func IpfsHandler(fetcher types.Fetcher, cfg HttpServerConfig) func(http.ResponseWriter, *http.Request) {

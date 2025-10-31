@@ -3,10 +3,10 @@ package session
 import (
 	"time"
 
-	"github.com/parkan/sheltie/pkg/types"
 	"github.com/ipni/go-libipni/metadata"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multicodec"
+	"github.com/parkan/sheltie/pkg/types"
 )
 
 // Session and State both deal with per-storage provider data and usage

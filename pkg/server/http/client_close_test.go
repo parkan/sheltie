@@ -12,10 +12,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/parkan/sheltie/pkg/internal/itest/mocknet"
-	"github.com/parkan/sheltie/pkg/sheltie"
 	unixfs "github.com/ipfs/go-unixfsnode/testutil"
 	"github.com/multiformats/go-multicodec"
+	"github.com/parkan/sheltie/pkg/internal/itest/mocknet"
+	"github.com/parkan/sheltie/pkg/sheltie"
 	"github.com/stretchr/testify/require"
 )
 

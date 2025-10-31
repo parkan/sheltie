@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"time"
 
+	servertiming "github.com/mitchellh/go-server-timing"
 	"github.com/parkan/sheltie/pkg/events"
 	"github.com/parkan/sheltie/pkg/types"
-	servertiming "github.com/mitchellh/go-server-timing"
 )
 
 // servertimingsSubscriber is a retrieval event subscriber that records

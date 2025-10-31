@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"net/http/pprof"
 
-	"github.com/parkan/sheltie/pkg/sheltie"
 	"github.com/ipfs/go-log/v2"
 	servertiming "github.com/mitchellh/go-server-timing"
+	"github.com/parkan/sheltie/pkg/sheltie"
 )
 
 var logger = log.Logger("sheltie/httpserver")

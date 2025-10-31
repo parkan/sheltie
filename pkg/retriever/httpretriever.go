@@ -10,14 +10,14 @@ import (
 
 	"github.com/filecoin-project/go-clock"
 	"github.com/filecoin-project/go-state-types/big"
-	"github.com/parkan/sheltie/pkg/build"
-	"github.com/parkan/sheltie/pkg/events"
-	"github.com/parkan/sheltie/pkg/types"
 	"github.com/ipfs/go-cid"
 	trustlesshttp "github.com/ipld/go-trustless-utils/http"
 	"github.com/ipld/go-trustless-utils/traversal"
 	"github.com/ipni/go-libipni/metadata"
 	"github.com/multiformats/go-multicodec"
+	"github.com/parkan/sheltie/pkg/build"
+	"github.com/parkan/sheltie/pkg/events"
+	"github.com/parkan/sheltie/pkg/types"
 )
 
 var (
