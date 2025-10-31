@@ -8,13 +8,13 @@ import (
 	"time"
 
 	"github.com/filecoin-project/go-clock"
-	"github.com/parkan/sheltie/pkg/events"
-	"github.com/parkan/sheltie/pkg/retriever/prioritywaitqueue"
-	"github.com/parkan/sheltie/pkg/types"
 	"github.com/ipfs/go-cid"
 	"github.com/ipni/go-libipni/metadata"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multicodec"
+	"github.com/parkan/sheltie/pkg/events"
+	"github.com/parkan/sheltie/pkg/retriever/prioritywaitqueue"
+	"github.com/parkan/sheltie/pkg/types"
 )
 
 type GetStorageProviderTimeout func(peer peer.ID) time.Duration

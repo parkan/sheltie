@@ -5,13 +5,13 @@ import (
 	"testing"
 	"time"
 
-	a "github.com/parkan/sheltie/pkg/aggregateeventrecorder"
-	"github.com/parkan/sheltie/pkg/indexerlookup"
-	l "github.com/parkan/sheltie/pkg/sheltie"
-	h "github.com/parkan/sheltie/pkg/server/http"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/p2p/net/connmgr"
 	"github.com/multiformats/go-multicodec"
+	a "github.com/parkan/sheltie/pkg/aggregateeventrecorder"
+	"github.com/parkan/sheltie/pkg/indexerlookup"
+	h "github.com/parkan/sheltie/pkg/server/http"
+	l "github.com/parkan/sheltie/pkg/sheltie"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
 )

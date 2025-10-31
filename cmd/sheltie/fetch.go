@@ -13,17 +13,17 @@ import (
 	"strings"
 
 	"github.com/dustin/go-humanize"
-	"github.com/parkan/sheltie/pkg/aggregateeventrecorder"
-	"github.com/parkan/sheltie/pkg/events"
-	"github.com/parkan/sheltie/pkg/sheltie"
-	"github.com/parkan/sheltie/pkg/storage"
-	"github.com/parkan/sheltie/pkg/types"
 	"github.com/ipfs/go-cid"
 	"github.com/ipld/go-car/v2"
 	"github.com/ipld/go-car/v2/storage/deferred"
 	"github.com/ipld/go-ipld-prime/datamodel"
 	trustlessutils "github.com/ipld/go-trustless-utils"
 	trustlesshttp "github.com/ipld/go-trustless-utils/http"
+	"github.com/parkan/sheltie/pkg/aggregateeventrecorder"
+	"github.com/parkan/sheltie/pkg/events"
+	"github.com/parkan/sheltie/pkg/sheltie"
+	"github.com/parkan/sheltie/pkg/storage"
+	"github.com/parkan/sheltie/pkg/types"
 	"github.com/urfave/cli/v2"
 )
 

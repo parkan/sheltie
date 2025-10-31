@@ -13,14 +13,14 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/parkan/sheltie/pkg/aggregateeventrecorder"
-	"github.com/parkan/sheltie/pkg/indexerlookup"
-	"github.com/parkan/sheltie/pkg/sheltie"
-	"github.com/parkan/sheltie/pkg/net/host"
-	"github.com/parkan/sheltie/pkg/retriever"
 	"github.com/google/uuid"
 	"github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/config"
+	"github.com/parkan/sheltie/pkg/aggregateeventrecorder"
+	"github.com/parkan/sheltie/pkg/indexerlookup"
+	"github.com/parkan/sheltie/pkg/net/host"
+	"github.com/parkan/sheltie/pkg/retriever"
+	"github.com/parkan/sheltie/pkg/sheltie"
 	"github.com/urfave/cli/v2"
 )
 

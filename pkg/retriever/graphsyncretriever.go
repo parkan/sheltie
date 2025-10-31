@@ -10,8 +10,6 @@ import (
 	datatransfer "github.com/filecoin-project/go-data-transfer/v2"
 	retrievaltypes "github.com/filecoin-project/go-retrieval-types"
 	"github.com/filecoin-project/go-state-types/big"
-	"github.com/parkan/sheltie/pkg/events"
-	"github.com/parkan/sheltie/pkg/types"
 	"github.com/ipfs/go-cid"
 	"github.com/ipld/go-ipld-prime"
 	"github.com/ipld/go-ipld-prime/codec/dagjson"
@@ -19,6 +17,8 @@ import (
 	"github.com/ipni/go-libipni/metadata"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multicodec"
+	"github.com/parkan/sheltie/pkg/events"
+	"github.com/parkan/sheltie/pkg/types"
 )
 
 // Connect() may be a near-noop for already-connect libp2p connections, so this

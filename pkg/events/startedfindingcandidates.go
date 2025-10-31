@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/parkan/sheltie/pkg/types"
 	"github.com/ipfs/go-cid"
+	"github.com/parkan/sheltie/pkg/types"
 )
 
 var _ types.RetrievalEvent = StartedFindingCandidatesEvent{}

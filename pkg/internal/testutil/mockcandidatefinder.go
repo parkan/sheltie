@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/parkan/sheltie/pkg/types"
 	"github.com/ipfs/go-cid"
+	"github.com/parkan/sheltie/pkg/types"
 	"github.com/stretchr/testify/require"
 )
 

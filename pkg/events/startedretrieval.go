@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/parkan/sheltie/pkg/types"
 	"github.com/multiformats/go-multicodec"
+	"github.com/parkan/sheltie/pkg/types"
 )
 
 var (

@@ -7,11 +7,6 @@ import (
 	"time"
 
 	"github.com/filecoin-project/go-clock"
-	"github.com/parkan/sheltie/pkg/events"
-	"github.com/parkan/sheltie/pkg/internal/testutil"
-	"github.com/parkan/sheltie/pkg/retriever"
-	"github.com/parkan/sheltie/pkg/session"
-	"github.com/parkan/sheltie/pkg/types"
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	cidlink "github.com/ipld/go-ipld-prime/linking/cid"
@@ -21,6 +16,11 @@ import (
 	"github.com/ipni/go-libipni/metadata"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multicodec"
+	"github.com/parkan/sheltie/pkg/events"
+	"github.com/parkan/sheltie/pkg/internal/testutil"
+	"github.com/parkan/sheltie/pkg/retriever"
+	"github.com/parkan/sheltie/pkg/session"
+	"github.com/parkan/sheltie/pkg/types"
 	"github.com/stretchr/testify/require"
 )
 

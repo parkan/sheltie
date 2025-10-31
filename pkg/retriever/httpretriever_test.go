@@ -14,10 +14,6 @@ import (
 
 	"github.com/filecoin-project/go-clock"
 	"github.com/filecoin-project/go-state-types/big"
-	"github.com/parkan/sheltie/pkg/events"
-	"github.com/parkan/sheltie/pkg/internal/testutil"
-	"github.com/parkan/sheltie/pkg/retriever"
-	"github.com/parkan/sheltie/pkg/types"
 	"github.com/google/uuid"
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
@@ -35,6 +31,10 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multicodec"
 	"github.com/multiformats/go-multihash"
+	"github.com/parkan/sheltie/pkg/events"
+	"github.com/parkan/sheltie/pkg/internal/testutil"
+	"github.com/parkan/sheltie/pkg/retriever"
+	"github.com/parkan/sheltie/pkg/types"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/slices"
 )

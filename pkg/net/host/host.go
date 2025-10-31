@@ -3,7 +3,6 @@ package host
 import (
 	"context"
 
-	"github.com/parkan/sheltie/pkg/build"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
@@ -16,6 +15,7 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/transport/websocket"
 	webtransport "github.com/libp2p/go-libp2p/p2p/transport/webtransport"
 	"github.com/multiformats/go-multiaddr"
+	"github.com/parkan/sheltie/pkg/build"
 )
 
 const (

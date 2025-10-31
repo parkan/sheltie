@@ -13,17 +13,17 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/sync"
+	"github.com/libp2p/go-libp2p"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/multiformats/go-multicodec"
 	"github.com/parkan/sheltie/pkg/indexerlookup"
 	"github.com/parkan/sheltie/pkg/net/client"
 	"github.com/parkan/sheltie/pkg/net/host"
 	"github.com/parkan/sheltie/pkg/retriever"
 	"github.com/parkan/sheltie/pkg/session"
 	"github.com/parkan/sheltie/pkg/types"
-	"github.com/ipfs/go-datastore"
-	"github.com/ipfs/go-datastore/sync"
-	"github.com/libp2p/go-libp2p"
-	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/multiformats/go-multicodec"
 )
 
 var _ types.Fetcher = &Sheltie{}

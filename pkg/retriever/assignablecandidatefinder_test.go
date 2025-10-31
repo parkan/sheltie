@@ -7,14 +7,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/parkan/sheltie/pkg/internal/testutil"
-	"github.com/parkan/sheltie/pkg/retriever"
-	"github.com/parkan/sheltie/pkg/types"
 	"github.com/ipfs/go-cid"
 	cidlink "github.com/ipld/go-ipld-prime/linking/cid"
 	trustlessutils "github.com/ipld/go-trustless-utils"
 	"github.com/ipni/go-libipni/metadata"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/parkan/sheltie/pkg/internal/testutil"
+	"github.com/parkan/sheltie/pkg/retriever"
+	"github.com/parkan/sheltie/pkg/types"
 	"github.com/stretchr/testify/require"
 )
 

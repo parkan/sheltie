@@ -11,11 +11,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/parkan/sheltie/pkg/heyfil"
-	"github.com/parkan/sheltie/pkg/types"
 	"github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multicodec"
+	"github.com/parkan/sheltie/pkg/heyfil"
+	"github.com/parkan/sheltie/pkg/types"
 	"github.com/urfave/cli/v2"
 )
 

@@ -3,10 +3,10 @@ package retriever
 import (
 	"context"
 
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/parkan/sheltie/pkg/events"
 	"github.com/parkan/sheltie/pkg/retriever/prioritywaitqueue"
 	"github.com/parkan/sheltie/pkg/types"
-	"github.com/libp2p/go-libp2p/core/peer"
 	"go.uber.org/multierr"
 )
 

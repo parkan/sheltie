@@ -8,10 +8,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/parkan/sheltie/pkg/types"
 	"github.com/ipfs/go-cid"
 	"github.com/ipld/go-ipld-prime"
 	cidlink "github.com/ipld/go-ipld-prime/linking/cid"
+	"github.com/parkan/sheltie/pkg/types"
 	"github.com/stretchr/testify/require"
 )
 

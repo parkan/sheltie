@@ -1,9 +1,9 @@
 package events
 
 import (
-	"github.com/parkan/sheltie/pkg/types"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multicodec"
+	"github.com/parkan/sheltie/pkg/types"
 )
 
 // Identifier returns the peer ID of the storage provider if this retrieval was
