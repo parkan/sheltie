@@ -152,11 +152,11 @@ func isBase58Like(s string) bool {
 	// simple heuristic: check if string contains only base58 characters
 	for _, c := range s {
 		if !((c >= '1' && c <= '9') ||
-		     (c >= 'A' && c <= 'H') ||
-		     (c >= 'J' && c <= 'N') ||
-		     (c >= 'P' && c <= 'Z') ||
-		     (c >= 'a' && c <= 'k') ||
-		     (c >= 'm' && c <= 'z')) {
+			(c >= 'A' && c <= 'H') ||
+			(c >= 'J' && c <= 'N') ||
+			(c >= 'P' && c <= 'Z') ||
+			(c >= 'a' && c <= 'k') ||
+			(c >= 'm' && c <= 'z')) {
 			return false
 		}
 	}

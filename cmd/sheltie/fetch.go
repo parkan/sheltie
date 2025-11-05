@@ -86,7 +86,7 @@ var fetchFlags = []cli.Flag{
 		Usage: "traversal mode for DAG exploration. Valid values include " +
 			"[dfs, bfs, adaptive].",
 		DefaultText: "defaults to dfs (depth-first search)",
-		Value: "dfs",
+		Value:       "dfs",
 		Action: func(cctx *cli.Context, v string) error {
 			switch v {
 			case "dfs", "bfs", "adaptive":
@@ -102,14 +102,14 @@ var fetchFlags = []cli.Flag{
 		Usage: "maximum depth for BFS traversal before switching to DFS " +
 			"(0 = unlimited). Only used when --traversal=bfs or adaptive",
 		DefaultText: "defaults to 1 for BFS, adjusted automatically for adaptive",
-		Value: 1,
+		Value:       1,
 	},
 	&cli.BoolFlag{
 		Name: "fallback-missing",
 		Usage: "when blocks are missing from a provider, automatically query " +
 			"for other providers and continue retrieval",
 		DefaultText: "defaults to false",
-		Value: false,
+		Value:       false,
 	},
 	FlagDelegatedRoutingEndpoint,
 	FlagEventRecorderAuth,
