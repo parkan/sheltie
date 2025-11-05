@@ -86,6 +86,12 @@ type RetrievalRequest struct {
 	// Providers optionally specifies a list of peers to use when fetching
 	// blocks. If nil, the default peer discovery mechanism will be used.
 	Providers []Provider
+
+	// Traversal configures how the DAG should be traversed
+	Traversal TraversalConfig
+
+	// MissingBlockHandler handles missing blocks during retrieval
+	MissingBlockHandler MissingBlockHandler
 }
 
 // NewRequestForPath creates a new RetrievalRequest for the given root CID as
@@ -129,8 +135,10 @@ func NewRequestForPath(
 			Bytes:      byteRange,
 			Duplicates: false,
 		},
-		RetrievalID: retrievalId,
-		LinkSystem:  linkSystem,
+		RetrievalID:         retrievalId,
+		LinkSystem:          linkSystem,
+		Traversal:           DefaultTraversalConfig(),
+		MissingBlockHandler: NewMissingBlockHandler(false),
 	}, nil
 }
 
@@ -140,7 +148,28 @@ func (r RetrievalRequest) GetSelector() ipld.Node {
 	if r.Selector != nil { // custom selector
 		return r.Selector
 	}
-	return r.Request.Selector()
+
+	// Use traversal configuration to build appropriate selector
+	switch r.Traversal.Mode {
+	case TraversalBFS:
+		sel, err := BuildBFSSelector(r.Traversal.MaxDepth)
+		if err != nil {
+			// Fallback to default selector on error
+			return r.Request.Selector()
+		}
+		return sel
+	case TraversalBFSAdaptive:
+		// For adaptive, we need the root node first
+		// Start with shallow BFS, will adapt later
+		sel, err := BuildBFSSelector(1)
+		if err != nil {
+			return r.Request.Selector()
+		}
+		return sel
+	default:
+		// Use default DFS selector from trustless utils
+		return r.Request.Selector()
+	}
 }
 
 // GetDescriptorString returns a URL and query string-style descriptor string

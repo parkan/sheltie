@@ -81,6 +81,36 @@ var fetchFlags = []cli.Flag{
 			"may be useful for streaming.",
 		Aliases: []string{"dups"},
 	},
+	&cli.StringFlag{
+		Name: "traversal",
+		Usage: "traversal mode for DAG exploration. Valid values include " +
+			"[dfs, bfs, adaptive].",
+		DefaultText: "defaults to dfs (depth-first search)",
+		Value: "dfs",
+		Action: func(cctx *cli.Context, v string) error {
+			switch v {
+			case "dfs", "bfs", "adaptive":
+				return nil
+			default:
+				return fmt.Errorf("invalid traversal parameter, must be one of " +
+					"[dfs, bfs, adaptive]")
+			}
+		},
+	},
+	&cli.IntFlag{
+		Name: "bfs-depth",
+		Usage: "maximum depth for BFS traversal before switching to DFS " +
+			"(0 = unlimited). Only used when --traversal=bfs or adaptive",
+		DefaultText: "defaults to 1 for BFS, adjusted automatically for adaptive",
+		Value: 1,
+	},
+	&cli.BoolFlag{
+		Name: "fallback-missing",
+		Usage: "when blocks are missing from a provider, automatically query " +
+			"for other providers and continue retrieval",
+		DefaultText: "defaults to false",
+		Value: false,
+	},
 	FlagDelegatedRoutingEndpoint,
 	FlagEventRecorderAuth,
 	FlagEventRecorderInstanceId,
@@ -173,6 +203,9 @@ func fetchAction(cctx *cli.Context) error {
 		tempDir,
 		progress,
 		outfile,
+		cctx.String("traversal"),
+		cctx.Int("bfs-depth"),
+		cctx.Bool("fallback-missing"),
 	)
 	if err != nil {
 		return cli.Exit(err, 1)
@@ -294,6 +327,9 @@ type fetchRunFunc func(
 	tempDir string,
 	progress bool,
 	outfile string,
+	traversalMode string,
+	bfsDepth int,
+	fallbackMissing bool,
 ) error
 
 var fetchRun fetchRunFunc = defaultFetchRun
@@ -315,6 +351,9 @@ func defaultFetchRun(
 	tempDir string,
 	progress bool,
 	outfile string,
+	traversalMode string,
+	bfsDepth int,
+	fallbackMissing bool,
 ) error {
 	lassie, err := sheltie.NewSheltieWithConfig(ctx, lassieCfg)
 	if err != nil {
@@ -342,35 +381,40 @@ func defaultFetchRun(
 	}
 
 	var carWriter storage.DeferredWriter
+	var storageToUse types.ReadableWritableStorage
 	carOpts := []car.Option{
 		car.WriteAsCarV1(true),
 		car.StoreIdentityCIDs(false),
 		car.UseWholeCIDs(false),
 	}
 
-	tempStore := storage.NewDeferredStorageCar(tempDir, rootCid)
-
-	if outfile == stdoutFileString {
-		// we need the onlyWriter because stdout is presented as an os.File, and
-		// therefore pretend to support seeks, so feature-checking in go-car
-		// will make bad assumptions about capabilities unless we hide it
-		w := &onlyWriter{dataWriter}
-		if duplicates {
-			carWriter = storage.NewDuplicateAdderCarForStream(ctx, w, rootCid, path.String(), dagScope, entityBytes, tempStore)
-		} else {
+	if duplicates {
+		// with duplicates, we don't need temp files
+		if outfile == stdoutFileString {
+			w := &onlyWriter{dataWriter}
 			carWriter = deferred.NewDeferredCarWriterForStream(w, []cid.Cid{rootCid}, carOpts...)
-		}
-	} else {
-		if duplicates {
-			carWriter = storage.NewDuplicateAdderCarForPath(ctx, outfile, rootCid, path.String(), dagScope, entityBytes, tempStore)
 		} else {
 			carWriter = deferred.NewDeferredCarWriterForPath(outfile, []cid.Cid{rootCid}, carOpts...)
 		}
+		// use write-only sink that doesn't create temp files
+		storageToUse = storage.NewWriteOnlyCarSink(carWriter.BlockWriteOpener())
+	} else {
+		// without duplicates, we need temp storage for deduplication
+		tempStore := storage.NewDeferredStorageCar(tempDir, rootCid)
+		defer tempStore.Close()
+
+		if outfile == stdoutFileString {
+			w := &onlyWriter{dataWriter}
+			carWriter = deferred.NewDeferredCarWriterForStream(w, []cid.Cid{rootCid}, carOpts...)
+		} else {
+			carWriter = deferred.NewDeferredCarWriterForPath(outfile, []cid.Cid{rootCid}, carOpts...)
+		}
+
+		carStore := storage.NewCachingTempStore(carWriter.BlockWriteOpener(), tempStore)
+		defer carStore.Close()
+		storageToUse = carStore
 	}
 	defer carWriter.Close()
-
-	carStore := storage.NewCachingTempStore(carWriter.BlockWriteOpener(), tempStore)
-	defer carStore.Close()
 
 	var blockCount int
 	var byteLength uint64
@@ -384,11 +428,34 @@ func defaultFetchRun(
 		}
 	}, false)
 
-	request, err := types.NewRequestForPath(carStore, rootCid, path.String(), dagScope, entityBytes)
+	request, err := types.NewRequestForPath(storageToUse, rootCid, path.String(), dagScope, entityBytes)
 	if err != nil {
 		return err
 	}
 	request.Duplicates = duplicates
+
+	// Configure traversal mode
+	switch traversalMode {
+	case "bfs":
+		request.Traversal = types.BFSTraversalConfig(bfsDepth)
+	case "adaptive":
+		request.Traversal = types.TraversalConfig{
+			Mode:          types.TraversalBFSAdaptive,
+			MaxDepth:      bfsDepth,
+			HAMTAware:     true,
+			StreamBlocks:  duplicates, // Enable streaming when duplicates allowed
+			AllowFallback: fallbackMissing,
+		}
+	default: // "dfs"
+		request.Traversal = types.TraversalConfig{
+			Mode:          types.TraversalDFS,
+			StreamBlocks:  duplicates,
+			AllowFallback: fallbackMissing,
+		}
+	}
+
+	// Set up missing block handler
+	request.MissingBlockHandler = types.NewMissingBlockHandler(fallbackMissing)
 
 	stats, err := lassie.Fetch(ctx, request)
 	if err != nil {

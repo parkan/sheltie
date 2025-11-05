@@ -58,22 +58,35 @@ func IpfsHandler(fetcher types.Fetcher, cfg HttpServerConfig) func(http.Response
 			logger.Debugw("custom X-Request-Id fore retrieval", "request_id", requestId, "retrieval_id", request.RetrievalID)
 		}
 
-		tempStore := storage.NewDeferredStorageCar(cfg.TempDir, request.Root)
 		var carWriter storage.DeferredWriter
-		if request.Duplicates {
-			carWriter = storage.NewDuplicateAdderCarForStream(req.Context(), res, request.Root, request.Path, request.Scope, request.Bytes, tempStore)
-		} else {
-			carWriter = deferred.NewDeferredCarWriterForStream(res, []cid.Cid{request.Root})
-		}
-		carStore := storage.NewCachingTempStore(carWriter.BlockWriteOpener(), tempStore)
-		defer func() {
-			if err := carStore.Close(); err != nil {
-				logger.Errorf("error closing temp store: %s", err)
-			}
-		}()
+		var storageToUse types.ReadableWritableStorage
 
-		request.LinkSystem.SetWriteStorage(carStore)
-		request.LinkSystem.SetReadStorage(carStore)
+		if request.Duplicates {
+			// with duplicates, we don't need temp files
+			// write directly to the output stream without disk storage
+			carWriter = deferred.NewDeferredCarWriterForStream(res, []cid.Cid{request.Root})
+			storageToUse = storage.NewWriteOnlyCarSink(carWriter.BlockWriteOpener())
+		} else {
+			// without duplicates, we need temp storage to check for existing blocks
+			tempStore := storage.NewDeferredStorageCar(cfg.TempDir, request.Root)
+			defer func() {
+				if err := tempStore.Close(); err != nil {
+					logger.Errorf("error closing temp store: %s", err)
+				}
+			}()
+			carWriter = deferred.NewDeferredCarWriterForStream(res, []cid.Cid{request.Root})
+			carStore := storage.NewCachingTempStore(carWriter.BlockWriteOpener(), tempStore)
+			defer func() {
+				if err := carStore.Close(); err != nil {
+					logger.Errorf("error closing car store: %s", err)
+				}
+			}()
+			storageToUse = carStore
+		}
+		defer carWriter.Close()
+
+		request.LinkSystem.SetWriteStorage(storageToUse)
+		request.LinkSystem.SetReadStorage(storageToUse)
 
 		// bytesWritten will be closed once we've started writing CAR content to
 		// the response writer. Once closed, no other content should be written.
