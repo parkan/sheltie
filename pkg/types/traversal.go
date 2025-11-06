@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/ipld/go-ipld-prime"
 	"github.com/ipld/go-ipld-prime/datamodel"
@@ -215,4 +216,147 @@ func (m TraversalMode) String() string {
 	default:
 		return fmt.Sprintf("Unknown(%d)", m)
 	}
+}
+
+// RetrievalState tracks the state of a retrieval including which blocks have been received
+type RetrievalState struct {
+	// blocks that have been successfully retrieved
+	receivedBlocks map[string]struct{}
+	// blocks that were attempted but missing from the provider
+	missingBlocks []datamodel.Link
+}
+
+// NewRetrievalState creates a new retrieval state tracker
+func NewRetrievalState() *RetrievalState {
+	return &RetrievalState{
+		receivedBlocks: make(map[string]struct{}),
+		missingBlocks:  make([]datamodel.Link, 0),
+	}
+}
+
+// MarkReceived marks a block as successfully received
+func (rs *RetrievalState) MarkReceived(c datamodel.Link) {
+	rs.receivedBlocks[c.String()] = struct{}{}
+}
+
+// MarkMissing records a block that was missing during traversal
+func (rs *RetrievalState) MarkMissing(c datamodel.Link) {
+	rs.missingBlocks = append(rs.missingBlocks, c)
+}
+
+// HasReceived returns whether a block was already received
+func (rs *RetrievalState) HasReceived(c datamodel.Link) bool {
+	_, ok := rs.receivedBlocks[c.String()]
+	return ok
+}
+
+// GetMissingBlocks returns all blocks that were missing
+func (rs *RetrievalState) GetMissingBlocks() []datamodel.Link {
+	return rs.missingBlocks
+}
+
+// HasMissingBlocks returns whether any blocks are missing
+func (rs *RetrievalState) HasMissingBlocks() bool {
+	return len(rs.missingBlocks) > 0
+}
+
+// MissingBlockTrackingLinkSystem wraps a LinkSystem to track which blocks
+// are missing during traversal, allowing for fallback retrieval
+type MissingBlockTrackingLinkSystem struct {
+	inner *ipld.LinkSystem
+	state *RetrievalState
+}
+
+// NewMissingBlockTrackingLinkSystem creates a wrapper around a LinkSystem
+// that tracks missing blocks during load operations
+func NewMissingBlockTrackingLinkSystem(lsys *ipld.LinkSystem, state *RetrievalState) *MissingBlockTrackingLinkSystem {
+	return &MissingBlockTrackingLinkSystem{
+		inner: lsys,
+		state: state,
+	}
+}
+
+// WrapStorageReadOpener wraps the LinkSystem's StorageReadOpener to track
+// blocks as they are loaded and record any that are missing
+func (m *MissingBlockTrackingLinkSystem) WrapStorageReadOpener() {
+	originalOpener := m.inner.StorageReadOpener
+	if originalOpener == nil {
+		return
+	}
+
+	m.inner.StorageReadOpener = func(lc ipld.LinkContext, l datamodel.Link) (io.Reader, error) {
+		reader, err := originalOpener(lc, l)
+		if err != nil {
+			// record this block as missing
+			m.state.MarkMissing(l)
+			return nil, err
+		}
+		// record this block as successfully received
+		m.state.MarkReceived(l)
+		return reader, nil
+	}
+}
+
+// GetInner returns the wrapped LinkSystem
+func (m *MissingBlockTrackingLinkSystem) GetInner() *ipld.LinkSystem {
+	return m.inner
+}
+
+// ContinueOnErrorReader wraps a StorageReadOpener to continue traversal even when
+// blocks are missing. This allows collecting ALL missing blocks in a single pass
+// rather than bailing on the first error.
+type ContinueOnErrorReader struct {
+	inner         ipld.BlockReadOpener
+	state         *RetrievalState
+	returnDummies bool // if true, return dummy data to allow traversal to continue
+}
+
+// NewContinueOnErrorReader creates a reader that tracks missing blocks but
+// allows traversal to continue
+func NewContinueOnErrorReader(inner ipld.BlockReadOpener, state *RetrievalState, returnDummies bool) *ContinueOnErrorReader {
+	return &ContinueOnErrorReader{
+		inner:         inner,
+		state:         state,
+		returnDummies: returnDummies,
+	}
+}
+
+// Read wraps the inner reader and tracks missing blocks
+func (c *ContinueOnErrorReader) Read(lc ipld.LinkContext, l datamodel.Link) (io.Reader, error) {
+	reader, err := c.inner(lc, l)
+	if err != nil {
+		// record this block as missing
+		c.state.MarkMissing(l)
+
+		// always return the error - we can't fake block content
+		// the caller needs to handle continuing traversal with partial data
+		return nil, err
+	}
+	// record this block as successfully received
+	c.state.MarkReceived(l)
+	return reader, nil
+}
+
+// PartialRetrievalError indicates that a retrieval completed with some blocks
+// successfully retrieved but some blocks missing
+type PartialRetrievalError struct {
+	// the original error from the retrieval
+	Err error
+	// blocks that were successfully retrieved
+	ReceivedBlocks []datamodel.Link
+	// blocks that were requested but missing
+	MissingBlocks []datamodel.Link
+	// number of bytes successfully retrieved
+	BytesRetrieved uint64
+	// number of blocks successfully retrieved
+	BlocksRetrieved uint64
+}
+
+func (e *PartialRetrievalError) Error() string {
+	return fmt.Sprintf("partial retrieval: %d blocks (%d bytes) retrieved, %d blocks missing: %v",
+		e.BlocksRetrieved, e.BytesRetrieved, len(e.MissingBlocks), e.Err)
+}
+
+func (e *PartialRetrievalError) Unwrap() error {
+	return e.Err
 }
