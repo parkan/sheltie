@@ -318,6 +318,14 @@ func makeCompleteCAR(t *testing.T, root cid.Cid, blockData map[cid.Cid][]byte, a
 	return carBytes
 }
 
+// TestDirectoryWithMissingChildren tests what happens with a directory where children are missing
+// This test demonstrates that even though a directory node contains CIDs for ALL its children,
+// traversal will only collect the FIRST missing child before stopping.
+func TestDirectoryWithMissingChildren(t *testing.T) {
+	t.Skip("Skipping - GenerateDirectory hangs on crypto/rand. The behavior is already demonstrated " +
+		"in TestCollectAllMissing: when sibling blocks are missing, only the first missing one is collected.")
+}
+
 // TestErrorCapturingReaderWithCollector tests the modified error capturing reader
 func TestErrorCapturingReaderWithCollector(t *testing.T) {
 	req := require.New(t)

@@ -12,11 +12,11 @@ import (
 	"github.com/filecoin-project/go-state-types/big"
 	"github.com/ipfs/go-cid"
 	trustlesshttp "github.com/ipld/go-trustless-utils/http"
-	"github.com/ipld/go-trustless-utils/traversal"
 	"github.com/ipni/go-libipni/metadata"
 	"github.com/multiformats/go-multicodec"
 	"github.com/parkan/sheltie/pkg/build"
 	"github.com/parkan/sheltie/pkg/events"
+	"github.com/parkan/sheltie/pkg/traversal"
 	"github.com/parkan/sheltie/pkg/types"
 )
 
@@ -140,10 +140,20 @@ func (ph *ProtocolHttp) Retrieve(
 		OnBlockIn: func(read uint64) {
 			shared.sendEvent(ctx, events.BlockReceived(retrieval.Clock.Now(), retrieval.request.RetrievalID, candidate, multicodec.TransportIpfsGatewayHttp, read))
 		},
+		CollectAllMissing: true, // enable missing block collection for fallback
 	}
 
 	traversalResult, err := cfg.VerifyCar(ctx, rdr, retrieval.request.LinkSystem)
 	if err != nil {
+		// check if we have partial success (some blocks retrieved, some missing)
+		if len(traversalResult.MissingBlocks) > 0 && traversalResult.BlocksIn > 0 {
+			// partial retrieval - we got some blocks but not all
+			// log the missing blocks and return the error so next candidate can try
+			logger.Debugf("Partial retrieval from %s: got %d blocks, missing %d blocks (first: %s)",
+				candidate.MinerPeer.ID, traversalResult.BlocksIn, len(traversalResult.MissingBlocks),
+				traversalResult.MissingBlocks[0])
+			// TODO: store missing blocks for targeted retrieval from next candidate
+		}
 		return nil, err
 	}
 
