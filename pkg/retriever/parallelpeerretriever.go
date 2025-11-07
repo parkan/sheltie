@@ -69,13 +69,17 @@ type parallelPeerRetriever struct {
 // retrieval handles state on a per-retrieval (across multiple candidates) basis
 type retrieval struct {
 	*parallelPeerRetriever
-	ctx                context.Context
-	request            types.RetrievalRequest
-	eventsCallback     func(types.RetrievalEvent)
-	candidateMetadata  map[peer.ID]metadata.Protocol
-	candidateMetdataLk sync.RWMutex
-	missingBlocks      []cid.Cid       // blocks missing from previous attempts
-	missingBlocksLk    sync.RWMutex
+	ctx                     context.Context
+	request                 types.RetrievalRequest
+	eventsCallback          func(types.RetrievalEvent)
+	candidateMetadata       map[peer.ID]metadata.Protocol
+	candidateMetdataLk      sync.RWMutex
+	missingBlocks           []cid.Cid                     // blocks missing from previous attempts
+	missingBlocksLk         sync.RWMutex
+	partialDataProviders    map[peer.ID]struct{}          // providers that sent incomplete data
+	partialDataProvidersLk  sync.RWMutex
+	failedProviders         map[peer.ID]types.RetrievalCandidate // providers that failed (not partial-data)
+	failedProvidersLk       sync.RWMutex
 }
 
 type retrievalResult struct {
@@ -100,6 +104,8 @@ func (cfg *parallelPeerRetriever) Retrieve(
 		request:               retrievalRequest,
 		eventsCallback:        eventsCallback,
 		candidateMetadata:     make(map[peer.ID]metadata.Protocol),
+		partialDataProviders:  make(map[peer.ID]struct{}),
+		failedProviders:       make(map[peer.ID]types.RetrievalCandidate),
 	}
 }
 
@@ -138,6 +144,26 @@ func (retrieval *retrieval) RetrieveFromAsyncCandidates(asyncCandidates types.In
 	finishAll := make(chan struct{}, 1)
 	go func() {
 		waitGroup.Wait()
+
+		// After all initial attempts, retry failed providers with targeted retrieval if we have missing blocks
+		missingBlocks := retrieval.GetMissingBlocks()
+		failedProviders := retrieval.GetFailedProviders()
+		if len(missingBlocks) > 0 && len(failedProviders) > 0 && shared.canSendResult() {
+			logger.Debugf("Retrying %d failed providers with targeted retrieval for %d missing blocks",
+				len(failedProviders), len(missingBlocks))
+
+			var retryWaitGroup sync.WaitGroup
+			for _, candidate := range failedProviders {
+				candidate := candidate
+				retryWaitGroup.Add(1)
+				go func() {
+					defer retryWaitGroup.Done()
+					retrieval.runRetrievalCandidate(ctx, shared, candidate)
+				}()
+			}
+			retryWaitGroup.Wait()
+		}
+
 		shared.sendAllFinished(ctx)
 		finishAll <- struct{}{}
 	}()
@@ -212,6 +238,47 @@ func (retrieval *retrieval) GetMissingBlocks() []cid.Cid {
 	return result
 }
 
+// MarkPartialDataProvider records a provider that sent partial/incomplete data.
+// This provider should not be retried for this retrieval.
+func (retrieval *retrieval) MarkPartialDataProvider(peerID peer.ID) {
+	retrieval.partialDataProvidersLk.Lock()
+	defer retrieval.partialDataProvidersLk.Unlock()
+	retrieval.partialDataProviders[peerID] = struct{}{}
+	logger.Debugf("Marked %s as partial-data provider (will not retry)", peerID)
+}
+
+// IsPartialDataProvider checks if a provider has been marked as sending partial data.
+func (retrieval *retrieval) IsPartialDataProvider(peerID peer.ID) bool {
+	retrieval.partialDataProvidersLk.RLock()
+	defer retrieval.partialDataProvidersLk.RUnlock()
+	_, exists := retrieval.partialDataProviders[peerID]
+	return exists
+}
+
+// TrackFailedProvider records a provider that failed for reasons other than partial data.
+// These providers may be retried with targeted retrieval if missing blocks are found.
+func (retrieval *retrieval) TrackFailedProvider(candidate types.RetrievalCandidate) {
+	// Don't track if already marked as partial-data provider
+	if retrieval.IsPartialDataProvider(candidate.MinerPeer.ID) {
+		return
+	}
+	retrieval.failedProvidersLk.Lock()
+	defer retrieval.failedProvidersLk.Unlock()
+	retrieval.failedProviders[candidate.MinerPeer.ID] = candidate
+	logger.Debugf("Tracked failed provider %s for potential retry", candidate.MinerPeer.ID)
+}
+
+// GetFailedProviders returns candidates that failed and may be retried with targeted retrieval.
+func (retrieval *retrieval) GetFailedProviders() []types.RetrievalCandidate {
+	retrieval.failedProvidersLk.RLock()
+	defer retrieval.failedProvidersLk.RUnlock()
+	candidates := make([]types.RetrievalCandidate, 0, len(retrieval.failedProviders))
+	for _, candidate := range retrieval.failedProviders {
+		candidates = append(candidates, candidate)
+	}
+	return candidates
+}
+
 // filterCandidates is needed because we can receive duplicate candidates in
 // a single batch or across different batches. We need to filter out duplicates
 // and make sure we have the best information from candidate metadata across
@@ -233,6 +300,12 @@ func (retrieval *retrieval) filterCandidates(ctx context.Context, asyncCandidate
 	defer retrieval.candidateMetdataLk.Unlock()
 
 	for _, candidate := range candidates {
+		// Skip providers that sent partial data in this retrieval
+		if retrieval.IsPartialDataProvider(candidate.MinerPeer.ID) {
+			logger.Debugf("Filtering out partial-data provider %s (already attempted and sent incomplete data)", candidate.MinerPeer.ID)
+			continue
+		}
+
 		// update or add new candidate metadata
 		currMetadata, seenCandidate := retrieval.candidateMetadata[candidate.MinerPeer.ID]
 		newMetadata := candidate.Metadata.Get(multicodec.Code(retrieval.Protocol.Code()))
@@ -277,6 +350,7 @@ func (retrieval *retrieval) runRetrievalCandidate(
 		if !errors.Is(ctx.Err(), context.Canceled) {
 			logger.Warnf("Failed to connect to SP %s on protocol %s: %v", candidate.MinerPeer.ID, retrieval.Protocol.Code().String(), err)
 			retrievalErr = fmt.Errorf("%w: %v", ErrConnectFailed, err)
+			retrieval.TrackFailedProvider(candidate)
 			if err := retrieval.Session.RecordFailure(retrieval.request.RetrievalID, candidate.MinerPeer.ID); err != nil {
 				logger.Errorf("Error recording retrieval failure on protocol %s: %v", retrieval.Protocol.Code().String(), err)
 			}
@@ -301,6 +375,7 @@ func (retrieval *retrieval) runRetrievalCandidate(
 					if errors.Is(retrievalErr, ErrRetrievalTimedOut) {
 						msg = fmt.Sprintf("%s after %s", ErrRetrievalTimedOut.Error(), timeout)
 					}
+					retrieval.TrackFailedProvider(candidate)
 					shared.sendEvent(ctx, events.FailedRetrieval(retrieval.parallelPeerRetriever.Clock.Now(), retrieval.request.RetrievalID, candidate, retrieval.Protocol.Code(), msg))
 					if err := retrieval.Session.RecordFailure(retrieval.request.RetrievalID, candidate.MinerPeer.ID); err != nil {
 						logger.Errorf("Error recording retrieval failure for protocol %s: %v", retrieval.Protocol.Code().String(), err)

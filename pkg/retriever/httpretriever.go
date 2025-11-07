@@ -160,6 +160,7 @@ func (ph *ProtocolHttp) Retrieve(
 			// partial retrieval - we got some blocks but not all
 			// Store missing blocks so next candidate can retrieve them specifically
 			retrieval.AddMissingBlocks(traversalResult.MissingBlocks)
+			retrieval.MarkPartialDataProvider(candidate.MinerPeer.ID)
 			logger.Debugf("Partial retrieval from %s: got %d blocks, stored %d missing blocks for next attempt (first: %s)",
 				candidate.MinerPeer.ID, traversalResult.BlocksIn, len(traversalResult.MissingBlocks),
 				traversalResult.MissingBlocks[0])
