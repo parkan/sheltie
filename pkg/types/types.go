@@ -167,6 +167,12 @@ type AsyncCandidateSplitter[T comparable] interface {
 	SplitRetrievalRequest(ctx context.Context, request RetrievalRequest, events func(RetrievalEvent)) AsyncRetrievalSplitter[T]
 }
 
+type ProviderContribution struct {
+	ProviderID peer.ID
+	Blocks     uint64
+	Size       uint64
+}
+
 type RetrievalStats struct {
 	StorageProviderId peer.ID
 	RootCid           cid.Cid
@@ -179,6 +185,10 @@ type RetrievalStats struct {
 	AskPrice          abi.TokenAmount
 	TimeToFirstByte   time.Duration
 	Selector          string
+	// ProviderContributions tracks all providers that contributed data to this retrieval.
+	// When multiple providers are used (e.g., partial data from one, targeted retrieval from another),
+	// this field shows the contribution from each provider.
+	ProviderContributions []ProviderContribution
 }
 
 type RetrievalResult struct {

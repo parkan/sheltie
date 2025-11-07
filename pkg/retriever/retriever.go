@@ -177,16 +177,31 @@ func (retriever *Retriever) Retrieve(
 	}
 
 	// success
+	var contributionInfo string
+	if len(retrievalStats.ProviderContributions) > 1 {
+		// Multi-provider retrieval - show breakdown
+		contributionInfo = fmt.Sprintf("\n\tProvider Contributions:")
+		for _, contrib := range retrievalStats.ProviderContributions {
+			contributionInfo += fmt.Sprintf("\n\t  - %s: %d blocks, %s",
+				contrib.ProviderID,
+				contrib.Blocks,
+				humanize.IBytes(contrib.Size))
+		}
+	} else {
+		contributionInfo = ""
+	}
+
 	logger.Infof(
 		"Successfully retrieved from miner %s for %s\n"+
 			"\tDuration: %s\n"+
 			"\tBytes Received: %s\n"+
-			"\tTotal Payment: %s",
+			"\tTotal Payment: %s%s",
 		retrievalStats.StorageProviderId,
 		request.Root,
 		retrievalStats.Duration,
 		humanize.IBytes(retrievalStats.Size),
 		types.FIL(retrievalStats.TotalPayment),
+		contributionInfo,
 	)
 
 	return retrievalStats, nil

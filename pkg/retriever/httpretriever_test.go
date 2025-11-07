@@ -122,6 +122,13 @@ func TestHTTPRetriever(t *testing.T) {
 					TimeToFirstByte:   40 * time.Millisecond,
 					TotalPayment:      big.Zero(),
 					AskPrice:          big.Zero(),
+					ProviderContributions: []types.ProviderContribution{
+						{
+							ProviderID: cid1Cands[0].MinerPeer.ID,
+							Blocks:     100,
+							Size:       sizeOf(tbc1.AllBlocks()),
+						},
+					},
 				},
 			},
 			expectSequence: append(append([]testutil.ExpectedActionsAtTime{
@@ -201,6 +208,13 @@ func TestHTTPRetriever(t *testing.T) {
 					TimeToFirstByte:   40 * time.Millisecond,
 					TotalPayment:      big.Zero(),
 					AskPrice:          big.Zero(),
+					ProviderContributions: []types.ProviderContribution{
+						{
+							ProviderID: cid1Cands[0].MinerPeer.ID,
+							Blocks:     100,
+							Size:       sizeOf(tbc1.AllBlocks()),
+						},
+					},
 				},
 				cid2: {
 					RootCid:           cid2,
@@ -212,6 +226,13 @@ func TestHTTPRetriever(t *testing.T) {
 					TimeToFirstByte:   10 * time.Millisecond,
 					TotalPayment:      big.Zero(),
 					AskPrice:          big.Zero(),
+					ProviderContributions: []types.ProviderContribution{
+						{
+							ProviderID: cid2Cands[0].MinerPeer.ID,
+							Blocks:     100,
+							Size:       sizeOf(tbc2.AllBlocks()),
+						},
+					},
 				},
 			},
 			expectSequence: append(append([]testutil.ExpectedActionsAtTime{
@@ -452,6 +473,13 @@ func TestHTTPRetriever(t *testing.T) {
 					TimeToFirstByte:   10 * time.Millisecond,
 					TotalPayment:      big.Zero(),
 					AskPrice:          big.Zero(),
+					ProviderContributions: []types.ProviderContribution{
+						{
+							ProviderID: cid1Cands[2].MinerPeer.ID,
+							Blocks:     100,
+							Size:       sizeOf(tbc1.AllBlocks()),
+						},
+					},
 				},
 			},
 			expectSequence: append(append([]testutil.ExpectedActionsAtTime{
@@ -734,6 +762,18 @@ func TestHTTPRetriever(t *testing.T) {
 					TotalPayment:    big.Zero(),
 					AskPrice:        big.Zero(),
 					TimeToFirstByte: time.Millisecond * 90,
+					ProviderContributions: []types.ProviderContribution{
+						{
+							ProviderID: simpleCands[0].MinerPeer.ID, // P1 provided partial data
+							Blocks:     2,                            // blocks A and B
+							Size:       uint64(len(simpleChain[0].RawData()) + len(simpleChain[1].RawData())),
+						},
+						{
+							ProviderID: simpleCands[1].MinerPeer.ID, // P2 completed via targeted retrieval
+							Blocks:     1,                            // block C
+							Size:       uint64(len(simpleChain[2].RawData())),
+						},
+					},
 				},
 			},
 			expectSequence: []testutil.ExpectedActionsAtTime{
@@ -880,6 +920,18 @@ func TestHTTPRetriever(t *testing.T) {
 					TotalPayment:    big.Zero(),
 					AskPrice:        big.Zero(),
 					TimeToFirstByte: time.Millisecond * 140,
+					ProviderContributions: []types.ProviderContribution{
+						{
+							ProviderID: simpleCands[0].MinerPeer.ID, // P1 provided partial data (root A)
+							Blocks:     1,                            // block A
+							Size:       uint64(len(simpleChain[0].RawData())),
+						},
+						{
+							ProviderID: simpleCands[1].MinerPeer.ID, // P2 completed via targeted retrieval
+							Blocks:     2,                            // blocks B and C
+							Size:       uint64(len(simpleChain[1].RawData()) + len(simpleChain[2].RawData())),
+						},
+					},
 				},
 			},
 			expectSequence: []testutil.ExpectedActionsAtTime{
@@ -1004,6 +1056,13 @@ func TestHTTPRetriever(t *testing.T) {
 					TimeToFirstByte:   40 * time.Millisecond,
 					TotalPayment:      big.Zero(),
 					AskPrice:          big.Zero(),
+					ProviderContributions: []types.ProviderContribution{
+						{
+							ProviderID: funkyCands[0].MinerPeer.ID,
+							Blocks:     uint64(len(funkyBlocks)),
+							Size:       sizeOf(funkyBlocks),
+						},
+					},
 				},
 			},
 			expectedCids: map[cid.Cid][]cid.Cid{funkyBlocks[0].Cid(): toCids(funkyBlocks)},
@@ -1087,6 +1146,13 @@ func TestHTTPRetriever(t *testing.T) {
 					TimeToFirstByte:   40 * time.Millisecond,
 					TotalPayment:      big.Zero(),
 					AskPrice:          big.Zero(),
+					ProviderContributions: []types.ProviderContribution{
+						{
+							ProviderID: dupyCands[0].MinerPeer.ID,
+							Blocks:     uint64(len(dupyBlocks)),
+							Size:       sizeOf(dupyBlocks),
+						},
+					},
 				},
 			},
 			expectedCids: map[cid.Cid][]cid.Cid{dupyBlocks[0].Cid(): toCids(dupyBlocks)},
@@ -1170,6 +1236,13 @@ func TestHTTPRetriever(t *testing.T) {
 					TimeToFirstByte:   40 * time.Millisecond,
 					TotalPayment:      big.Zero(),
 					AskPrice:          big.Zero(),
+					ProviderContributions: []types.ProviderContribution{
+						{
+							ProviderID: dupyCands[0].MinerPeer.ID,
+							Blocks:     uint64(len(dupyBlocksDeduped)),
+							Size:       sizeOf(dupyBlocksDeduped),
+						},
+					},
 				},
 			},
 			expectedCids: map[cid.Cid][]cid.Cid{dupyBlocks[0].Cid(): toCids(dupyBlocksDeduped)},

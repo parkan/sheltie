@@ -158,6 +158,8 @@ func (ph *ProtocolHttp) Retrieve(
 		// check if we have partial success (some blocks retrieved, some missing)
 		if len(traversalResult.MissingBlocks) > 0 && traversalResult.BlocksIn > 0 {
 			// partial retrieval - we got some blocks but not all
+			// Record the partial contribution from this provider
+			retrieval.RecordProviderContribution(candidate.MinerPeer.ID, traversalResult.BlocksIn, traversalResult.BytesIn)
 			// Store missing blocks so next candidate can retrieve them specifically
 			retrieval.AddMissingBlocks(traversalResult.MissingBlocks)
 			retrieval.MarkPartialDataProvider(candidate.MinerPeer.ID)
@@ -168,20 +170,24 @@ func (ph *ProtocolHttp) Retrieve(
 		return nil, err
 	}
 
+	// Record successful contribution
+	retrieval.RecordProviderContribution(candidate.MinerPeer.ID, traversalResult.BlocksIn, traversalResult.BytesIn)
+
 	duration := retrieval.Clock.Since(retrievalStart)
 	speed := uint64(float64(traversalResult.BytesIn) / duration.Seconds())
 
 	return &types.RetrievalStats{
-		RootCid:           candidate.RootCid,
-		StorageProviderId: candidate.MinerPeer.ID,
-		Size:              traversalResult.BytesIn,
-		Blocks:            traversalResult.BlocksIn,
-		Duration:          duration,
-		AverageSpeed:      speed,
-		TotalPayment:      big.Zero(),
-		NumPayments:       0,
-		AskPrice:          big.Zero(),
-		TimeToFirstByte:   ttfb,
+		RootCid:               candidate.RootCid,
+		StorageProviderId:     candidate.MinerPeer.ID,
+		Size:                  traversalResult.BytesIn,
+		Blocks:                traversalResult.BlocksIn,
+		Duration:              duration,
+		AverageSpeed:          speed,
+		TotalPayment:          big.Zero(),
+		NumPayments:           0,
+		AskPrice:              big.Zero(),
+		TimeToFirstByte:       ttfb,
+		ProviderContributions: retrieval.GetProviderContributions(),
 	}, nil
 }
 
@@ -291,6 +297,9 @@ func (ph *ProtocolHttp) retrieveMissingBlocks(
 		return nil, fmt.Errorf("failed to retrieve any missing blocks from %s", candidate.MinerPeer.ID)
 	}
 
+	// Record targeted retrieval contribution
+	retrieval.RecordProviderContribution(candidate.MinerPeer.ID, totalBlocks, totalBytes)
+
 	duration := retrieval.Clock.Since(retrievalStart)
 	speed := uint64(float64(totalBytes) / duration.Seconds())
 
@@ -298,16 +307,17 @@ func (ph *ProtocolHttp) retrieveMissingBlocks(
 		candidate.MinerPeer.ID, totalBlocks, totalBytes, len(missingBlocks))
 
 	return &types.RetrievalStats{
-		RootCid:           candidate.RootCid,
-		StorageProviderId: candidate.MinerPeer.ID,
-		Size:              totalBytes,
-		Blocks:            totalBlocks,
-		Duration:          duration,
-		AverageSpeed:      speed,
-		TotalPayment:      big.Zero(),
-		NumPayments:       0,
-		AskPrice:          big.Zero(),
-		TimeToFirstByte:   ttfb,
+		RootCid:               candidate.RootCid,
+		StorageProviderId:     candidate.MinerPeer.ID,
+		Size:                  totalBytes,
+		Blocks:                totalBlocks,
+		Duration:              duration,
+		AverageSpeed:          speed,
+		TotalPayment:          big.Zero(),
+		NumPayments:           0,
+		AskPrice:              big.Zero(),
+		TimeToFirstByte:       ttfb,
+		ProviderContributions: retrieval.GetProviderContributions(),
 	}, nil
 }
 

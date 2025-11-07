@@ -74,12 +74,14 @@ type retrieval struct {
 	eventsCallback          func(types.RetrievalEvent)
 	candidateMetadata       map[peer.ID]metadata.Protocol
 	candidateMetdataLk      sync.RWMutex
-	missingBlocks           []cid.Cid                     // blocks missing from previous attempts
+	missingBlocks           []cid.Cid                            // blocks missing from previous attempts
 	missingBlocksLk         sync.RWMutex
-	partialDataProviders    map[peer.ID]struct{}          // providers that sent incomplete data
+	partialDataProviders    map[peer.ID]struct{}                 // providers that sent incomplete data
 	partialDataProvidersLk  sync.RWMutex
 	failedProviders         map[peer.ID]types.RetrievalCandidate // providers that failed (not partial-data)
 	failedProvidersLk       sync.RWMutex
+	providerContributions   map[peer.ID]*types.ProviderContribution // tracks data contributed by each provider
+	providerContributionsLk sync.RWMutex
 }
 
 type retrievalResult struct {
@@ -106,6 +108,7 @@ func (cfg *parallelPeerRetriever) Retrieve(
 		candidateMetadata:     make(map[peer.ID]metadata.Protocol),
 		partialDataProviders:  make(map[peer.ID]struct{}),
 		failedProviders:       make(map[peer.ID]types.RetrievalCandidate),
+		providerContributions: make(map[peer.ID]*types.ProviderContribution),
 	}
 }
 
@@ -277,6 +280,37 @@ func (retrieval *retrieval) GetFailedProviders() []types.RetrievalCandidate {
 		candidates = append(candidates, candidate)
 	}
 	return candidates
+}
+
+// RecordProviderContribution tracks data contributed by a provider during retrieval.
+func (retrieval *retrieval) RecordProviderContribution(providerID peer.ID, blocks uint64, size uint64) {
+	retrieval.providerContributionsLk.Lock()
+	defer retrieval.providerContributionsLk.Unlock()
+
+	if contribution, exists := retrieval.providerContributions[providerID]; exists {
+		contribution.Blocks += blocks
+		contribution.Size += size
+	} else {
+		retrieval.providerContributions[providerID] = &types.ProviderContribution{
+			ProviderID: providerID,
+			Blocks:     blocks,
+			Size:       size,
+		}
+	}
+	logger.Debugf("Recorded contribution from %s: %d blocks, %d bytes (total: %d blocks, %d bytes)",
+		providerID, blocks, size, retrieval.providerContributions[providerID].Blocks, retrieval.providerContributions[providerID].Size)
+}
+
+// GetProviderContributions returns all provider contributions for this retrieval.
+func (retrieval *retrieval) GetProviderContributions() []types.ProviderContribution {
+	retrieval.providerContributionsLk.RLock()
+	defer retrieval.providerContributionsLk.RUnlock()
+
+	contributions := make([]types.ProviderContribution, 0, len(retrieval.providerContributions))
+	for _, contribution := range retrieval.providerContributions {
+		contributions = append(contributions, *contribution)
+	}
+	return contributions
 }
 
 // filterCandidates is needed because we can receive duplicate candidates in
