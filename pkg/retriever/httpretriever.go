@@ -107,6 +107,16 @@ func (ph *ProtocolHttp) Retrieve(
 
 	retrievalStart := ph.Clock.Now()
 
+	// Check if we have missing blocks from previous attempts
+	// If so, try targeted retrieval of those specific subgraphs
+	missingBlocks := retrieval.GetMissingBlocks()
+	if len(missingBlocks) > 0 {
+		logger.Debugf("Attempting targeted retrieval of %d missing subgraphs from %s",
+			len(missingBlocks), candidate.MinerPeer.ID)
+		return ph.retrieveMissingBlocks(ctx, retrieval, shared, candidate, missingBlocks, retrievalStart)
+	}
+
+	// Normal full-DAG retrieval
 	resp, err := ph.beginRequest(ctx, retrieval.request, candidate)
 	if err != nil {
 		return nil, err
@@ -148,11 +158,11 @@ func (ph *ProtocolHttp) Retrieve(
 		// check if we have partial success (some blocks retrieved, some missing)
 		if len(traversalResult.MissingBlocks) > 0 && traversalResult.BlocksIn > 0 {
 			// partial retrieval - we got some blocks but not all
-			// log the missing blocks and return the error so next candidate can try
-			logger.Debugf("Partial retrieval from %s: got %d blocks, missing %d blocks (first: %s)",
+			// Store missing blocks so next candidate can retrieve them specifically
+			retrieval.AddMissingBlocks(traversalResult.MissingBlocks)
+			logger.Debugf("Partial retrieval from %s: got %d blocks, stored %d missing blocks for next attempt (first: %s)",
 				candidate.MinerPeer.ID, traversalResult.BlocksIn, len(traversalResult.MissingBlocks),
 				traversalResult.MissingBlocks[0])
-			// TODO: store missing blocks for targeted retrieval from next candidate
 		}
 		return nil, err
 	}
@@ -165,6 +175,132 @@ func (ph *ProtocolHttp) Retrieve(
 		StorageProviderId: candidate.MinerPeer.ID,
 		Size:              traversalResult.BytesIn,
 		Blocks:            traversalResult.BlocksIn,
+		Duration:          duration,
+		AverageSpeed:      speed,
+		TotalPayment:      big.Zero(),
+		NumPayments:       0,
+		AskPrice:          big.Zero(),
+		TimeToFirstByte:   ttfb,
+	}, nil
+}
+
+// retrieveMissingBlocks attempts to retrieve specific missing blocks from a provider
+// by requesting each missing CID's subgraph individually
+func (ph *ProtocolHttp) retrieveMissingBlocks(
+	ctx context.Context,
+	retrieval *retrieval,
+	shared *retrievalShared,
+	candidate types.RetrievalCandidate,
+	missingBlocks []cid.Cid,
+	retrievalStart time.Time,
+) (*types.RetrievalStats, error) {
+	logger.Infof("Targeted retrieval: fetching %d missing subgraphs from %s",
+		len(missingBlocks), candidate.MinerPeer.ID)
+
+	var totalBlocks uint64
+	var totalBytes uint64
+	var firstByteReceived bool
+	var ttfb time.Duration
+
+	// Try to fetch each missing block's subgraph
+	for i, missingCid := range missingBlocks {
+		logger.Debugf("Requesting subgraph %d/%d: %s", i+1, len(missingBlocks), missingCid)
+
+		// Build URL for this specific missing CID with dag-scope=all
+		candidateURL, err := candidate.ToURL()
+		if err != nil {
+			logger.Warnf("Couldn't construct URL for %s: %v", candidate.MinerPeer.ID, err)
+			continue // try next block
+		}
+
+		// Request the subgraph rooted at this missing CID
+		// Note: format is communicated via Accept header, not query string
+		reqURL := fmt.Sprintf("%s/ipfs/%s?dag-scope=all", candidateURL, missingCid)
+		req, err := http.NewRequestWithContext(ctx, "GET", reqURL, nil)
+		if err != nil {
+			logger.Warnf("Couldn't construct request for %s: %v", missingCid, err)
+			continue
+		}
+		req.Header.Add("Accept", trustlesshttp.DefaultContentType().String())
+		req.Header.Add("X-Request-Id", retrieval.request.RetrievalID.String())
+		req.Header.Add("User-Agent", build.UserAgent)
+
+		logger.Debugf("HTTP targeted request: %s", reqURL)
+		resp, err := ph.Client.Do(req)
+		if err != nil {
+			logger.Warnf("Request failed for %s: %v", missingCid, err)
+			continue
+		}
+
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			resp.Body.Close()
+			logger.Warnf("HTTP %d for %s", resp.StatusCode, missingCid)
+			continue
+		}
+
+		// Parse content type for duplicate handling
+		var expectDuplicates = trustlesshttp.DefaultIncludeDupes
+		if contentType, valid := trustlesshttp.ParseContentType(resp.Header.Get("Content-Type")); valid {
+			expectDuplicates = contentType.Duplicates
+		}
+
+		// Wrap reader for TTFB tracking on first block only
+		var rdr io.Reader = resp.Body
+		if !firstByteReceived {
+			rdr = newTimeToFirstByteReader(resp.Body, func() {
+				ttfb = retrieval.Clock.Since(retrievalStart)
+				firstByteReceived = true
+				shared.sendEvent(ctx, events.FirstByte(retrieval.Clock.Now(), retrieval.request.RetrievalID, candidate, ttfb, multicodec.TransportIpfsGatewayHttp))
+			})
+		}
+
+		// Verify and write this subgraph to the LinkSystem
+		// Use all-selector to traverse the entire subgraph rooted at the missing CID
+		cfg := traversal.Config{
+			Root:               missingCid,
+			Selector:           retrieval.request.GetSelector(), // all-selector for complete subgraph
+			ExpectDuplicatesIn: expectDuplicates,
+			WriteDuplicatesOut: expectDuplicates,
+			MaxBlocks:          retrieval.request.MaxBlocks,
+			OnBlockIn: func(read uint64) {
+				shared.sendEvent(ctx, events.BlockReceived(retrieval.Clock.Now(), retrieval.request.RetrievalID, candidate, multicodec.TransportIpfsGatewayHttp, read))
+			},
+			CollectAllMissing: true,
+		}
+
+		result, err := cfg.VerifyCar(ctx, rdr, retrieval.request.LinkSystem)
+		resp.Body.Close()
+
+		if err != nil {
+			logger.Debugf("Subgraph %s: got %d blocks but failed: %v", missingCid, result.BlocksIn, err)
+			// If this subgraph also has missing blocks, store them for next iteration
+			if len(result.MissingBlocks) > 0 {
+				retrieval.AddMissingBlocks(result.MissingBlocks)
+			}
+			// Continue trying other missing blocks even if this one failed
+		} else {
+			logger.Debugf("Subgraph %s: successfully retrieved %d blocks", missingCid, result.BlocksIn)
+		}
+
+		totalBlocks += result.BlocksIn
+		totalBytes += result.BytesIn
+	}
+
+	if totalBlocks == 0 {
+		return nil, fmt.Errorf("failed to retrieve any missing blocks from %s", candidate.MinerPeer.ID)
+	}
+
+	duration := retrieval.Clock.Since(retrievalStart)
+	speed := uint64(float64(totalBytes) / duration.Seconds())
+
+	logger.Infof("Targeted retrieval from %s: fetched %d blocks (%d bytes) across %d subgraphs",
+		candidate.MinerPeer.ID, totalBlocks, totalBytes, len(missingBlocks))
+
+	return &types.RetrievalStats{
+		RootCid:           candidate.RootCid,
+		StorageProviderId: candidate.MinerPeer.ID,
+		Size:              totalBytes,
+		Blocks:            totalBlocks,
 		Duration:          duration,
 		AverageSpeed:      speed,
 		TotalPayment:      big.Zero(),

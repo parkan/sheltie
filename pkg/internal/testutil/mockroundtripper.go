@@ -206,8 +206,10 @@ type deferredBody struct {
 	root       cid.Cid
 	duplicates bool
 
-	r    io.ReadCloser
-	once sync.Once
+	r        io.ReadCloser
+	once     sync.Once
+	sentEOF  bool
+	eofMutex sync.Mutex
 }
 
 func newDeferredBody(mrt *MockRoundTripper, remote MockRoundTripRemote, root cid.Cid, duplicates bool) *deferredBody {
@@ -319,7 +321,12 @@ func (d *deferredBody) Read(p []byte) (n int, err error) {
 	})
 	n, err = d.r.Read(p)
 	if err == io.EOF {
-		d.mrt.endsCh <- d.remote.Peer.ID
+		d.eofMutex.Lock()
+		if !d.sentEOF {
+			d.sentEOF = true
+			d.mrt.endsCh <- d.remote.Peer.ID
+		}
+		d.eofMutex.Unlock()
 	}
 	return n, err
 }

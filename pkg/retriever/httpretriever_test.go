@@ -73,6 +73,12 @@ func TestHTTPRetriever(t *testing.T) {
 	dupyBlocks, dupyBlocksDeduped := mkDupy(lsys)
 	dupyCands := testutil.GenerateRetrievalCandidatesForCID(t, 1, dupyBlocks[0].Cid(), metadata.IpfsGatewayHttp{})
 
+	// Simple 3-block chain for testing targeted retrieval: A -> B -> C
+	simpleChain := mkSimpleChain(lsys)
+	simpleRoot := simpleChain[0].Cid()    // Block A (root)
+	simpleMissing := simpleChain[2].Cid() // Block C (will be missing from P1)
+	simpleCands := testutil.GenerateRetrievalCandidatesForCID(t, 2, simpleRoot, metadata.IpfsGatewayHttp{})
+
 	rid1 := types.RetrievalID(uuid.New())
 	rid2 := types.RetrievalID(uuid.New())
 	remoteBlockDuration := 50 * time.Millisecond
@@ -611,6 +617,368 @@ func TestHTTPRetriever(t *testing.T) {
 				},
 			}...),
 		},
+		// TODO: Full split DAG test with targeted retrieval across multiple providers
+		// requires either: (a) real HTTP integration test, or (b) enhanced mock framework
+		// that can handle dynamic CID lookups. For now, testing partial retrieval behavior.
+		{
+			name:     "single, partial served, future: test targeted retrieval",
+			requests: map[cid.Cid]types.RetrievalID{cid1: rid1},
+			remotes: map[cid.Cid][]testutil.MockRoundTripRemote{
+				cid1: {
+					{
+						// P1: Has only first 50 blocks - will fail with missing blocks
+						Peer:       cid1Cands[0].MinerPeer,
+						LinkSystem: *makeLsys(tbc1.AllBlocks()[0:50], false),
+						Selector:   allSelector,
+						RespondAt:  startTime.Add(initialPause + time.Millisecond*10),
+					},
+				},
+			},
+			expectedCids: map[cid.Cid][]cid.Cid{cid1: tbc1Cids[0:50]}, // 50 blocks successfully retrieved
+			expectedErrors: map[cid.Cid]struct{}{
+				cid1: {}, // But still fails due to missing blocks
+			},
+			expectSequence: append(append([]testutil.ExpectedActionsAtTime{
+				{
+					AfterStart: 0,
+					ExpectedEvents: []types.RetrievalEvent{
+						events.StartedRetrieval(startTime, rid1, toCandidate(cid1, cid1Cands[0].MinerPeer), multicodec.TransportIpfsGatewayHttp),
+						events.ConnectedToProvider(startTime, rid1, toCandidate(cid1, cid1Cands[0].MinerPeer), multicodec.TransportIpfsGatewayHttp),
+					},
+					ExpectedMetrics: []testutil.SessionMetric{
+						{Type: testutil.SessionMetric_Connect, Provider: cid1Cands[0].MinerPeer.ID, Duration: 0},
+					},
+				},
+				{
+					AfterStart:         initialPause,
+					ReceivedRetrievals: []peer.ID{cid1Cands[0].MinerPeer.ID},
+				},
+				{
+					AfterStart: initialPause + time.Millisecond*10,
+					ExpectedEvents: []types.RetrievalEvent{
+						events.FirstByte(startTime.Add(initialPause+time.Millisecond*10), rid1, toCandidate(cid1, cid1Cands[0].MinerPeer), time.Millisecond*10, multicodec.TransportIpfsGatewayHttp),
+						events.BlockReceived(startTime.Add(initialPause+time.Millisecond*10), rid1, toCandidate(cid1, cid1Cands[0].MinerPeer), multicodec.TransportIpfsGatewayHttp, uint64(len(tbc1.Blocks(0, 1)[0].RawData()))),
+					},
+					ExpectedMetrics: []testutil.SessionMetric{
+						{Type: testutil.SessionMetric_FirstByte, Provider: cid1Cands[0].MinerPeer.ID, Duration: 10 * time.Millisecond},
+					},
+				},
+			},
+				// Block events for the 49 remaining blocks (1-49)
+				testutil.BlockReceivedActions(startTime, initialPause+time.Millisecond*10+remoteBlockDuration, rid1, toCandidate(cid1, cid1Cands[0].MinerPeer), multicodec.TransportIpfsGatewayHttp, remoteBlockDuration, tbc1.Blocks(1, 50))...), []testutil.ExpectedActionsAtTime{
+				{
+					AfterStart: initialPause + time.Millisecond*10 + remoteBlockDuration*50,
+					// After receiving 50 blocks, the traversal will encounter a missing block and fail
+					ExpectedEvents: []types.RetrievalEvent{
+						events.FailedRetrieval(startTime.Add(initialPause+time.Millisecond*10+remoteBlockDuration*50), rid1, toCandidate(cid1, cid1Cands[0].MinerPeer), multicodec.TransportIpfsGatewayHttp, "missing block in CAR; ipld: could not find "+tbc1.AllBlocks()[50].Cid().String()),
+					},
+					CompletedRetrievals: []peer.ID{cid1Cands[0].MinerPeer.ID},
+					ServedRetrievals: []testutil.RemoteStats{
+						{
+							Peer:      cid1Cands[0].MinerPeer.ID,
+							Root:      cid1,
+							ByteCount: sizeOf(tbc1.Blocks(0, 50)),
+							Blocks:    toCids(tbc1.Blocks(0, 50)),
+							Err:       struct{}{}, // Mark this as an error case
+						},
+					},
+					ExpectedMetrics: []testutil.SessionMetric{
+						{Type: testutil.SessionMetric_Failure, Provider: cid1Cands[0].MinerPeer.ID},
+					},
+				},
+			}...),
+		},
+		{
+			name:     "single, split DAG with targeted retrieval (3-block chain)",
+			requests: map[cid.Cid]types.RetrievalID{simpleRoot: rid1},
+			remotes: map[cid.Cid][]testutil.MockRoundTripRemote{
+				simpleRoot: {
+					{
+						// P1: Has blocks A and B, missing block C
+						Peer:       simpleCands[0].MinerPeer,
+						LinkSystem: *makeLsys(simpleChain[0:2], false), // A and B only
+						Selector:   allSelector,
+						RespondAt:  startTime.Add(initialPause + time.Millisecond*10),
+					},
+					{
+						// P2: Will be used for targeted retrieval
+						// Note: This entry is for the root request, but P2 will actually respond to targeted requests
+						Peer:       simpleCands[1].MinerPeer,
+						LinkSystem: *makeLsys([]blocks.Block{simpleChain[2]}, false), // C only
+						Selector:   allSelector,
+						RespondAt:  startTime.Add(initialPause + time.Millisecond*200), // Won't be used for root request
+					},
+				},
+				simpleMissing: {
+					{
+						// P2 responds to targeted retrieval requests for the missing block
+						Peer:       simpleCands[1].MinerPeer,
+						LinkSystem: *makeLsys([]blocks.Block{simpleChain[2]}, false), // C only
+						Selector:   allSelector,
+						RespondAt:  startTime.Add(initialPause + time.Millisecond*200),
+					},
+				},
+			},
+			expectedCids: map[cid.Cid][]cid.Cid{
+				simpleRoot: {simpleChain[0].Cid(), simpleChain[1].Cid(), simpleChain[2].Cid()},
+			},
+			expectedStats: map[cid.Cid]*types.RetrievalStats{
+				simpleRoot: {
+					RootCid:           simpleRoot,
+					StorageProviderId: simpleCands[1].MinerPeer.ID, // P2 completes via targeted retrieval
+					// Stats reflect P2's targeted retrieval of the missing block
+					Size:            uint64(len(simpleChain[2].RawData())),
+					Blocks:          1, // P2 serves 1 block (C)
+					Duration:        time.Millisecond * 90 + remoteBlockDuration, // TTFB (90ms) + 1 block duration
+					AverageSpeed:    uint64(math.Trunc(float64(len(simpleChain[2].RawData())) / (time.Millisecond*90 + remoteBlockDuration).Seconds())),
+					TotalPayment:    big.Zero(),
+					AskPrice:        big.Zero(),
+					TimeToFirstByte: time.Millisecond * 90,
+				},
+			},
+			expectSequence: []testutil.ExpectedActionsAtTime{
+				{
+					AfterStart: 0,
+					ExpectedEvents: []types.RetrievalEvent{
+						events.StartedRetrieval(startTime, rid1, toCandidate(simpleRoot, simpleCands[0].MinerPeer), multicodec.TransportIpfsGatewayHttp),
+						events.ConnectedToProvider(startTime, rid1, toCandidate(simpleRoot, simpleCands[0].MinerPeer), multicodec.TransportIpfsGatewayHttp),
+						events.StartedRetrieval(startTime, rid1, toCandidate(simpleRoot, simpleCands[1].MinerPeer), multicodec.TransportIpfsGatewayHttp),
+						events.ConnectedToProvider(startTime, rid1, toCandidate(simpleRoot, simpleCands[1].MinerPeer), multicodec.TransportIpfsGatewayHttp),
+					},
+					ExpectedMetrics: []testutil.SessionMetric{
+						{Type: testutil.SessionMetric_Connect, Provider: simpleCands[0].MinerPeer.ID, Duration: 0},
+						{Type: testutil.SessionMetric_Connect, Provider: simpleCands[1].MinerPeer.ID, Duration: 0},
+					},
+				},
+				{
+					AfterStart:         initialPause,
+					ReceivedRetrievals: []peer.ID{simpleCands[0].MinerPeer.ID}, // P1 starts first (session preference)
+				},
+				{
+					AfterStart: initialPause + time.Millisecond*10,
+					ExpectedEvents: []types.RetrievalEvent{
+						// P1 starts streaming
+						events.FirstByte(startTime.Add(initialPause+time.Millisecond*10), rid1, toCandidate(simpleRoot, simpleCands[0].MinerPeer), time.Millisecond*10, multicodec.TransportIpfsGatewayHttp),
+						events.BlockReceived(startTime.Add(initialPause+time.Millisecond*10), rid1, toCandidate(simpleRoot, simpleCands[0].MinerPeer), multicodec.TransportIpfsGatewayHttp, uint64(len(simpleChain[0].RawData()))),
+					},
+					ExpectedMetrics: []testutil.SessionMetric{
+						{Type: testutil.SessionMetric_FirstByte, Provider: simpleCands[0].MinerPeer.ID, Duration: 10 * time.Millisecond},
+					},
+				},
+				{
+					AfterStart: initialPause + time.Millisecond*10 + remoteBlockDuration,
+					ExpectedEvents: []types.RetrievalEvent{
+						// P1 sends block B
+						events.BlockReceived(startTime.Add(initialPause+time.Millisecond*10+remoteBlockDuration), rid1, toCandidate(simpleRoot, simpleCands[0].MinerPeer), multicodec.TransportIpfsGatewayHttp, uint64(len(simpleChain[1].RawData()))),
+					},
+				},
+				{
+					AfterStart: initialPause + time.Millisecond*10 + remoteBlockDuration*2,
+					ExpectedEvents: []types.RetrievalEvent{
+						// P1 fails - missing block C
+						events.FailedRetrieval(startTime.Add(initialPause+time.Millisecond*10+remoteBlockDuration*2), rid1, toCandidate(simpleRoot, simpleCands[0].MinerPeer), multicodec.TransportIpfsGatewayHttp, "missing block in CAR; ipld: could not find "+simpleMissing.String()),
+					},
+					CompletedRetrievals: []peer.ID{simpleCands[0].MinerPeer.ID},
+					ServedRetrievals: []testutil.RemoteStats{
+						{
+							Peer:      simpleCands[0].MinerPeer.ID,
+							Root:      simpleRoot,
+							ByteCount: uint64(len(simpleChain[0].RawData()) + len(simpleChain[1].RawData())),
+							Blocks:    []cid.Cid{simpleChain[0].Cid(), simpleChain[1].Cid()},
+							Err:       struct{}{},
+						},
+					},
+					ReceivedRetrievals: []peer.ID{simpleCands[1].MinerPeer.ID}, // P2 starts targeted retrieval
+					ExpectedMetrics: []testutil.SessionMetric{
+						{Type: testutil.SessionMetric_Failure, Provider: simpleCands[0].MinerPeer.ID},
+					},
+				},
+				{
+					AfterStart: initialPause + time.Millisecond*200,
+					ExpectedEvents: []types.RetrievalEvent{
+						// P2 targeted retrieval succeeds
+						events.FirstByte(startTime.Add(initialPause+time.Millisecond*200), rid1, toCandidate(simpleRoot, simpleCands[1].MinerPeer), time.Millisecond*90, multicodec.TransportIpfsGatewayHttp),
+						events.BlockReceived(startTime.Add(initialPause+time.Millisecond*200), rid1, toCandidate(simpleRoot, simpleCands[1].MinerPeer), multicodec.TransportIpfsGatewayHttp, uint64(len(simpleChain[2].RawData()))),
+					},
+					ExpectedMetrics: []testutil.SessionMetric{
+						{Type: testutil.SessionMetric_FirstByte, Provider: simpleCands[1].MinerPeer.ID, Duration: 90 * time.Millisecond},
+					},
+				},
+				{
+					AfterStart: initialPause + time.Millisecond*200 + remoteBlockDuration,
+					ExpectedEvents: []types.RetrievalEvent{
+						// P2 completes successfully
+						events.Success(
+							startTime.Add(initialPause+time.Millisecond*200+remoteBlockDuration),
+							rid1,
+							toCandidate(simpleRoot, simpleCands[1].MinerPeer),
+							uint64(len(simpleChain[2].RawData())),
+							1,
+							time.Millisecond*90+remoteBlockDuration,
+							multicodec.TransportIpfsGatewayHttp,
+						),
+					},
+					CompletedRetrievals: []peer.ID{simpleCands[1].MinerPeer.ID},
+					ServedRetrievals: []testutil.RemoteStats{
+						{
+							Peer:      simpleCands[1].MinerPeer.ID,
+							Root:      simpleMissing, // Targeted request was for block C
+							ByteCount: uint64(len(simpleChain[2].RawData())),
+							Blocks:    []cid.Cid{simpleChain[2].Cid()},
+						},
+					},
+					ExpectedMetrics: []testutil.SessionMetric{
+						{Type: testutil.SessionMetric_Success, Provider: simpleCands[1].MinerPeer.ID, Value: math.Trunc(float64(len(simpleChain[2].RawData())) / (time.Millisecond*90 + remoteBlockDuration).Seconds())},
+					},
+				},
+			},
+		},
+		{
+			name:     "single, split DAG non-contiguous (P1 has A+C, P2 has B)",
+			requests: map[cid.Cid]types.RetrievalID{simpleRoot: rid1},
+			remotes: map[cid.Cid][]testutil.MockRoundTripRemote{
+				simpleRoot: {
+					{
+						// P1: Has root A and leaf C, but missing middle block B
+						// This is the degenerate case - non-contiguous blocks
+						Peer:       simpleCands[0].MinerPeer,
+						LinkSystem: *makeLsys([]blocks.Block{simpleChain[0], simpleChain[2]}, false), // A and C only
+						Selector:   allSelector,
+						RespondAt:  startTime.Add(initialPause + time.Millisecond*10),
+					},
+					{
+						// P2: For root request (won't be used, P1 starts first)
+						Peer:       simpleCands[1].MinerPeer,
+						LinkSystem: *makeLsys(simpleChain[1:], false), // B and C
+						Selector:   allSelector,
+						RespondAt:  startTime.Add(initialPause + time.Millisecond*200),
+					},
+				},
+				simpleChain[1].Cid(): { // Missing block B
+					{
+						// P2: Responds to targeted retrieval for B
+						// P2 has B and C, so it can serve B's complete subgraph (B→C)
+						Peer:       simpleCands[1].MinerPeer,
+						LinkSystem: *makeLsys(simpleChain[1:], false), // B and C
+						Selector:   allSelector,
+						RespondAt:  startTime.Add(initialPause + time.Millisecond*200),
+					},
+				},
+			},
+			expectedCids: map[cid.Cid][]cid.Cid{
+				simpleRoot: {simpleChain[0].Cid(), simpleChain[1].Cid(), simpleChain[2].Cid()},
+			},
+			expectedStats: map[cid.Cid]*types.RetrievalStats{
+				simpleRoot: {
+					RootCid:           simpleRoot,
+					StorageProviderId: simpleCands[1].MinerPeer.ID, // P2 completes via targeted retrieval
+					// P2 serves B and C (2 blocks) via targeted retrieval
+					Size:            uint64(len(simpleChain[1].RawData()) + len(simpleChain[2].RawData())),
+					Blocks:          2, // B and C
+					Duration:        time.Millisecond*140 + remoteBlockDuration*2, // TTFB (140ms) + 2 block durations
+					AverageSpeed:    uint64(math.Trunc(float64(len(simpleChain[1].RawData())+len(simpleChain[2].RawData())) / (time.Millisecond*140 + remoteBlockDuration*2).Seconds())),
+					TotalPayment:    big.Zero(),
+					AskPrice:        big.Zero(),
+					TimeToFirstByte: time.Millisecond * 140,
+				},
+			},
+			expectSequence: []testutil.ExpectedActionsAtTime{
+				{
+					AfterStart: 0,
+					ExpectedEvents: []types.RetrievalEvent{
+						events.StartedRetrieval(startTime, rid1, toCandidate(simpleRoot, simpleCands[0].MinerPeer), multicodec.TransportIpfsGatewayHttp),
+						events.ConnectedToProvider(startTime, rid1, toCandidate(simpleRoot, simpleCands[0].MinerPeer), multicodec.TransportIpfsGatewayHttp),
+						events.StartedRetrieval(startTime, rid1, toCandidate(simpleRoot, simpleCands[1].MinerPeer), multicodec.TransportIpfsGatewayHttp),
+						events.ConnectedToProvider(startTime, rid1, toCandidate(simpleRoot, simpleCands[1].MinerPeer), multicodec.TransportIpfsGatewayHttp),
+					},
+					ExpectedMetrics: []testutil.SessionMetric{
+						{Type: testutil.SessionMetric_Connect, Provider: simpleCands[0].MinerPeer.ID, Duration: 0},
+						{Type: testutil.SessionMetric_Connect, Provider: simpleCands[1].MinerPeer.ID, Duration: 0},
+					},
+				},
+				{
+					AfterStart:         initialPause,
+					ReceivedRetrievals: []peer.ID{simpleCands[0].MinerPeer.ID}, // P1 starts first
+				},
+				{
+					AfterStart: initialPause + time.Millisecond*10,
+					ExpectedEvents: []types.RetrievalEvent{
+						// P1 sends block A
+						events.FirstByte(startTime.Add(initialPause+time.Millisecond*10), rid1, toCandidate(simpleRoot, simpleCands[0].MinerPeer), time.Millisecond*10, multicodec.TransportIpfsGatewayHttp),
+						events.BlockReceived(startTime.Add(initialPause+time.Millisecond*10), rid1, toCandidate(simpleRoot, simpleCands[0].MinerPeer), multicodec.TransportIpfsGatewayHttp, uint64(len(simpleChain[0].RawData()))),
+					},
+					ExpectedMetrics: []testutil.SessionMetric{
+						{Type: testutil.SessionMetric_FirstByte, Provider: simpleCands[0].MinerPeer.ID, Duration: 10 * time.Millisecond},
+					},
+				},
+				{
+					AfterStart: initialPause + time.Millisecond*10 + remoteBlockDuration,
+					ExpectedEvents: []types.RetrievalEvent{
+						// P1 fails - missing block B (can't traverse A→B)
+						events.FailedRetrieval(startTime.Add(initialPause+time.Millisecond*10+remoteBlockDuration), rid1, toCandidate(simpleRoot, simpleCands[0].MinerPeer), multicodec.TransportIpfsGatewayHttp, "missing block in CAR; ipld: could not find "+simpleChain[1].Cid().String()),
+					},
+					CompletedRetrievals: []peer.ID{simpleCands[0].MinerPeer.ID},
+					ServedRetrievals: []testutil.RemoteStats{
+						{
+							Peer:      simpleCands[0].MinerPeer.ID,
+							Root:      simpleRoot,
+							ByteCount: uint64(len(simpleChain[0].RawData())),
+							Blocks:    []cid.Cid{simpleChain[0].Cid()}, // Only A sent
+							Err:       struct{}{},
+						},
+					},
+					ReceivedRetrievals: []peer.ID{simpleCands[1].MinerPeer.ID}, // P2 starts targeted retrieval
+					ExpectedMetrics: []testutil.SessionMetric{
+						{Type: testutil.SessionMetric_Failure, Provider: simpleCands[0].MinerPeer.ID},
+					},
+				},
+				{
+					AfterStart: initialPause + time.Millisecond*200,
+					ExpectedEvents: []types.RetrievalEvent{
+						// P2 targeted retrieval for B starts
+						events.FirstByte(startTime.Add(initialPause+time.Millisecond*200), rid1, toCandidate(simpleRoot, simpleCands[1].MinerPeer), time.Millisecond*140, multicodec.TransportIpfsGatewayHttp),
+						events.BlockReceived(startTime.Add(initialPause+time.Millisecond*200), rid1, toCandidate(simpleRoot, simpleCands[1].MinerPeer), multicodec.TransportIpfsGatewayHttp, uint64(len(simpleChain[1].RawData()))),
+					},
+					ExpectedMetrics: []testutil.SessionMetric{
+						{Type: testutil.SessionMetric_FirstByte, Provider: simpleCands[1].MinerPeer.ID, Duration: 140 * time.Millisecond},
+					},
+				},
+				{
+					AfterStart: initialPause + time.Millisecond*200 + remoteBlockDuration,
+					ExpectedEvents: []types.RetrievalEvent{
+						// P2 sends block C (part of B's subgraph)
+						events.BlockReceived(startTime.Add(initialPause+time.Millisecond*200+remoteBlockDuration), rid1, toCandidate(simpleRoot, simpleCands[1].MinerPeer), multicodec.TransportIpfsGatewayHttp, uint64(len(simpleChain[2].RawData()))),
+					},
+				},
+				{
+					AfterStart: initialPause + time.Millisecond*200 + remoteBlockDuration*2,
+					ExpectedEvents: []types.RetrievalEvent{
+						// P2 completes successfully with B→C subgraph
+						events.Success(
+							startTime.Add(initialPause+time.Millisecond*200+remoteBlockDuration*2),
+							rid1,
+							toCandidate(simpleRoot, simpleCands[1].MinerPeer),
+							uint64(len(simpleChain[1].RawData())+len(simpleChain[2].RawData())),
+							2, // B and C
+							time.Millisecond*140+remoteBlockDuration*2,
+							multicodec.TransportIpfsGatewayHttp,
+						),
+					},
+					CompletedRetrievals: []peer.ID{simpleCands[1].MinerPeer.ID},
+					ServedRetrievals: []testutil.RemoteStats{
+						{
+							Peer:      simpleCands[1].MinerPeer.ID,
+							Root:      simpleChain[1].Cid(), // Targeted request was for block B
+							ByteCount: uint64(len(simpleChain[1].RawData()) + len(simpleChain[2].RawData())),
+							Blocks:    []cid.Cid{simpleChain[1].Cid(), simpleChain[2].Cid()}, // B and C
+						},
+					},
+					ExpectedMetrics: []testutil.SessionMetric{
+						{Type: testutil.SessionMetric_Success, Provider: simpleCands[1].MinerPeer.ID, Value: math.Trunc(float64(len(simpleChain[1].RawData())+len(simpleChain[2].RawData())) / (time.Millisecond*140 + remoteBlockDuration*2).Seconds())},
+					},
+				},
+			},
+		},
 		{
 			name:        "single, funky path",
 			requests:    map[cid.Cid]types.RetrievalID{funkyBlocks[0].Cid(): rid1},
@@ -887,7 +1255,7 @@ func TestHTTPRetriever(t *testing.T) {
 			client := &http.Client{Transport: roundTripper}
 
 			mockSession := testutil.NewMockSession(ctx)
-			mockSession.SetCandidatePreferenceOrder(append(cid1Cands, cid2Cands...))
+			mockSession.SetCandidatePreferenceOrder(append(append(cid1Cands, cid2Cands...), simpleCands...))
 			mockSession.SetProviderTimeout(10 * time.Second)
 			retriever := retriever.NewHttpRetrieverWithDeps(mockSession, client, clock, nil, initialPause, true)
 
@@ -995,6 +1363,67 @@ var rawlp = cidlink.LinkPrototype{
 		MhType:   multihash.SHA2_256,
 		MhLength: 32,
 	},
+}
+
+// mkSimpleChain creates a simple 3-block linked chain: A -> B -> C
+// Returns blocks in order [A, B, C] where A is root
+func mkSimpleChain(lsys linking.LinkSystem) []blocks.Block {
+	// Create leaf block C (raw data)
+	blockC := mkBlockWithBytes(lsys, []byte("leaf data in block C"))
+
+	// Create block B (dag-pb) that links to C
+	blockBNode, err := qp.BuildMap(dagpb.Type.PBNode, -1, func(ma datamodel.MapAssembler) {
+		qp.MapEntry(ma, "Links", qp.List(-1, func(la datamodel.ListAssembler) {
+			qp.ListEntry(la, qp.Map(-1, func(ma datamodel.MapAssembler) {
+				qp.MapEntry(ma, "Hash", qp.Link(cidlink.Link{Cid: blockC.Cid()}))
+				qp.MapEntry(ma, "Name", qp.String("child"))
+			}))
+		}))
+		qp.MapEntry(ma, "Data", qp.Bytes([]byte("block B data")))
+	})
+	if err != nil {
+		panic(err)
+	}
+	blockBLink, err := lsys.Store(linking.LinkContext{}, pblp, blockBNode)
+	if err != nil {
+		panic(err)
+	}
+	blockBBytes, err := lsys.LoadRaw(linking.LinkContext{}, blockBLink)
+	if err != nil {
+		panic(err)
+	}
+	blockB, err := blocks.NewBlockWithCid(blockBBytes, blockBLink.(cidlink.Link).Cid)
+	if err != nil {
+		panic(err)
+	}
+
+	// Create root block A (dag-pb) that links to B
+	blockANode, err := qp.BuildMap(dagpb.Type.PBNode, -1, func(ma datamodel.MapAssembler) {
+		qp.MapEntry(ma, "Links", qp.List(-1, func(la datamodel.ListAssembler) {
+			qp.ListEntry(la, qp.Map(-1, func(ma datamodel.MapAssembler) {
+				qp.MapEntry(ma, "Hash", qp.Link(cidlink.Link{Cid: blockB.Cid()}))
+				qp.MapEntry(ma, "Name", qp.String("child"))
+			}))
+		}))
+		qp.MapEntry(ma, "Data", qp.Bytes([]byte("root block A data")))
+	})
+	if err != nil {
+		panic(err)
+	}
+	blockALink, err := lsys.Store(linking.LinkContext{}, pblp, blockANode)
+	if err != nil {
+		panic(err)
+	}
+	blockABytes, err := lsys.LoadRaw(linking.LinkContext{}, blockALink)
+	if err != nil {
+		panic(err)
+	}
+	blockA, err := blocks.NewBlockWithCid(blockABytes, blockALink.(cidlink.Link).Cid)
+	if err != nil {
+		panic(err)
+	}
+
+	return []blocks.Block{blockA, blockB, blockC}
 }
 
 func mkBlockWithBytes(lsys linking.LinkSystem, bytes []byte) blocks.Block {

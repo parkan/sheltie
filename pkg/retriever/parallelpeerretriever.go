@@ -74,6 +74,8 @@ type retrieval struct {
 	eventsCallback     func(types.RetrievalEvent)
 	candidateMetadata  map[peer.ID]metadata.Protocol
 	candidateMetdataLk sync.RWMutex
+	missingBlocks      []cid.Cid       // blocks missing from previous attempts
+	missingBlocksLk    sync.RWMutex
 }
 
 type retrievalResult struct {
@@ -182,6 +184,32 @@ func (retrieval *retrieval) candidateChooser(peers []peer.ID) int {
 	retrieval.candidateMetdataLk.RUnlock()
 
 	return retrieval.Session.ChooseNextProvider(peers, metadata)
+}
+
+// AddMissingBlocks records CIDs that were missing from a retrieval attempt.
+// These will be used to create targeted requests to subsequent providers.
+func (retrieval *retrieval) AddMissingBlocks(missing []cid.Cid) {
+	if len(missing) == 0 {
+		return
+	}
+	retrieval.missingBlocksLk.Lock()
+	defer retrieval.missingBlocksLk.Unlock()
+	retrieval.missingBlocks = append(retrieval.missingBlocks, missing...)
+	logger.Debugf("Added %d missing blocks, total now: %d", len(missing), len(retrieval.missingBlocks))
+}
+
+// GetMissingBlocks returns the list of CIDs missing from previous attempts.
+// Returns nil if no blocks are missing.
+func (retrieval *retrieval) GetMissingBlocks() []cid.Cid {
+	retrieval.missingBlocksLk.RLock()
+	defer retrieval.missingBlocksLk.RUnlock()
+	if len(retrieval.missingBlocks) == 0 {
+		return nil
+	}
+	// Return a copy to avoid race conditions
+	result := make([]cid.Cid, len(retrieval.missingBlocks))
+	copy(result, retrieval.missingBlocks)
+	return result
 }
 
 // filterCandidates is needed because we can receive duplicate candidates in
