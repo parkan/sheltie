@@ -1,9 +1,16 @@
 # Lassie
 
-> Fetches from Filecoin, every time
+<img width="1024" height="1530" alt="image" src="https://github.com/user-attachments/assets/4933d6c9-2335-4a34-b797-c2a8e9b7d9c8" />
+<a href="https://www.flickr.com/photos/8842985@N03">Chris</a>, <a href="https://commons.wikimedia.org/wiki/File:Shetland_Sheepdog_and_Rough_Collie.jpg">Shetland Sheepdog and Rough Collie</a>, <a href="https://creativecommons.org/licenses/by/2.0/legalcode" rel="license">CC BY 2.0</a>
+
+---
+
+Lassie is the leaner, nimbler cousin of [lassie](https://github.com/filecoin-project/lassie) that knows a few more tricks.
+
 
 ## Table of Contents
 
+* [Changes from Lassie](#changes-from-lassie)
 * [Overview](#overview)
 * [Installation](#installation)
 * [Methods of Retrieval](#methods-of-retrieval)
@@ -17,9 +24,16 @@
 * [Contribute](#contribute)
 * [License](#license)
 
+## Changes from Lassie
+- Lassie is **HTTP-only** (no Bitswap, no Graphsync)
+- Lassie **uses delegated routing V1 API** to find providers instead of legacy IPNI, see https://github.com/filecoin-project/lassie/issues/489
+- Lassie **reconstructs DAGs across HTTP providers** via per-block fallback when a provider returns an incomplete CAR
+
+This project is a fork of Protocol Labs’s Lassie (https://github.com/filecoin-project/lassie) under Apache 2.0/MIT.
+
 ## Overview
 
-Lassie is a simple retrieval client for Filecoin. It finds and fetches your data over the best retrieval protocols available. Lassie makes Filecoin retrieval.
+Lassie is a retrieval client for Filecoin/IPFS using the HTTP Trustless Gateway protocol. It attempts whole-DAG retrieval first, then falls back to per-block fetching when providers have partial content. This allows fetching data split across multiple providers (e.g., one has directory nodes, another has leaf blocks).
 
 ## Installation
 
@@ -294,4 +308,7 @@ Early days PRs are welcome!
 
 This library is dual-licensed under Apache 2.0 and MIT terms.
 
-Copyright 2022. Protocol Labs, Inc.
+Copyright 2025 Arkadiy Kukarkin
+Derived from Lassie, © 2022 Protocol Labs, Inc.
+Modifications licensed under Apache License 2.0 / MIT
+

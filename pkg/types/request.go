@@ -4,6 +4,10 @@
 // - Removed bitswap from ParseProtocolsString()
 // - Removed bitswap from ParseProviderStrings()
 // - Removed bitswap from ToProviderString()
+// MODIFIED: 2025-12-09
+// - Removed graphsync from ParseProtocolsString()
+// - Removed graphsync from ParseProviderStrings()
+// - Removed graphsync from ToProviderString()
 
 package types
 
@@ -221,8 +225,6 @@ func ParseProtocolsString(v string) ([]multicodec.Code, error) {
 	for _, v := range vs {
 		var protocol multicodec.Code
 		switch v {
-		case "graphsync":
-			protocol = multicodec.TransportGraphsyncFilecoinv1
 		case "http":
 			protocol = multicodec.TransportIpfsGatewayHttp
 		default:
@@ -261,14 +263,11 @@ func ParseProviderStrings(v string) ([]Provider, error) {
 				var foundProtocol bool
 				for _, part := range parts[1:] {
 					switch part {
-					case "graphsync":
-						foundProtocol = true
-						protocols = append(protocols, &metadata.GraphsyncFilecoinV1{})
 					case "http":
 						foundProtocol = true
 						protocols = append(protocols, metadata.IpfsGatewayHttp{})
 					default:
-						// if we haven't encountered a prootocol string yet, assume this + was in the multiaddr for some reason
+						// if we haven't encountered a protocol string yet, assume this + was in the multiaddr for some reason
 						// if we have, something is malconstructed
 						if foundProtocol {
 							return nil, fmt.Errorf("unrecognized protocol: %s", v)
@@ -341,8 +340,6 @@ func ToProviderString(ai []Provider) (string, error) {
 			switch protocol.(type) {
 			case metadata.IpfsGatewayHttp, *metadata.IpfsGatewayHttp:
 				sb.WriteString("+http")
-			case *metadata.GraphsyncFilecoinV1:
-				sb.WriteString("+graphsync")
 			}
 		}
 	}

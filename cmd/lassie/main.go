@@ -2,6 +2,8 @@
 // - Renamed application from lassie to sheltie
 // - Removed bitswap concurrency configuration
 // - Updated to use delegated routing endpoint (renamed from ipni-endpoint)
+// MODIFIED: 2025-12-09
+// - Removed libp2p host (HTTP-only)
 
 package main
 
@@ -15,10 +17,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/ipfs/go-log/v2"
-	"github.com/libp2p/go-libp2p/config"
 	"github.com/filecoin-project/lassie/pkg/aggregateeventrecorder"
 	"github.com/filecoin-project/lassie/pkg/indexerlookup"
-	"github.com/filecoin-project/lassie/pkg/net/host"
 	"github.com/filecoin-project/lassie/pkg/retriever"
 	"github.com/filecoin-project/lassie/pkg/lassie"
 	"github.com/urfave/cli/v2"
@@ -73,7 +73,7 @@ func after(cctx *cli.Context) error {
 	return nil
 }
 
-func buildLassieConfigFromCLIContext(cctx *cli.Context, lassieOpts []lassie.LassieOption, libp2pOpts []config.Option) (*lassie.LassieConfig, error) {
+func buildLassieConfigFromCLIContext(cctx *cli.Context, lassieOpts []lassie.LassieOption) (*lassie.LassieConfig, error) {
 	providerTimeout := cctx.Duration("provider-timeout")
 	globalTimeout := cctx.Duration("global-timeout")
 
@@ -83,18 +83,8 @@ func buildLassieConfigFromCLIContext(cctx *cli.Context, lassieOpts []lassie.Lass
 		lassieOpts = append(lassieOpts, lassie.WithGlobalTimeout(globalTimeout))
 	}
 
-	if len(protocols) > 0 {
-		lassieOpts = append(lassieOpts, sheltie.WithProtocols(protocols))
-	}
-
-	host, err := host.InitHost(cctx.Context, libp2pOpts)
-	if err != nil {
-		return nil, err
-	}
-	lassieOpts = append(lassieOpts, sheltie.WithHost(host))
-
 	if len(fetchProviders) > 0 {
-		finderOpt := lassie.WithCandidateSource(retriever.NewDirectCandidateSource(fetchProviders, retriever.WithLibp2pCandidateDiscovery(host)))
+		finderOpt := lassie.WithCandidateSource(retriever.NewDirectCandidateSource(fetchProviders))
 		if cctx.IsSet("delegated-routing-endpoint") {
 			logger.Warn("Ignoring delegated-routing-endpoint flag since direct provider is specified")
 		}
