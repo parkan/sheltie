@@ -25,17 +25,15 @@ Lassie is the leaner, nimbler cousin of [lassie](https://github.com/filecoin-pro
 * [License](#license)
 
 ## Changes from Lassie
-- Lassie **does not support Bitswap**, see https://github.com/filecoin-project/lassie/pull/512
+- Lassie is **HTTP-only** (no Bitswap, no Graphsync)
 - Lassie **uses delegated routing V1 API** to find providers instead of legacy IPNI, see https://github.com/filecoin-project/lassie/issues/489
-- options for cascading have been removed (controlled by the delegated routing instance) and `filter-protocols` is used for protocol selection
-- [IN PROGRESS] Lassie uses **streaming output** to reduce disk uage and **does not support arbitrary selectors**, see https://github.com/filecoin-project/lassie/issues/108
-- [IN PROGRESS] Lassie will **reconstruct DAGs across HTTP providers** instead of bailing out on unexpected CAR stream termination
+- Lassie **reconstructs DAGs across HTTP providers** via per-block fallback when a provider returns an incomplete CAR
 
 This project is a fork of Protocol Labs’s Lassie (https://github.com/filecoin-project/lassie) under Apache 2.0/MIT.
 
 ## Overview
 
-Lassie is an optimized retrieval client for Filecoin. She specializes in highly performant retrievals via HTTP (Trustless Gateway transport) and also supports Graphsync. Large graphs can be streamed from multiple providers.
+Lassie is a retrieval client for Filecoin/IPFS using the HTTP Trustless Gateway protocol. It attempts whole-DAG retrieval first, then falls back to per-block fetching when providers have partial content. This allows fetching data split across multiple providers (e.g., one has directory nodes, another has leaf blocks).
 
 ## Installation
 

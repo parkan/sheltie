@@ -149,7 +149,7 @@ func fetchAction(cctx *cli.Context) error {
 		outfile = output
 	}
 
-	lassieCfg, err := buildLassieConfigFromCLIContext(cctx, nil, nil)
+	lassieCfg, err := buildLassieConfigFromCLIContext(cctx, nil)
 	if err != nil {
 		return err
 	}
@@ -245,10 +245,6 @@ func (pp *progressPrinter) subscriber(event types.RetrievalEvent) {
 	case events.StartedRetrievalEvent:
 		fmt.Fprintf(pp.writer, "\rRetrieving from [%s] (%s)...\n", events.Identifier(ret), ret.Code())
 	case events.ConnectedToProviderEvent:
-		fmt.Fprintf(pp.writer, "\rRetrieving from [%s] (%s)...\n", events.Identifier(ret), ret.Code())
-	case events.GraphsyncProposedEvent:
-		fmt.Fprintf(pp.writer, "\rRetrieving from [%s] (%s)...\n", events.Identifier(ret), ret.Code())
-	case events.GraphsyncAcceptedEvent:
 		fmt.Fprintf(pp.writer, "\rRetrieving from [%s] (%s)...\n", events.Identifier(ret), ret.Code())
 	case events.FirstByteEvent:
 		fmt.Fprintf(pp.writer, "\rRetrieving from [%s] (%s)...\n", events.Identifier(ret), ret.Code())

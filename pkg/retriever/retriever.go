@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -99,6 +100,11 @@ func NewRetrieverWithClock(
 	}
 
 	return retriever, nil
+}
+
+// WrapWithHybrid wraps the executor with a HybridRetriever for per-block fallback.
+func (retriever *Retriever) WrapWithHybrid(candidateSource types.CandidateSource, httpClient *http.Client) {
+	retriever.executor = NewHybridRetriever(retriever.executor, candidateSource, httpClient)
 }
 
 // Start will start the retriever events system

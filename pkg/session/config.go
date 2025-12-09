@@ -73,14 +73,6 @@ type Config struct {
 	// recent success metric.
 	SuccessAlpha float64
 
-	// GraphsyncVerifiedDealWeight is the scoring weight applied when a
-	// graphsync candidate has a VerifiedDeal metadata. The weight is a
-	// multiplier of the base value of `1.0` when VerifiedDeal is found.
-	GraphsyncVerifiedDealWeight float64
-	// GraphsyncFastRetrievalWeight is the scoring weight applied when a
-	// graphsync candidate has a FastRetrieval metadata. The weight is a
-	// multiplier of the base value of `1.0` when FastRetrieval is found.
-	GraphsyncFastRetrievalWeight float64
 	// ConnectTimeWeight is the scoring weight applied to the connect time
 	// exponential moving average for the candidate at time of scoring. The
 	// weight is a multiplier the base value, which should be a normalised
@@ -114,8 +106,6 @@ func DefaultConfig() *Config {
 		BandwidthAlpha:               0.5,
 		OverallBandwidthAlpha:        0.8,
 		SuccessAlpha:                 0.5,
-		GraphsyncVerifiedDealWeight:  3.0,
-		GraphsyncFastRetrievalWeight: 2.0,
 		ConnectTimeWeight:            1.0,
 		FirstByteTimeWeight:          1.0,
 		BandwidthWeight:              0.5,
@@ -181,18 +171,6 @@ func (cfg Config) WithSuccessAlpha(alpha float64) *Config {
 // set, it will always choose the peer with the highest score.
 func (cfg Config) WithoutRandomness() *Config {
 	cfg.Random = nonRandom{}
-	return &cfg
-}
-
-// WithGraphsyncVerifiedDealWeight sets the verified deal weight.
-func (cfg Config) WithGraphsyncVerifiedDealWeight(weight float64) *Config {
-	cfg.GraphsyncVerifiedDealWeight = weight
-	return &cfg
-}
-
-// WithGraphsyncFastRetrievalWeight sets the fast retrieval weight.
-func (cfg Config) WithGraphsyncFastRetrievalWeight(weight float64) *Config {
-	cfg.GraphsyncFastRetrievalWeight = weight
 	return &cfg
 }
 
