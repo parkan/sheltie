@@ -2,7 +2,8 @@
 // - Renamed application from lassie to sheltie
 // - Removed bitswap flags and configuration
 // - Updated logging subsystems for sheltie namespace
-// - Changed default protocols to graphsync,http (removed bitswap)
+// MODIFIED: 2025-12-09
+// - HTTP-only, removed graphsync
 
 package main
 
@@ -159,8 +160,8 @@ var FlagAllowProviders = &cli.StringFlag{
 var protocols []multicodec.Code
 var FlagProtocols = &cli.StringFlag{
 	Name:        "protocols",
-	DefaultText: "graphsync,http",
-	Usage:       "List of retrieval protocols to use, separated by a comma",
+	DefaultText: "http",
+	Usage:       "List of retrieval protocols to use, separated by a comma (http only)",
 	EnvVars:     []string{"LASSIE_SUPPORTED_PROTOCOLS"},
 	Action: func(cctx *cli.Context, v string) error {
 		// Do nothing if given an empty string

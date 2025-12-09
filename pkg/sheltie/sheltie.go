@@ -2,9 +2,9 @@
 // - Renamed package from lassie to sheltie
 // - Removed bitswap concurrency configuration and constants
 // - Removed bitswap protocol initialization
-// - Updated default protocols to [graphsync, http] (removed bitswap)
-// - Added protocol filtering to IndexerCandidateSource initialization
-// - Moved protocol defaults before candidate source creation
+// MODIFIED: 2025-12-09
+// - Removed graphsync support, HTTP-only
+// - Removed libp2p host, datastore dependencies
 
 package sheltie
 
@@ -13,14 +13,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ipfs/go-datastore"
-	"github.com/ipfs/go-datastore/sync"
-	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multicodec"
 	"github.com/parkan/sheltie/pkg/indexerlookup"
-	"github.com/parkan/sheltie/pkg/net/client"
-	"github.com/parkan/sheltie/pkg/net/host"
 	"github.com/parkan/sheltie/pkg/retriever"
 	"github.com/parkan/sheltie/pkg/session"
 	"github.com/parkan/sheltie/pkg/types"
@@ -38,15 +33,11 @@ type Sheltie struct {
 
 // SheltieConfig customizes the behavior of a Sheltie instance.
 type SheltieConfig struct {
-	Source                 types.CandidateSource
-	Host                   host.Host
-	ProviderTimeout        time.Duration
-	ConcurrentSPRetrievals uint
-	GlobalTimeout          time.Duration
-	Libp2pOptions          []libp2p.Option
-	Protocols              []multicodec.Code
-	ProviderBlockList      map[peer.ID]bool
-	ProviderAllowList      map[peer.ID]bool
+	Source            types.CandidateSource
+	ProviderTimeout   time.Duration
+	GlobalTimeout     time.Duration
+	ProviderBlockList map[peer.ID]bool
+	ProviderAllowList map[peer.ID]bool
 }
 
 type SheltieOption func(cfg *SheltieConfig)
@@ -69,16 +60,14 @@ func NewSheltieConfig(opts ...SheltieOption) *SheltieConfig {
 // NewSheltieWithConfig creates a new Sheltie instance with a custom
 // configuration.
 func NewSheltieWithConfig(ctx context.Context, cfg *SheltieConfig) (*Sheltie, error) {
-	// Set default protocols first, before creating candidate source
-	if len(cfg.Protocols) == 0 {
-		cfg.Protocols = []multicodec.Code{multicodec.TransportGraphsyncFilecoinv1, multicodec.TransportIpfsGatewayHttp}
-	}
+	// HTTP-only protocol
+	protocols := []multicodec.Code{multicodec.TransportIpfsGatewayHttp}
 
 	if cfg.Source == nil {
 		var err error
 		cfg.Source, err = indexerlookup.NewCandidateSource(
 			indexerlookup.WithHttpClient(&http.Client{}),
-			indexerlookup.WithProtocols(cfg.Protocols),
+			indexerlookup.WithProtocols(protocols),
 		)
 		if err != nil {
 			return nil, err
@@ -89,55 +78,34 @@ func NewSheltieWithConfig(ctx context.Context, cfg *SheltieConfig) (*Sheltie, er
 		cfg.ProviderTimeout = DefaultProviderTimeout
 	}
 
-	datastore := sync.MutexWrap(datastore.NewMapDatastore())
-
-	if cfg.Host == nil {
-		var err error
-		cfg.Host, err = host.InitHost(ctx, cfg.Libp2pOptions)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	sessionConfig := session.DefaultConfig().
 		WithProviderBlockList(cfg.ProviderBlockList).
 		WithProviderAllowList(cfg.ProviderAllowList).
 		WithDefaultProviderConfig(session.ProviderConfig{
-			RetrievalTimeout:        cfg.ProviderTimeout,
-			MaxConcurrentRetrievals: cfg.ConcurrentSPRetrievals,
+			RetrievalTimeout: cfg.ProviderTimeout,
 		})
-	session := session.NewSession(sessionConfig, true)
+	sess := session.NewSession(sessionConfig, true)
 
-	protocolRetrievers := make(map[multicodec.Code]types.CandidateRetriever)
-	for _, protocol := range cfg.Protocols {
-		switch protocol {
-		case multicodec.TransportGraphsyncFilecoinv1:
-			retrievalClient, err := client.NewClient(ctx, datastore, cfg.Host)
-			if err != nil {
-				return nil, err
-			}
-
-			if err := retrievalClient.AwaitReady(); err != nil { // wait for dt setup
-				return nil, err
-			}
-			protocolRetrievers[protocol] = retriever.NewGraphsyncRetriever(session, retrievalClient)
-		case multicodec.TransportIpfsGatewayHttp:
-			protocolRetrievers[protocol] = retriever.NewHttpRetriever(session, http.DefaultClient)
-		}
+	protocolRetrievers := map[multicodec.Code]types.CandidateRetriever{
+		multicodec.TransportIpfsGatewayHttp: retriever.NewHttpRetriever(sess, http.DefaultClient),
 	}
 
-	retriever, err := retriever.NewRetriever(ctx, session, cfg.Source, protocolRetrievers)
+	ret, err := retriever.NewRetriever(ctx, sess, cfg.Source, protocolRetrievers)
 	if err != nil {
 		return nil, err
 	}
-	retriever.Start()
 
-	lassie := &Sheltie{
+	// Wrap the retriever with HybridRetriever for per-block fallback
+	ret.WrapWithHybrid(cfg.Source, http.DefaultClient)
+
+	ret.Start()
+
+	sheltie := &Sheltie{
 		cfg:       cfg,
-		retriever: retriever,
+		retriever: ret,
 	}
 
-	return lassie, nil
+	return sheltie, nil
 }
 
 // WithCandidateSource allows you to specify a custom candidate finder.
@@ -161,36 +129,6 @@ func WithProviderTimeout(timeout time.Duration) SheltieOption {
 func WithGlobalTimeout(timeout time.Duration) SheltieOption {
 	return func(cfg *SheltieConfig) {
 		cfg.GlobalTimeout = timeout
-	}
-}
-
-// WithHost allows you to specify a custom libp2p host.
-func WithHost(host host.Host) SheltieOption {
-	return func(cfg *SheltieConfig) {
-		cfg.Host = host
-	}
-}
-
-// WithLibp2pOpts allows you to specify custom libp2p options.
-func WithLibp2pOpts(libp2pOptions ...libp2p.Option) SheltieOption {
-	return func(cfg *SheltieConfig) {
-		cfg.Libp2pOptions = libp2pOptions
-	}
-}
-
-// WithConcurrentSPRetrievals allows you to specify a custom number of
-// concurrent retrievals from a single storage provider.
-func WithConcurrentSPRetrievals(maxConcurrentSPRtreievals uint) SheltieOption {
-	return func(cfg *SheltieConfig) {
-		cfg.ConcurrentSPRetrievals = maxConcurrentSPRtreievals
-	}
-}
-
-// WithProtocols allows you to specify a custom set of protocols to use for
-// retrieval.
-func WithProtocols(protocols []multicodec.Code) SheltieOption {
-	return func(cfg *SheltieConfig) {
-		cfg.Protocols = protocols
 	}
 }
 
