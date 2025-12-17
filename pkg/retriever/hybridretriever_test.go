@@ -84,7 +84,7 @@ func TestCrossProviderDAGConstruction(t *testing.T) {
 
 	// Provider A: has root and child1 only
 	providerABlocks := map[cid.Cid][]byte{
-		rootCid:                    rootBytes,
+		rootCid:                   rootBytes,
 		child1.(cidlink.Link).Cid: child1Bytes,
 	}
 
@@ -108,7 +108,7 @@ func TestCrossProviderDAGConstruction(t *testing.T) {
 	// Mock candidate source that returns both providers
 	mockSource := &mockCandidateSource{
 		candidates: map[cid.Cid][]types.RetrievalCandidate{
-			rootCid:                    {candidateA, candidateB},
+			rootCid:                   {candidateA, candidateB},
 			child1.(cidlink.Link).Cid: {candidateA},
 			child2.(cidlink.Link).Cid: {candidateB},
 			child3.(cidlink.Link).Cid: {candidateB},
@@ -233,8 +233,8 @@ func TestCrossProviderDeepDAG(t *testing.T) {
 
 	mockSource := &mockCandidateSource{
 		candidates: map[cid.Cid][]types.RetrievalCandidate{
-			rootCid:                   {candidateA},
-			midCid:                    {candidateA},
+			rootCid:                  {candidateA},
+			midCid:                   {candidateA},
 			leaf1.(cidlink.Link).Cid: {candidateB},
 			leaf2.(cidlink.Link).Cid: {candidateB},
 		},
@@ -387,7 +387,7 @@ func TestEfficientSubgraphRetrieval(t *testing.T) {
 	// Provider B should be found for all CIDs in the chain
 	mockSource := &mockCandidateSource{
 		candidates: map[cid.Cid][]types.RetrievalCandidate{
-			rootCid:                   {candidateA, candidateB},
+			rootCid:                  {candidateA, candidateB},
 			node1.(cidlink.Link).Cid: {candidateB},
 			node2.(cidlink.Link).Cid: {candidateB},
 			node3.(cidlink.Link).Cid: {candidateB},

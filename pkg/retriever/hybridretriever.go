@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/filecoin-project/go-clock"
+	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
-	"github.com/ipld/go-ipld-prime/datamodel"
 	"github.com/ipld/go-ipld-prime/linking"
 	cidlink "github.com/ipld/go-ipld-prime/linking/cid"
 	"github.com/ipld/go-trustless-utils/traversal"
@@ -83,7 +83,7 @@ func (hr *HybridRetriever) Retrieve(
 		return nil, err
 	}
 
-	logger.Infow("whole-DAG incomplete, falling back to per-block",
+	logger.Infow("whole-DAG incomplete, continuing with frontier traversal",
 		"root", request.Root,
 		"missingCid", missingCid,
 		"phase1Blocks", p1Stats.blocksReceived,
@@ -113,19 +113,7 @@ func (hr *HybridRetriever) continuePerBlock(
 	var p2BlocksOut uint64
 	var p2BytesOut uint64
 
-	lsys := hr.makeSessionBackedLinkSystem(request.LinkSystem, session, &p2BytesOut, &p2BlocksOut)
-
-	originalWriteOpener := lsys.StorageWriteOpener
-	if originalWriteOpener != nil {
-		lsys.StorageWriteOpener = func(lc linking.LinkContext) (io.Writer, linking.BlockWriteCommitter, error) {
-			w, wc, err := originalWriteOpener(lc)
-			if err != nil {
-				return nil, nil, err
-			}
-			return w, wc, nil
-		}
-	}
-
+	// Calculate max blocks for this phase
 	var maxBlocks uint64
 	if request.MaxBlocks > 0 {
 		if p1Stats.blocksReceived >= request.MaxBlocks {
@@ -135,13 +123,8 @@ func (hr *HybridRetriever) continuePerBlock(
 		}
 	}
 
-	cfg := traversal.Config{
-		Root:      request.Root,
-		Selector:  request.GetSelector(),
-		MaxBlocks: maxBlocks,
-	}
-
-	_, err := cfg.Traverse(ctx, lsys, nil)
+	// Use frontier-based streaming traversal
+	err := hr.streamingTraverse(ctx, request, session, &p2BytesOut, &p2BlocksOut, maxBlocks)
 	if err != nil {
 		return nil, fmt.Errorf("per-block traversal failed: %w", err)
 	}
@@ -164,88 +147,140 @@ func (hr *HybridRetriever) continuePerBlock(
 	}, nil
 }
 
-// makeSessionBackedLinkSystem wraps baseLsys to fetch missing blocks via session.
-// Tries CAR subgraph fetch first (efficient), falls back to per-block.
-func (hr *HybridRetriever) makeSessionBackedLinkSystem(
-	baseLsys linking.LinkSystem,
+// streamingTraverse uses frontier-based traversal to fetch blocks without
+// requiring read-back from storage. Blocks are fetched from network, links
+// are parsed immediately, and data is written to output.
+func (hr *HybridRetriever) streamingTraverse(
+	ctx context.Context,
+	request types.RetrievalRequest,
 	session blockbroker.BlockSession,
 	bytesOut *uint64,
 	blocksOut *uint64,
-) linking.LinkSystem {
-	lsys := baseLsys
-	originalReader := lsys.StorageReadOpener
+	maxBlocks uint64,
+) error {
+	frontier := NewFrontier(request.Root)
+	baseLsys := request.LinkSystem
 
-	lsys.StorageReadOpener = func(lc linking.LinkContext, l datamodel.Link) (io.Reader, error) {
-		c := l.(cidlink.Link).Cid
+	var blockCount uint64
 
-		if originalReader != nil {
-			rdr, err := originalReader(lc, l)
+	for !frontier.Empty() {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+
+		c := frontier.Pop()
+
+		// Skip if already seen
+		if frontier.Seen(c) {
+			continue
+		}
+
+		// Check if already in storage (from phase 1)
+		if baseLsys.StorageReadOpener != nil {
+			rdr, err := baseLsys.StorageReadOpener(linking.LinkContext{Ctx: ctx}, cidlink.Link{Cid: c})
 			if err == nil {
-				return rdr, nil
-			}
-			// Only network-fetch on not-found; propagate other errors
-			if !isNotFoundError(err) {
-				return nil, err
-			}
-		}
-
-		// Try CAR subgraph first (use baseLsys to avoid recursion)
-		blocksFromCAR, carErr := session.GetSubgraph(lc.Ctx, c, baseLsys)
-		if carErr == nil && blocksFromCAR > 0 {
-			logger.Debugw("subgraph CAR fetch succeeded", "cid", c, "blocks", blocksFromCAR)
-			if originalReader != nil {
-				rdr, err := originalReader(lc, l)
-				if err == nil {
-					return rdr, nil
+				// Block exists in storage - read it to parse links
+				data, readErr := io.ReadAll(rdr)
+				if readErr == nil {
+					block, blockErr := blocks.NewBlockWithCid(data, c)
+					if blockErr == nil {
+						// Parse links and add to frontier
+						links, _ := ExtractLinks(block)
+						frontier.PushAll(links)
+					}
 				}
-				logger.Warnw("CAR fetch succeeded but block not in storage", "cid", c, "err", err)
+				frontier.MarkSeen(c)
+				continue
 			}
 		}
 
-		if carErr != nil {
-			logger.Debugw("CAR fetch failed, falling back to per-block", "cid", c, "carErr", carErr)
-		}
-
-		block, err := session.Get(lc.Ctx, c)
+		// Fetch block from network
+		block, err := hr.fetchBlock(ctx, c, session, baseLsys)
 		if err != nil {
-			return nil, err
+			return fmt.Errorf("failed to fetch block %s: %w", c, err)
 		}
 
+		// Parse links and add to frontier
+		links, err := ExtractLinks(block)
+		if err != nil {
+			logger.Warnw("failed to extract links", "cid", c, "err", err)
+		} else {
+			frontier.PushAll(links)
+		}
+
+		// Write to output
+		if err := hr.writeBlock(ctx, block, baseLsys); err != nil {
+			return fmt.Errorf("failed to write block %s: %w", c, err)
+		}
+
+		// Update stats
 		blockData := block.RawData()
 		atomic.AddUint64(bytesOut, uint64(len(blockData)))
 		atomic.AddUint64(blocksOut, 1)
 
-		if baseLsys.StorageWriteOpener != nil {
-			w, wc, werr := baseLsys.StorageWriteOpener(lc)
-			if werr == nil {
-				_, _ = io.Copy(w, bytes.NewReader(blockData))
-				_ = wc(l)
-			}
-		}
+		frontier.MarkSeen(c)
+		blockCount++
 
-		return bytes.NewReader(blockData), nil
+		// Check max blocks limit
+		if maxBlocks > 0 && blockCount >= maxBlocks {
+			logger.Infow("reached max blocks limit", "limit", maxBlocks)
+			break
+		}
 	}
 
-	return lsys
+	return nil
 }
 
-func isNotFoundError(err error) bool {
-	var notFound format.ErrNotFound
-	if errors.As(err, &notFound) {
-		return true
+// fetchBlock tries to get a block from the network, preferring CAR subgraph fetch.
+func (hr *HybridRetriever) fetchBlock(
+	ctx context.Context,
+	c cid.Cid,
+	session blockbroker.BlockSession,
+	baseLsys linking.LinkSystem,
+) (blocks.Block, error) {
+	// Try CAR subgraph first (efficient for subtrees)
+	blocksFromCAR, carErr := session.GetSubgraph(ctx, c, baseLsys)
+	if carErr == nil && blocksFromCAR > 0 {
+		logger.Debugw("subgraph CAR fetch succeeded", "cid", c, "blocks", blocksFromCAR)
+		// The CAR fetch wrote to baseLsys, now read back the block we need
+		if baseLsys.StorageReadOpener != nil {
+			rdr, err := baseLsys.StorageReadOpener(linking.LinkContext{Ctx: ctx}, cidlink.Link{Cid: c})
+			if err == nil {
+				data, err := io.ReadAll(rdr)
+				if err == nil {
+					return blocks.NewBlockWithCid(data, c)
+				}
+			}
+		}
 	}
 
-	var nf interface{ NotFound() bool }
-	if errors.As(err, &nf) && nf.NotFound() {
-		return true
+	if carErr != nil {
+		logger.Debugw("subgraph CAR unavailable, fetching raw block", "cid", c, "carErr", carErr)
 	}
 
-	// memstore returns literal "404" string
-	if err != nil && err.Error() == "404" {
-		return true
+	return session.Get(ctx, c)
+}
+
+// writeBlock writes a block to the output via the LinkSystem's write opener.
+func (hr *HybridRetriever) writeBlock(
+	ctx context.Context,
+	block blocks.Block,
+	baseLsys linking.LinkSystem,
+) error {
+	if baseLsys.StorageWriteOpener == nil {
+		return nil
 	}
 
-	return false
+	w, wc, err := baseLsys.StorageWriteOpener(linking.LinkContext{Ctx: ctx})
+	if err != nil {
+		return err
+	}
+
+	if _, err := io.Copy(w, bytes.NewReader(block.RawData())); err != nil {
+		return err
+	}
+
+	return wc(cidlink.Link{Cid: block.Cid()})
 }
 
 func extractMissingCid(err error) (cid.Cid, bool) {
