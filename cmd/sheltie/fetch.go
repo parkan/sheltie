@@ -76,10 +76,10 @@ var fetchFlags = []cli.Flag{
 		},
 	},
 	&cli.BoolFlag{
-		Name: "duplicates",
-		Usage: "allow duplicate blocks to be written to the output CAR, which " +
-			"may be useful for streaming.",
-		Aliases: []string{"dups"},
+		Name:    "stream",
+		Usage:   "stream blocks directly to output; disable to use temp files for deduplication",
+		Value:   true,
+		Aliases: []string{"s"},
 	},
 	FlagDelegatedRoutingEndpoint,
 	FlagEventRecorderAuth,
@@ -114,7 +114,7 @@ func fetchAction(cctx *cli.Context) error {
 	msgWriter := cctx.App.ErrWriter
 	dataWriter := cctx.App.Writer
 
-	root, path, scope, byteRange, duplicates, err := parseCidPath(cctx.Args().Get(0))
+	root, path, scope, byteRange, stream, err := parseCidPath(cctx.Args().Get(0))
 	if err != nil {
 		return err
 	}
@@ -135,8 +135,8 @@ func fetchAction(cctx *cli.Context) error {
 		}
 	}
 
-	if cctx.IsSet("duplicates") {
-		duplicates = cctx.Bool("duplicates")
+	if cctx.IsSet("stream") {
+		stream = cctx.Bool("stream")
 	}
 
 	tempDir := cctx.String("tempdir")
@@ -168,7 +168,7 @@ func fetchAction(cctx *cli.Context) error {
 		path,
 		scope,
 		byteRange,
-		duplicates,
+		stream,
 		tempDir,
 		progress,
 		outfile,
@@ -185,24 +185,25 @@ func parseCidPath(spec string) (
 	path datamodel.Path,
 	scope trustlessutils.DagScope,
 	byteRange *trustlessutils.ByteRange,
-	duplicates bool,
+	stream bool,
 	err error,
 ) {
 	scope = trustlessutils.DagScopeAll // default
+	stream = true                      // default to streaming mode
 
 	if !strings.HasPrefix(spec, "/ipfs/") {
 		cstr := strings.Split(spec, "/")[0]
 		path = datamodel.ParsePath(strings.TrimPrefix(spec, cstr))
 		if root, err = cid.Parse(cstr); err != nil {
-			return cid.Undef, datamodel.Path{}, trustlessutils.DagScopeAll, nil, false, err
+			return cid.Undef, datamodel.Path{}, trustlessutils.DagScopeAll, nil, true, err
 		}
-		return root, path, scope, byteRange, duplicates, err
+		return root, path, scope, byteRange, stream, err
 	} else {
 		specParts := strings.Split(spec, "?")
 		spec = specParts[0]
 
 		if root, path, err = trustlesshttp.ParseUrlPath(spec); err != nil {
-			return cid.Undef, datamodel.Path{}, trustlessutils.DagScopeAll, nil, false, err
+			return cid.Undef, datamodel.Path{}, trustlessutils.DagScopeAll, nil, true, err
 		}
 
 		switch len(specParts) {
@@ -210,25 +211,27 @@ func parseCidPath(spec string) (
 		case 2:
 			query, err := url.ParseQuery(specParts[1])
 			if err != nil {
-				return cid.Undef, datamodel.Path{}, trustlessutils.DagScopeAll, nil, false, err
+				return cid.Undef, datamodel.Path{}, trustlessutils.DagScopeAll, nil, true, err
 			}
 			scope, err = trustlessutils.ParseDagScope(query.Get("dag-scope"))
 			if err != nil {
-				return cid.Undef, datamodel.Path{}, trustlessutils.DagScopeAll, nil, false, err
+				return cid.Undef, datamodel.Path{}, trustlessutils.DagScopeAll, nil, true, err
 			}
 			if query.Get("entity-bytes") != "" {
 				br, err := trustlessutils.ParseByteRange(query.Get("entity-bytes"))
 				if err != nil {
-					return cid.Undef, datamodel.Path{}, trustlessutils.DagScopeAll, nil, false, err
+					return cid.Undef, datamodel.Path{}, trustlessutils.DagScopeAll, nil, true, err
 				}
 				byteRange = &br
 			}
-			duplicates = query.Get("dups") == "y"
+			if query.Has("dups") {
+				stream = query.Get("dups") == "y"
+			}
 		default:
-			return cid.Undef, datamodel.Path{}, trustlessutils.DagScopeAll, nil, false, fmt.Errorf("invalid query: %s", spec)
+			return cid.Undef, datamodel.Path{}, trustlessutils.DagScopeAll, nil, true, fmt.Errorf("invalid query: %s", spec)
 		}
 
-		return root, path, scope, byteRange, duplicates, nil
+		return root, path, scope, byteRange, stream, nil
 	}
 }
 
@@ -285,7 +288,7 @@ type fetchRunFunc func(
 	path datamodel.Path,
 	dagScope trustlessutils.DagScope,
 	entityBytes *trustlessutils.ByteRange,
-	duplicates bool,
+	stream bool,
 	tempDir string,
 	progress bool,
 	outfile string,
@@ -306,7 +309,7 @@ func defaultFetchRun(
 	path datamodel.Path,
 	dagScope trustlessutils.DagScope,
 	entityBytes *trustlessutils.ByteRange,
-	duplicates bool,
+	stream bool,
 	tempDir string,
 	progress bool,
 	outfile string,
@@ -336,36 +339,45 @@ func defaultFetchRun(
 		s.RegisterSubscriber(pp.subscriber)
 	}
 
-	var carWriter storage.DeferredWriter
 	carOpts := []car.Option{
 		car.WriteAsCarV1(true),
 		car.StoreIdentityCIDs(false),
 		car.UseWholeCIDs(false),
 	}
 
-	tempStore := storage.NewDeferredStorageCar(tempDir, rootCid)
+	var carStore types.ReadableWritableStorage
+	var carWriter storage.DeferredWriter
 
-	if outfile == stdoutFileString {
-		// we need the onlyWriter because stdout is presented as an os.File, and
-		// therefore pretend to support seeks, so feature-checking in go-car
-		// will make bad assumptions about capabilities unless we hide it
-		w := &onlyWriter{dataWriter}
-		if duplicates {
-			carWriter = storage.NewDuplicateAdderCarForStream(ctx, w, rootCid, path.String(), dagScope, entityBytes, tempStore)
-		} else {
-			carWriter = deferred.NewDeferredCarWriterForStream(w, []cid.Cid{rootCid}, carOpts...)
+	if stream {
+		var deferredWriter *deferred.DeferredCarWriter
+		streamOpts := []car.Option{
+			car.WriteAsCarV1(true),
+			car.AllowDuplicatePuts(true),
+			car.StoreIdentityCIDs(false),
+			car.UseWholeCIDs(true),
 		}
+		if outfile == stdoutFileString {
+			deferredWriter = deferred.NewDeferredCarWriterForStream(&onlyWriter{dataWriter}, []cid.Cid{rootCid}, streamOpts...)
+		} else {
+			deferredWriter = deferred.NewDeferredCarWriterForPath(outfile, []cid.Cid{rootCid}, streamOpts...)
+		}
+		carWriter = deferredWriter
+		carStore = storage.NewStreamingStore(deferredWriter.BlockWriteOpener())
 	} else {
-		if duplicates {
-			carWriter = storage.NewDuplicateAdderCarForPath(ctx, outfile, rootCid, path.String(), dagScope, entityBytes, tempStore)
+		tempStore := storage.NewDeferredStorageCar(tempDir, rootCid)
+		if outfile == stdoutFileString {
+			carWriter = deferred.NewDeferredCarWriterForStream(&onlyWriter{dataWriter}, []cid.Cid{rootCid}, carOpts...)
 		} else {
 			carWriter = deferred.NewDeferredCarWriterForPath(outfile, []cid.Cid{rootCid}, carOpts...)
 		}
+		carStore = storage.NewCachingTempStore(carWriter.BlockWriteOpener(), tempStore)
 	}
 	defer carWriter.Close()
-
-	carStore := storage.NewCachingTempStore(carWriter.BlockWriteOpener(), tempStore)
-	defer carStore.Close()
+	defer func() {
+		if closer, ok := carStore.(interface{ Close() error }); ok {
+			closer.Close()
+		}
+	}()
 
 	var blockCount int
 	var byteLength uint64
@@ -383,7 +395,7 @@ func defaultFetchRun(
 	if err != nil {
 		return err
 	}
-	request.Duplicates = duplicates
+	request.Duplicates = stream
 
 	stats, err := s.Fetch(ctx, request)
 	if err != nil {

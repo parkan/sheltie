@@ -99,17 +99,17 @@ type Config struct {
 // DefaultConfig returns a default config with usable alpha and weight values.
 func DefaultConfig() *Config {
 	return &Config{
-		ConnectTimeAlpha:             0.5,
-		OverallConnectTimeAlpha:      0.8,
-		FirstByteTimeAlpha:           0.5,
-		OverallFirstByteTimeAlpha:    0.8,
-		BandwidthAlpha:               0.5,
-		OverallBandwidthAlpha:        0.8,
-		SuccessAlpha:                 0.5,
-		ConnectTimeWeight:            1.0,
-		FirstByteTimeWeight:          1.0,
-		BandwidthWeight:              0.5,
-		SuccessWeight:                1.0,
+		ConnectTimeAlpha:          0.5,
+		OverallConnectTimeAlpha:   0.8,
+		FirstByteTimeAlpha:        0.5,
+		OverallFirstByteTimeAlpha: 0.8,
+		BandwidthAlpha:            0.5,
+		OverallBandwidthAlpha:     0.8,
+		SuccessAlpha:              0.5,
+		ConnectTimeWeight:         1.0,
+		FirstByteTimeWeight:       1.0,
+		BandwidthWeight:           0.5,
+		SuccessWeight:             1.0,
 	}
 }
 

@@ -132,4 +132,3 @@ func writeTo(ctx context.Context, outWriter linking.BlockWriteOpener, key string
 	}
 	return c(cidlink.Link{Cid: cid})
 }
-

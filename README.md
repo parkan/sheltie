@@ -27,13 +27,13 @@ Sheltie is the leaner, nimbler cousin of [lassie](https://github.com/filecoin-pr
 ## Changes from Lassie
 - Sheltie is **HTTP-only** (no Bitswap, no Graphsync)
 - Sheltie **uses delegated routing V1 API** to find providers instead of legacy IPNI, see https://github.com/filecoin-project/lassie/issues/489
-- Sheltie **reconstructs DAGs across HTTP providers** via per-block fallback when a provider returns an incomplete CAR
+- Sheltie **reconstructs DAGs across HTTP providers** via frontier traversal when a provider returns an incomplete CAR
 
 This project is a fork of Protocol Labs’s Lassie (https://github.com/filecoin-project/lassie) under Apache 2.0/MIT.
 
 ## Overview
 
-Sheltie is a retrieval client for Filecoin/IPFS using the HTTP Trustless Gateway protocol. It attempts whole-DAG retrieval first, then falls back to per-block fetching when providers have partial content. This allows fetching data split across multiple providers (e.g., one has directory nodes, another has leaf blocks).
+Sheltie is a retrieval client for Filecoin/IPFS using the HTTP Trustless Gateway protocol. It attempts whole-DAG retrieval first, then continues with frontier traversal when providers have partial content. This allows fetching data split across multiple providers (e.g., one has directory nodes, another has leaf blocks).
 
 ## Installation
 

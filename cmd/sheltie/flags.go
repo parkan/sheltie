@@ -21,7 +21,7 @@ import (
 
 var (
 	defaultTempDirectory     string   = os.TempDir() // use the system default temp dir
-	verboseLoggingSubsystems []string = []string{ // verbose logging is enabled for these subsystems when using the verbose or very-verbose flags
+	verboseLoggingSubsystems []string = []string{    // verbose logging is enabled for these subsystems when using the verbose or very-verbose flags
 		"sheltie/main",
 		"sheltie/retriever",
 		"sheltie/httpserver",
