@@ -92,11 +92,6 @@ func (rc RetrievalCandidate) ToURL() (*url.URL, error) {
 	return url, err
 }
 
-// retrieval task is any task that can be run to produce a result
-type RetrievalTask interface {
-	Run() (*RetrievalStats, error)
-}
-
 type Retriever interface {
 	Retrieve(ctx context.Context, request RetrievalRequest, events func(RetrievalEvent)) (*RetrievalStats, error)
 }
@@ -150,22 +145,6 @@ type CandidateRetriever interface {
 	Retrieve(ctx context.Context, request RetrievalRequest, events func(RetrievalEvent)) CandidateRetrieval
 }
 
-type RetrievalSplitter[T comparable] interface {
-	SplitCandidates([]RetrievalCandidate) (map[T][]RetrievalCandidate, error)
-}
-
-type CandidateSplitter[T comparable] interface {
-	SplitRetrievalRequest(ctx context.Context, request RetrievalRequest, events func(RetrievalEvent)) RetrievalSplitter[T]
-}
-
-type AsyncRetrievalSplitter[T comparable] interface {
-	SplitAsyncCandidates(asyncCandidates InboundAsyncCandidates) (map[T]InboundAsyncCandidates, <-chan error)
-}
-
-type AsyncCandidateSplitter[T comparable] interface {
-	SplitRetrievalRequest(ctx context.Context, request RetrievalRequest, events func(RetrievalEvent)) AsyncRetrievalSplitter[T]
-}
-
 type RetrievalStats struct {
 	StorageProviderId peer.ID
 	RootCid           cid.Cid
@@ -181,48 +160,6 @@ type RetrievalResult struct {
 	Stats *RetrievalStats
 	Err   error
 }
-
-var _ RetrievalTask = AsyncRetrievalTask{}
-
-// AsyncRetrievalTask runs an asynchronous retrieval and returns a result
-type AsyncRetrievalTask struct {
-	Candidates              InboundAsyncCandidates
-	AsyncCandidateRetrieval CandidateRetrieval
-}
-
-// Run executes the asynchronous retrieval task
-func (art AsyncRetrievalTask) Run() (*RetrievalStats, error) {
-	return art.AsyncCandidateRetrieval.RetrieveFromAsyncCandidates(art.Candidates)
-}
-
-var _ RetrievalTask = DeferredErrorTask{}
-
-// DeferredErrorTask simply reads from an error channel and returns the result as an error
-type DeferredErrorTask struct {
-	Ctx     context.Context
-	ErrChan <-chan error
-}
-
-// Run reads the error channel and returns a result
-func (det DeferredErrorTask) Run() (*RetrievalStats, error) {
-	select {
-	case <-det.Ctx.Done():
-		return nil, det.Ctx.Err()
-	case err := <-det.ErrChan:
-		return nil, err
-	}
-}
-
-type QueueRetrievalsFn func(ctx context.Context, nextRetrievalCall func(RetrievalTask))
-
-type RetrievalCoordinator func(context.Context, QueueRetrievalsFn) (*RetrievalStats, error)
-
-type CoordinationKind string
-
-const (
-	RaceCoordination       = "race"
-	SequentialCoordination = "sequential"
-)
 
 type EventCode string
 

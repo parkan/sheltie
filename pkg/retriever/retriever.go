@@ -16,7 +16,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multicodec"
 	"github.com/parkan/sheltie/pkg/events"
-	"github.com/parkan/sheltie/pkg/retriever/combinators"
 	"github.com/parkan/sheltie/pkg/types"
 )
 
@@ -54,11 +53,13 @@ type Session interface {
 
 type Retriever struct {
 	// Assumed immutable during operation
-	executor     types.Retriever
-	eventManager *events.EventManager
-	session      Session
-	clock        clock.Clock
-	protocols    []multicodec.Code
+	executor          types.Retriever
+	eventManager      *events.EventManager
+	session           Session
+	clock             clock.Clock
+	protocols         []multicodec.Code
+	candidateFinder   types.CandidateFinder
+	candidateRetriever types.CandidateRetriever
 }
 
 type eventStats struct {
@@ -69,34 +70,27 @@ func NewRetriever(
 	ctx context.Context,
 	session Session,
 	candidateSource types.CandidateSource,
-	protocolRetrievers map[multicodec.Code]types.CandidateRetriever,
+	candidateRetriever types.CandidateRetriever,
+	protocol multicodec.Code,
 ) (*Retriever, error) {
-	return NewRetrieverWithClock(ctx, session, candidateSource, protocolRetrievers, clock.New())
+	return NewRetrieverWithClock(ctx, session, candidateSource, candidateRetriever, protocol, clock.New())
 }
 
 func NewRetrieverWithClock(
 	ctx context.Context,
 	session Session,
 	candidateSource types.CandidateSource,
-	protocolRetrievers map[multicodec.Code]types.CandidateRetriever,
+	candidateRetriever types.CandidateRetriever,
+	protocol multicodec.Code,
 	clock clock.Clock,
 ) (*Retriever, error) {
 	retriever := &Retriever{
-		eventManager: events.NewEventManager(ctx),
-		session:      session,
-		clock:        clock,
-	}
-	retriever.protocols = []multicodec.Code{}
-	for protocol := range protocolRetrievers {
-		retriever.protocols = append(retriever.protocols, protocol)
-	}
-	retriever.executor = combinators.RetrieverWithCandidateFinder{
-		CandidateFinder: NewAssignableCandidateFinderWithClock(candidateSource, session.FilterIndexerCandidate, clock),
-		CandidateRetriever: combinators.SplitRetriever[multicodec.Code]{
-			AsyncCandidateSplitter: combinators.NewAsyncCandidateSplitter(retriever.protocols, NewProtocolSplitter),
-			CandidateRetrievers:    protocolRetrievers,
-			CoordinationKind:       types.RaceCoordination,
-		},
+		eventManager:       events.NewEventManager(ctx),
+		session:            session,
+		clock:              clock,
+		protocols:          []multicodec.Code{protocol},
+		candidateFinder:    NewAssignableCandidateFinderWithClock(candidateSource, session.FilterIndexerCandidate, clock),
+		candidateRetriever: candidateRetriever,
 	}
 
 	return retriever, nil
@@ -162,18 +156,21 @@ func (retriever *Retriever) Retrieve(
 	}
 	descriptor = strings.TrimPrefix(descriptor, "/ipfs/"+request.Root.String())
 
-	// Emit a StartedFetch event signaling that the Lassie fetch has started
+	// Emit a StartedFetch event signaling that the Sheltie fetch has started
 	onRetrievalEvent(events.StartedFetch(retriever.clock.Now(), request.RetrievalID, request.Root, descriptor, request.GetSupportedProtocols(retriever.protocols)...))
 
 	// retrieve, note that we could get a successful retrieval
 	// (retrievalStats!=nil) _and_ also an error return because there may be
 	// multiple failures along the way, if we got a retrieval then we'll pretend
 	// to our caller that there was no error
-	retrievalStats, err := retriever.executor.Retrieve(
-		ctx,
-		request,
-		onRetrievalEvent,
-	)
+	var retrievalStats *types.RetrievalStats
+	if retriever.executor != nil {
+		// Use wrapped executor (e.g., HybridRetriever)
+		retrievalStats, err = retriever.executor.Retrieve(ctx, request, onRetrievalEvent)
+	} else {
+		// Direct retrieval using candidate finder and retriever
+		retrievalStats, err = retriever.retrieveWithCandidates(ctx, request, onRetrievalEvent)
+	}
 
 	// Emit a Finished event denoting that the entire fetch has finished
 	onRetrievalEvent(events.Finished(retriever.clock.Now(), request.RetrievalID, types.RetrievalCandidate{RootCid: request.Root}))
@@ -194,6 +191,54 @@ func (retriever *Retriever) Retrieve(
 	)
 
 	return retrievalStats, nil
+}
+
+// retrieveWithCandidates performs retrieval by finding candidates and passing them
+// to the candidate retriever. This is the simplified direct retrieval path.
+func (retriever *Retriever) retrieveWithCandidates(
+	ctx context.Context,
+	request types.RetrievalRequest,
+	events func(types.RetrievalEvent),
+) (*types.RetrievalStats, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	asyncCandidateRetrieval := retriever.candidateRetriever.Retrieve(ctx, request, events)
+
+	asyncCandidates := make(chan []types.RetrievalCandidate)
+	outbound := types.OutboundAsyncCandidates(asyncCandidates)
+	inbound := types.InboundAsyncCandidates(asyncCandidates)
+
+	findErr := make(chan error, 1)
+	resultChan := make(chan types.RetrievalResult, 1)
+
+	go func(findErr chan<- error) {
+		defer close(findErr)
+		defer close(outbound)
+		err := retriever.candidateFinder.FindCandidates(ctx, request, events, func(candidates []types.RetrievalCandidate) {
+			_ = outbound.SendNext(ctx, candidates)
+		})
+		findErr <- err
+	}(findErr)
+
+	go func() {
+		stats, err := asyncCandidateRetrieval.RetrieveFromAsyncCandidates(inbound)
+		resultChan <- types.RetrievalResult{Stats: stats, Err: err}
+	}()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case err := <-findErr:
+			if err != nil {
+				return nil, err
+			}
+			findErr = nil
+		case result := <-resultChan:
+			return result.Stats, result.Err
+		}
+	}
 }
 
 // Implement RetrievalSubscriber

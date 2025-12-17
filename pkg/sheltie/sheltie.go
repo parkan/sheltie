@@ -1,11 +1,3 @@
-// MODIFIED: 2025-10-30
-// - Renamed package from lassie to sheltie
-// - Removed bitswap concurrency configuration and constants
-// - Removed bitswap protocol initialization
-// MODIFIED: 2025-12-09
-// - Removed graphsync support, HTTP-only
-// - Removed libp2p host, datastore dependencies
-
 package sheltie
 
 import (
@@ -86,11 +78,8 @@ func NewSheltieWithConfig(ctx context.Context, cfg *SheltieConfig) (*Sheltie, er
 		})
 	sess := session.NewSession(sessionConfig, true)
 
-	protocolRetrievers := map[multicodec.Code]types.CandidateRetriever{
-		multicodec.TransportIpfsGatewayHttp: retriever.NewHttpRetriever(sess, http.DefaultClient),
-	}
-
-	ret, err := retriever.NewRetriever(ctx, sess, cfg.Source, protocolRetrievers)
+	httpRetriever := retriever.NewHttpRetriever(sess, http.DefaultClient)
+	ret, err := retriever.NewRetriever(ctx, sess, cfg.Source, httpRetriever, multicodec.TransportIpfsGatewayHttp)
 	if err != nil {
 		return nil, err
 	}
