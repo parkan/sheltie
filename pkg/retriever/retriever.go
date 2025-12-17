@@ -53,12 +53,12 @@ type Session interface {
 
 type Retriever struct {
 	// Assumed immutable during operation
-	executor          types.Retriever
-	eventManager      *events.EventManager
-	session           Session
-	clock             clock.Clock
-	protocols         []multicodec.Code
-	candidateFinder   types.CandidateFinder
+	executor           types.Retriever
+	eventManager       *events.EventManager
+	session            Session
+	clock              clock.Clock
+	protocols          []multicodec.Code
+	candidateFinder    types.CandidateFinder
 	candidateRetriever types.CandidateRetriever
 }
 
@@ -96,9 +96,17 @@ func NewRetrieverWithClock(
 	return retriever, nil
 }
 
-// WrapWithHybrid wraps the executor with a HybridRetriever for per-block fallback.
 func (retriever *Retriever) WrapWithHybrid(candidateSource types.CandidateSource, httpClient *http.Client) {
-	retriever.executor = NewHybridRetriever(retriever.executor, candidateSource, httpClient)
+	base := &baseRetriever{retriever: retriever}
+	retriever.executor = NewHybridRetriever(base, candidateSource, httpClient)
+}
+
+type baseRetriever struct {
+	retriever *Retriever
+}
+
+func (br *baseRetriever) Retrieve(ctx context.Context, request types.RetrievalRequest, events func(types.RetrievalEvent)) (*types.RetrievalStats, error) {
+	return br.retriever.retrieveWithCandidates(ctx, request, events)
 }
 
 // Start will start the retriever events system
