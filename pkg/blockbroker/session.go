@@ -11,6 +11,10 @@ import (
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-log/v2"
+	"github.com/ipld/go-ipld-prime/linking"
+	trustlessutils "github.com/ipld/go-trustless-utils"
+	trustlesshttp "github.com/ipld/go-trustless-utils/http"
+	"github.com/ipld/go-trustless-utils/traversal"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/parkan/sheltie/pkg/types"
 )
@@ -29,7 +33,6 @@ type TrustlessGatewaySession struct {
 	providers     []types.RetrievalCandidate
 	providersLock sync.RWMutex
 
-	// Track failed providers with backoff
 	evictedPeers     map[peer.ID]time.Time
 	evictedPeersLock sync.RWMutex
 	evictBackoff     time.Duration
@@ -53,10 +56,7 @@ func NewSession(
 	}
 }
 
-// Get fetches a single block by CID.
-// It first tries cached providers, then discovers new ones if needed.
 func (s *TrustlessGatewaySession) Get(ctx context.Context, c cid.Cid) (blocks.Block, error) {
-	// 1. Try cached providers (parallel, first success wins)
 	providers := s.getProviders()
 	if len(providers) > 0 {
 		block, err := s.tryProviders(ctx, c, providers)
@@ -64,20 +64,95 @@ func (s *TrustlessGatewaySession) Get(ctx context.Context, c cid.Cid) (blocks.Bl
 			return block, nil
 		}
 		logger.Debugw("all cached providers failed", "cid", c, "err", err)
-		// All cached providers failed, continue to discovery
 	}
 
-	// 2. Discover new providers for this CID
 	if err := s.findNewProviders(ctx, c); err != nil {
 		return nil, fmt.Errorf("no providers found for %s: %w", c, err)
 	}
 
-	// 3. Retry with new providers
 	providers = s.getProviders()
 	if len(providers) == 0 {
 		return nil, fmt.Errorf("no providers available for %s", c)
 	}
 	return s.tryProviders(ctx, c, providers)
+}
+
+// GetSubgraph fetches a subgraph as CAR. Tries providers sequentially (CAR is expensive).
+func (s *TrustlessGatewaySession) GetSubgraph(ctx context.Context, c cid.Cid, lsys linking.LinkSystem) (int, error) {
+	providers := s.getProviders()
+	if len(providers) == 0 {
+		if err := s.findNewProviders(ctx, c); err != nil {
+			return 0, fmt.Errorf("no providers found for %s: %w", c, err)
+		}
+		providers = s.getProviders()
+	}
+
+	if len(providers) == 0 {
+		return 0, fmt.Errorf("no providers available for %s", c)
+	}
+
+	var lastErr error
+	for _, provider := range providers {
+		blocksReceived, err := s.fetchSubgraphCAR(ctx, c, provider, lsys)
+		if err == nil {
+			logger.Debugw("subgraph CAR fetch succeeded", "cid", c, "provider", provider.MinerPeer.ID, "blocks", blocksReceived)
+			return blocksReceived, nil
+		}
+		logger.Debugw("subgraph CAR fetch failed", "cid", c, "provider", provider.MinerPeer.ID, "err", err)
+		lastErr = err
+		// Don't evict - provider may still work for other CIDs or per-block fallback
+	}
+
+	return 0, fmt.Errorf("all providers failed for subgraph %s: %w", c, lastErr)
+}
+
+func (s *TrustlessGatewaySession) fetchSubgraphCAR(
+	ctx context.Context,
+	c cid.Cid,
+	provider types.RetrievalCandidate,
+	lsys linking.LinkSystem,
+) (int, error) {
+	providerURL, err := provider.ToURL()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get URL for provider: %w", err)
+	}
+
+	reqURL := fmt.Sprintf("%s/ipfs/%s?dag-scope=all", providerURL, c)
+	req, err := http.NewRequestWithContext(ctx, "GET", reqURL, nil)
+	if err != nil {
+		return 0, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Accept", trustlesshttp.DefaultContentType().String())
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return 0, fmt.Errorf("HTTP request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return 0, fmt.Errorf("HTTP %d from %s", resp.StatusCode, providerURL)
+	}
+
+	expectDuplicates := trustlesshttp.DefaultIncludeDupes
+	if contentType, valid := trustlesshttp.ParseContentType(resp.Header.Get("Content-Type")); valid {
+		expectDuplicates = contentType.Duplicates
+	}
+
+	defaultSelector := trustlessutils.Request{Scope: trustlessutils.DagScopeAll}.Selector()
+	cfg := traversal.Config{
+		Root:               c,
+		Selector:           defaultSelector,
+		ExpectDuplicatesIn: expectDuplicates,
+		WriteDuplicatesOut: expectDuplicates,
+	}
+
+	result, err := cfg.VerifyCar(ctx, resp.Body, lsys)
+	if err != nil {
+		return int(result.BlocksIn), err
+	}
+
+	return int(result.BlocksIn), nil
 }
 
 func (s *TrustlessGatewaySession) getProviders() []types.RetrievalCandidate {
@@ -88,14 +163,11 @@ func (s *TrustlessGatewaySession) getProviders() []types.RetrievalCandidate {
 	return result
 }
 
-// tryProviders attempts to fetch a block from the given providers in parallel.
-// Returns the first successful result.
 func (s *TrustlessGatewaySession) tryProviders(ctx context.Context, c cid.Cid, providers []types.RetrievalCandidate) (blocks.Block, error) {
 	if len(providers) == 0 {
 		return nil, fmt.Errorf("no providers available")
 	}
 
-	// Parallel fetch with first-success-wins
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -126,7 +198,7 @@ func (s *TrustlessGatewaySession) tryProviders(ctx context.Context, c cid.Cid, p
 				lastErr = result.err
 				continue
 			}
-			cancel() // Got success, cancel other requests
+			cancel()
 			return result.block, nil
 		case <-ctx.Done():
 			return nil, ctx.Err()
@@ -135,8 +207,6 @@ func (s *TrustlessGatewaySession) tryProviders(ctx context.Context, c cid.Cid, p
 	return nil, fmt.Errorf("all providers failed: %w", lastErr)
 }
 
-// fetchBlock fetches a single block from a provider using the trustless gateway protocol.
-// Per the spec: GET /ipfs/{cid}?format=raw with Accept: application/vnd.ipld.raw
 func (s *TrustlessGatewaySession) fetchBlock(
 	ctx context.Context,
 	c cid.Cid,
@@ -147,9 +217,6 @@ func (s *TrustlessGatewaySession) fetchBlock(
 		return nil, fmt.Errorf("failed to get URL for provider: %w", err)
 	}
 
-	// Per Trustless Gateway spec:
-	// - Raw block: GET /ipfs/{cid}?format=raw (no dag-scope parameter)
-	// - dag-scope is only valid for CAR responses
 	reqURL := fmt.Sprintf("%s/ipfs/%s?format=raw", url, c)
 	req, err := http.NewRequestWithContext(ctx, "GET", reqURL, nil)
 	if err != nil {
@@ -172,7 +239,6 @@ func (s *TrustlessGatewaySession) fetchBlock(
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
 
-	// Verify CID matches the data
 	block, err := blocks.NewBlockWithCid(data, c)
 	if err != nil {
 		return nil, fmt.Errorf("block verification failed: %w", err)
@@ -181,17 +247,14 @@ func (s *TrustlessGatewaySession) fetchBlock(
 	return block, nil
 }
 
-// findNewProviders queries the routing system for providers of the given CID.
 func (s *TrustlessGatewaySession) findNewProviders(ctx context.Context, c cid.Cid) error {
 	var found int
 	var mu sync.Mutex
 
 	err := s.routing.FindCandidates(ctx, c, func(candidate types.RetrievalCandidate) {
-		// Filter for HTTP protocol
 		if !s.hasHTTPProtocol(candidate) {
 			return
 		}
-		// Skip recently evicted providers
 		if s.isEvicted(candidate.MinerPeer.ID) {
 			return
 		}
@@ -212,24 +275,19 @@ func (s *TrustlessGatewaySession) findNewProviders(ctx context.Context, c cid.Ci
 	return nil
 }
 
-// SeedProviders pre-populates the session with providers for a given CID.
-// This is useful when falling back from whole-DAG retrieval to reuse
-// providers that may have had partial content.
 func (s *TrustlessGatewaySession) SeedProviders(ctx context.Context, c cid.Cid) {
-	_ = s.findNewProviders(ctx, c) // Ignore error - seeding is best-effort
+	_ = s.findNewProviders(ctx, c)
 }
 
 func (s *TrustlessGatewaySession) addProvider(candidate types.RetrievalCandidate) {
 	s.providersLock.Lock()
 	defer s.providersLock.Unlock()
 
-	// Check for duplicate
 	for _, p := range s.providers {
 		if p.MinerPeer.ID == candidate.MinerPeer.ID {
 			return
 		}
 	}
-
 	s.providers = append(s.providers, candidate)
 }
 
@@ -257,12 +315,10 @@ func (s *TrustlessGatewaySession) isEvicted(peerID peer.ID) bool {
 	if !ok {
 		return false
 	}
-	// Allow retry after backoff period
 	return time.Since(evictTime) < s.evictBackoff
 }
 
 func (s *TrustlessGatewaySession) hasHTTPProtocol(candidate types.RetrievalCandidate) bool {
-	// Check if any multiaddr is HTTP/HTTPS
 	for _, addr := range candidate.MinerPeer.Addrs {
 		for _, proto := range addr.Protocols() {
 			if proto.Name == "http" || proto.Name == "https" {
@@ -273,9 +329,7 @@ func (s *TrustlessGatewaySession) hasHTTPProtocol(candidate types.RetrievalCandi
 	return false
 }
 
-// Close releases session resources.
 func (s *TrustlessGatewaySession) Close() error {
-	// Clean up resources if needed
 	s.providersLock.Lock()
 	s.providers = nil
 	s.providersLock.Unlock()
