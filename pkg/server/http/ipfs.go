@@ -183,6 +183,7 @@ func decodeRequest(res http.ResponseWriter, req *http.Request, unescapedPath str
 	}
 	if !accept.IsCar() {
 		errorResponse(res, statusLogger, http.StatusNotAcceptable, fmt.Errorf("invalid Accept header or format parameter; unsupported %q", req.Header.Get("Accept")))
+		return false, trustlessutils.Request{}
 	}
 
 	dagScope, err := trustlesshttp.ParseScope(req)

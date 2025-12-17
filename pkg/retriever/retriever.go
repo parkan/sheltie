@@ -186,13 +186,11 @@ func (retriever *Retriever) Retrieve(
 	logger.Infof(
 		"Successfully retrieved from miner %s for %s\n"+
 			"\tDuration: %s\n"+
-			"\tBytes Received: %s\n"+
-			"\tTotal Payment: %s",
+			"\tBytes Received: %s",
 		retrievalStats.StorageProviderId,
 		request.Root,
 		retrievalStats.Duration,
 		humanize.IBytes(retrievalStats.Size),
-		types.FIL(retrievalStats.TotalPayment),
 	)
 
 	return retrievalStats, nil

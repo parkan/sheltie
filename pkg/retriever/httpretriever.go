@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/filecoin-project/go-clock"
-	"github.com/filecoin-project/go-state-types/big"
 	"github.com/ipfs/go-cid"
 	trustlesshttp "github.com/ipld/go-trustless-utils/http"
 	"github.com/ipld/go-trustless-utils/traversal"
@@ -157,9 +156,6 @@ func (ph *ProtocolHttp) Retrieve(
 		Blocks:            traversalResult.BlocksIn,
 		Duration:          duration,
 		AverageSpeed:      speed,
-		TotalPayment:      big.Zero(),
-		NumPayments:       0,
-		AskPrice:          big.Zero(),
 		TimeToFirstByte:   ttfb,
 	}, nil
 }
