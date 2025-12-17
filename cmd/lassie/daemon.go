@@ -23,7 +23,7 @@ var daemonFlags = []cli.Flag{
 		Usage:       "the address the http server listens on",
 		Value:       "127.0.0.1",
 		DefaultText: "127.0.0.1",
-		EnvVars:     []string{"LASSIE_ADDRESS"},
+		EnvVars:     []string{"LASSIE_ADDRESS", "LASSIE_ADDRESS"},
 	},
 	&cli.UintFlag{
 		Name:        "port",
@@ -31,7 +31,7 @@ var daemonFlags = []cli.Flag{
 		Usage:       "the port the http server listens on",
 		Value:       0,
 		DefaultText: "random",
-		EnvVars:     []string{"LASSIE_PORT"},
+		EnvVars:     []string{"LASSIE_PORT", "LASSIE_PORT"},
 	},
 	&cli.Uint64Flag{
 		Name:        "maxblocks",
@@ -39,7 +39,7 @@ var daemonFlags = []cli.Flag{
 		Usage:       "maximum number of blocks sent before closing connection",
 		Value:       0,
 		DefaultText: "no limit",
-		EnvVars:     []string{"LASSIE_MAX_BLOCKS_PER_REQUEST"},
+		EnvVars:     []string{"LASSIE_MAX_BLOCKS_PER_REQUEST", "LASSIE_MAX_BLOCKS_PER_REQUEST"},
 	},
 	FlagDelegatedRoutingEndpoint,
 	FlagEventRecorderAuth,
@@ -126,17 +126,17 @@ func defaultDaemonRun(
 	httpServerCfg httpserver.HttpServerConfig,
 	eventRecorderCfg *aggregateeventrecorder.EventRecorderConfig,
 ) error {
-	lassie, err := lassie.NewLassieWithConfig(ctx, lassieCfg)
+	s, err := lassie.NewLassieWithConfig(ctx, lassieCfg)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	// create and subscribe an event recorder API if an endpoint URL is set
 	if eventRecorderCfg.EndpointURL != "" {
-		setupLassieEventRecorder(ctx, eventRecorderCfg, lassie)
+		setupLassieEventRecorder(ctx, eventRecorderCfg, s)
 	}
 
-	httpServer, err := httpserver.NewHttpServer(ctx, lassie, httpServerCfg)
+	httpServer, err := httpserver.NewHttpServer(ctx, s, httpServerCfg)
 	if err != nil {
 		logger.Errorw("failed to create http server", "err", err)
 		return err

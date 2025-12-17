@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/filecoin-project/go-clock"
-	"github.com/filecoin-project/go-state-types/big"
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/ipld/go-ipld-prime/datamodel"
@@ -162,7 +161,6 @@ func (hr *HybridRetriever) continuePerBlock(
 		Blocks:       totalBlocks,
 		Duration:     duration,
 		AverageSpeed: speed,
-		TotalPayment: big.Zero(),
 	}, nil
 }
 

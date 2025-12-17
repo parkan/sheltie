@@ -124,7 +124,7 @@ func getEventRecorderConfig(endpointURL string, authToken string, instanceID str
 func setupLassieEventRecorder(
 	ctx context.Context,
 	cfg *aggregateeventrecorder.EventRecorderConfig,
-	lassie *lassie.Lassie,
+	s *lassie.Lassie,
 ) {
 	if cfg.EndpointURL != "" {
 		if cfg.InstanceID == "" {
@@ -136,7 +136,7 @@ func setupLassieEventRecorder(
 		}
 
 		eventRecorder := aggregateeventrecorder.NewAggregateEventRecorder(ctx, *cfg)
-		lassie.RegisterSubscriber(eventRecorder.RetrievalEventSubscriber())
+		s.RegisterSubscriber(eventRecorder.RetrievalEventSubscriber())
 		logger.Infow("Reporting retrieval events to event recorder API", "url", cfg.EndpointURL, "instance_id", cfg.InstanceID)
 	}
 }

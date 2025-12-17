@@ -322,6 +322,9 @@ func nextUnknownPeerID() peer.ID {
 }
 
 func IsUnknownPeerID(p peer.ID) bool {
+	if len(p) < len(unknownPeerID) {
+		return false
+	}
 	return p[0:len(unknownPeerID)] == unknownPeerID
 }
 

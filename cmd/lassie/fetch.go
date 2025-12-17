@@ -87,7 +87,6 @@ var fetchFlags = []cli.Flag{
 	FlagEventRecorderUrl,
 	FlagVerbose,
 	FlagVeryVerbose,
-	FlagProtocols,
 	FlagAllowProviders,
 	FlagExcludeProviders,
 	FlagTempDir,
@@ -312,14 +311,14 @@ func defaultFetchRun(
 	progress bool,
 	outfile string,
 ) error {
-	lassie, err := lassie.NewLassieWithConfig(ctx, lassieCfg)
+	s, err := lassie.NewLassieWithConfig(ctx, lassieCfg)
 	if err != nil {
 		return err
 	}
 
 	// create and subscribe an event recorder API if an endpoint URL is set
 	if eventRecorderCfg.EndpointURL != "" {
-		setupLassieEventRecorder(ctx, eventRecorderCfg, lassie)
+		setupLassieEventRecorder(ctx, eventRecorderCfg, s)
 	}
 
 	printPath := path.String()
@@ -334,7 +333,7 @@ func defaultFetchRun(
 	if progress {
 		fmt.Fprintln(msgWriter)
 		pp := &progressPrinter{writer: msgWriter}
-		lassie.RegisterSubscriber(pp.subscriber)
+		s.RegisterSubscriber(pp.subscriber)
 	}
 
 	var carWriter storage.DeferredWriter
@@ -386,7 +385,7 @@ func defaultFetchRun(
 	}
 	request.Duplicates = duplicates
 
-	stats, err := lassie.Fetch(ctx, request)
+	stats, err := s.Fetch(ctx, request)
 	if err != nil {
 		fmt.Fprintln(msgWriter)
 		return err
