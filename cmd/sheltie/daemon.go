@@ -23,7 +23,7 @@ var daemonFlags = []cli.Flag{
 		Usage:       "the address the http server listens on",
 		Value:       "127.0.0.1",
 		DefaultText: "127.0.0.1",
-		EnvVars:     []string{"LASSIE_ADDRESS"},
+		EnvVars:     []string{"SHELTIE_ADDRESS", "LASSIE_ADDRESS"},
 	},
 	&cli.UintFlag{
 		Name:        "port",
@@ -31,7 +31,7 @@ var daemonFlags = []cli.Flag{
 		Usage:       "the port the http server listens on",
 		Value:       0,
 		DefaultText: "random",
-		EnvVars:     []string{"LASSIE_PORT"},
+		EnvVars:     []string{"SHELTIE_PORT", "LASSIE_PORT"},
 	},
 	&cli.Uint64Flag{
 		Name:        "maxblocks",
@@ -39,7 +39,7 @@ var daemonFlags = []cli.Flag{
 		Usage:       "maximum number of blocks sent before closing connection",
 		Value:       0,
 		DefaultText: "no limit",
-		EnvVars:     []string{"LASSIE_MAX_BLOCKS_PER_REQUEST"},
+		EnvVars:     []string{"SHELTIE_MAX_BLOCKS_PER_REQUEST", "LASSIE_MAX_BLOCKS_PER_REQUEST"},
 	},
 	FlagDelegatedRoutingEndpoint,
 	FlagEventRecorderAuth,
@@ -72,9 +72,9 @@ var daemonCmd = &cli.Command{
 // the cli context into the appropriate config objects and then calls the
 // daemonRun function.
 func daemonAction(cctx *cli.Context) error {
-	lassieOpts := []sheltie.SheltieOption{}
+	sheltieOpts := []sheltie.SheltieOption{}
 
-	lassieCfg, err := buildLassieConfigFromCLIContext(cctx, lassieOpts)
+	sheltieCfg, err := buildSheltieConfigFromCLIContext(cctx, sheltieOpts)
 	if err != nil {
 		return err
 	}
@@ -95,7 +95,7 @@ func daemonAction(cctx *cli.Context) error {
 
 	err = daemonRun(
 		cctx.Context,
-		lassieCfg,
+		sheltieCfg,
 		httpServerCfg,
 		eventRecorderCfg,
 	)
@@ -109,7 +109,7 @@ func daemonAction(cctx *cli.Context) error {
 // daemonRunFunc is the function signature for the daemonRun function.
 type daemonRunFunc func(
 	ctx context.Context,
-	lassieCfg *sheltie.SheltieConfig,
+	sheltieCfg *sheltie.SheltieConfig,
 	httpServerCfg httpserver.HttpServerConfig,
 	eventRecorderCfg *aggregateeventrecorder.EventRecorderConfig,
 ) error
@@ -122,21 +122,21 @@ var daemonRun daemonRunFunc = defaultDaemonRun
 // defaultDaemonRun is the default implementation for the daemonRun function.
 func defaultDaemonRun(
 	ctx context.Context,
-	lassieCfg *sheltie.SheltieConfig,
+	sheltieCfg *sheltie.SheltieConfig,
 	httpServerCfg httpserver.HttpServerConfig,
 	eventRecorderCfg *aggregateeventrecorder.EventRecorderConfig,
 ) error {
-	lassie, err := sheltie.NewSheltieWithConfig(ctx, lassieCfg)
+	s, err := sheltie.NewSheltieWithConfig(ctx, sheltieCfg)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	// create and subscribe an event recorder API if an endpoint URL is set
 	if eventRecorderCfg.EndpointURL != "" {
-		setupLassieEventRecorder(ctx, eventRecorderCfg, lassie)
+		setupSheltieEventRecorder(ctx, eventRecorderCfg, s)
 	}
 
-	httpServer, err := httpserver.NewHttpServer(ctx, lassie, httpServerCfg)
+	httpServer, err := httpserver.NewHttpServer(ctx, s, httpServerCfg)
 	if err != nil {
 		logger.Errorw("failed to create http server", "err", err)
 		return err

@@ -14,7 +14,6 @@ import (
 
 	"github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/multiformats/go-multicodec"
 	"github.com/parkan/sheltie/pkg/heyfil"
 	"github.com/parkan/sheltie/pkg/types"
 	"github.com/urfave/cli/v2"
@@ -22,13 +21,11 @@ import (
 
 var (
 	defaultTempDirectory     string   = os.TempDir() // use the system default temp dir
-	verboseLoggingSubsystems []string = []string{    // verbose logging is enabled for these subsystems when using the verbose or very-verbose flags
+	verboseLoggingSubsystems []string = []string{ // verbose logging is enabled for these subsystems when using the verbose or very-verbose flags
 		"sheltie/main",
 		"sheltie/retriever",
 		"sheltie/httpserver",
 		"sheltie/indexerlookup",
-		"sheltie/client",
-		"sheltie/lp2p/tspt/client",
 		"sheltie/heyfil",
 		"sheltie/aggregateeventrecorder",
 	}
@@ -80,7 +77,7 @@ var FlagEventRecorderAuth = &cli.StringFlag{
 	Name:        "event-recorder-auth",
 	Usage:       "the authorization token for an event recorder API",
 	DefaultText: "no authorization token will be used",
-	EnvVars:     []string{"LASSIE_EVENT_RECORDER_AUTH"},
+	EnvVars:     []string{"SHELTIE_EVENT_RECORDER_AUTH", "LASSIE_EVENT_RECORDER_AUTH"},
 }
 
 // FlagEventRecorderUrl asks for and provides the URL for an event recorder API
@@ -89,7 +86,7 @@ var FlagEventRecorderInstanceId = &cli.StringFlag{
 	Name:        "event-recorder-instance-id",
 	Usage:       "the instance ID to use for an event recorder API request",
 	DefaultText: "a random v4 uuid",
-	EnvVars:     []string{"LASSIE_EVENT_RECORDER_INSTANCE_ID"},
+	EnvVars:     []string{"SHELTIE_EVENT_RECORDER_INSTANCE_ID", "LASSIE_EVENT_RECORDER_INSTANCE_ID"},
 }
 
 // FlagEventRecorderUrl asks for and provides the URL for an event recorder API
@@ -98,7 +95,7 @@ var FlagEventRecorderUrl = &cli.StringFlag{
 	Name:        "event-recorder-url",
 	Usage:       "the url of an event recorder API",
 	DefaultText: "no event recorder API will be used",
-	EnvVars:     []string{"LASSIE_EVENT_RECORDER_URL"},
+	EnvVars:     []string{"SHELTIE_EVENT_RECORDER_URL", "LASSIE_EVENT_RECORDER_URL"},
 }
 
 var providerBlockList map[peer.ID]bool
@@ -106,7 +103,7 @@ var FlagExcludeProviders = &cli.StringFlag{
 	Name:        "exclude-providers",
 	DefaultText: "All providers allowed",
 	Usage:       "Provider peer IDs, separated by a comma. Example: 12D3KooWBSTEYMLSu5FnQjshEVah9LFGEZoQt26eacCEVYfedWA4",
-	EnvVars:     []string{"LASSIE_EXCLUDE_PROVIDERS"},
+	EnvVars:     []string{"SHELTIE_EXCLUDE_PROVIDERS", "LASSIE_EXCLUDE_PROVIDERS"},
 	Action: func(cctx *cli.Context, v string) error {
 		// Do nothing if given an empty string
 		if v == "" {
@@ -135,10 +132,10 @@ var FlagAllowProviders = &cli.StringFlag{
 	Usage: "Comma-separated addresses of providers, to use instead of " +
 		"automatic discovery. Accepts full multiaddrs including peer ID, " +
 		"multiaddrs without peer ID and url-style addresses for HTTP and " +
-		"Filecoin SP f0 actor addresses. Lassie will attempt to connect to the " +
+		"Filecoin SP f0 actor addresses. Sheltie will attempt to connect to the " +
 		"peer(s). Example: " +
 		"/ip4/1.2.3.4/tcp/1234/p2p/12D3KooWBSTEYMLSu5FnQjshEVah9LFGEZoQt26eacCEVYfedWA4,http://ipfs.io,f01234",
-	EnvVars: []string{"LASSIE_ALLOW_PROVIDERS"},
+	EnvVars: []string{"SHELTIE_ALLOW_PROVIDERS", "LASSIE_ALLOW_PROVIDERS"},
 	Action: func(cctx *cli.Context, v string) error {
 		// Do nothing if given an empty string
 		if v == "" {
@@ -157,38 +154,20 @@ var FlagAllowProviders = &cli.StringFlag{
 	},
 }
 
-var protocols []multicodec.Code
-var FlagProtocols = &cli.StringFlag{
-	Name:        "protocols",
-	DefaultText: "http",
-	Usage:       "List of retrieval protocols to use, separated by a comma (http only)",
-	EnvVars:     []string{"LASSIE_SUPPORTED_PROTOCOLS"},
-	Action: func(cctx *cli.Context, v string) error {
-		// Do nothing if given an empty string
-		if v == "" {
-			return nil
-		}
-
-		var err error
-		protocols, err = types.ParseProtocolsString(v)
-		return err
-	},
-}
-
 var FlagTempDir = &cli.StringFlag{
 	Name:        "tempdir",
 	Aliases:     []string{"td"},
 	Usage:       "directory to store temporary files while downloading",
 	Value:       defaultTempDirectory,
 	DefaultText: "os temp directory",
-	EnvVars:     []string{"LASSIE_TEMP_DIRECTORY"},
+	EnvVars:     []string{"SHELTIE_TEMP_DIRECTORY", "LASSIE_TEMP_DIRECTORY"},
 }
 
 var FlagGlobalTimeout = &cli.DurationFlag{
 	Name:    "global-timeout",
 	Aliases: []string{"gt"},
 	Usage:   "consider it an error after not completing a retrieval after this amount of time",
-	EnvVars: []string{"LASSIE_GLOBAL_TIMEOUT"},
+	EnvVars: []string{"SHELTIE_GLOBAL_TIMEOUT", "LASSIE_GLOBAL_TIMEOUT"},
 }
 
 var FlagProviderTimeout = &cli.DurationFlag{
@@ -196,7 +175,7 @@ var FlagProviderTimeout = &cli.DurationFlag{
 	Aliases: []string{"pt"},
 	Usage:   "consider it an error after not receiving a response from a storage provider after this amount of time",
 	Value:   defaultProviderTimeout,
-	EnvVars: []string{"LASSIE_PROVIDER_TIMEOUT"},
+	EnvVars: []string{"SHELTIE_PROVIDER_TIMEOUT", "LASSIE_PROVIDER_TIMEOUT"},
 }
 
 var FlagDelegatedRoutingEndpoint = &cli.StringFlag{
@@ -211,6 +190,5 @@ func ResetGlobalFlags() {
 	// Reset global variables here so that they are not used
 	// in subsequent calls to commands during testing.
 	fetchProviders = make([]types.Provider, 0)
-	protocols = make([]multicodec.Code, 0)
 	providerBlockList = make(map[peer.ID]bool)
 }

@@ -311,7 +311,7 @@ func ParseProviderStrings(v string) ([]Provider, error) {
 //
 // This is only useful where the peer ID doesn't matter, specifically HTTP
 // retrievals where there is limited negotiation. But we still want a peer ID
-// because it's assumed through much of Lassie.
+// because it's assumed through much of Sheltie.
 
 const unknownPeerID = "\x00\x16v\xa5\x9c\xd4\"="
 
@@ -322,6 +322,9 @@ func nextUnknownPeerID() peer.ID {
 }
 
 func IsUnknownPeerID(p peer.ID) bool {
+	if len(p) < len(unknownPeerID) {
+		return false
+	}
 	return p[0:len(unknownPeerID)] == unknownPeerID
 }
 

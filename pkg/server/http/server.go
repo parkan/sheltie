@@ -14,7 +14,7 @@ import (
 
 var logger = log.Logger("sheltie/httpserver")
 
-// HttpServer is a Lassie server for fetching data from the network via HTTP
+// HttpServer is a Sheltie server for fetching data from the network via HTTP
 type HttpServer struct {
 	cancel   context.CancelFunc
 	ctx      context.Context

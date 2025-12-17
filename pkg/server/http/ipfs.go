@@ -81,7 +81,7 @@ func IpfsHandler(fetcher types.Fetcher, cfg HttpServerConfig) func(http.Response
 
 		carWriter.OnPut(func(int) {
 			// called once we start writing blocks into the CAR (on the first Put())
-			res.Header().Set("Server", build.UserAgent) // "lassie/vx.y.z-<git commit hash>"
+			res.Header().Set("Server", build.UserAgent) // "sheltie/vx.y.z-<git commit hash>"
 			res.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", fileName))
 			res.Header().Set("Accept-Ranges", "none")
 			res.Header().Set("Cache-Control", trustlesshttp.ResponseCacheControlHeader)
@@ -183,6 +183,7 @@ func decodeRequest(res http.ResponseWriter, req *http.Request, unescapedPath str
 	}
 	if !accept.IsCar() {
 		errorResponse(res, statusLogger, http.StatusNotAcceptable, fmt.Errorf("invalid Accept header or format parameter; unsupported %q", req.Header.Get("Accept")))
+		return false, trustlessutils.Request{}
 	}
 
 	dagScope, err := trustlesshttp.ParseScope(req)

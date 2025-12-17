@@ -73,14 +73,14 @@ func after(cctx *cli.Context) error {
 	return nil
 }
 
-func buildLassieConfigFromCLIContext(cctx *cli.Context, lassieOpts []sheltie.SheltieOption) (*sheltie.SheltieConfig, error) {
+func buildSheltieConfigFromCLIContext(cctx *cli.Context, sheltieOpts []sheltie.SheltieOption) (*sheltie.SheltieConfig, error) {
 	providerTimeout := cctx.Duration("provider-timeout")
 	globalTimeout := cctx.Duration("global-timeout")
 
-	lassieOpts = append(lassieOpts, sheltie.WithProviderTimeout(providerTimeout))
+	sheltieOpts = append(sheltieOpts, sheltie.WithProviderTimeout(providerTimeout))
 
 	if globalTimeout > 0 {
-		lassieOpts = append(lassieOpts, sheltie.WithGlobalTimeout(globalTimeout))
+		sheltieOpts = append(sheltieOpts, sheltie.WithGlobalTimeout(globalTimeout))
 	}
 
 	if len(fetchProviders) > 0 {
@@ -88,7 +88,7 @@ func buildLassieConfigFromCLIContext(cctx *cli.Context, lassieOpts []sheltie.She
 		if cctx.IsSet("delegated-routing-endpoint") {
 			logger.Warn("Ignoring delegated-routing-endpoint flag since direct provider is specified")
 		}
-		lassieOpts = append(lassieOpts, finderOpt)
+		sheltieOpts = append(sheltieOpts, finderOpt)
 	} else if cctx.IsSet("delegated-routing-endpoint") {
 		endpoint := cctx.String("delegated-routing-endpoint")
 		endpointUrl, err := url.ParseRequestURI(endpoint)
@@ -101,15 +101,15 @@ func buildLassieConfigFromCLIContext(cctx *cli.Context, lassieOpts []sheltie.She
 			logger.Errorw("Failed to instantiate delegated routing candidate finder", "err", err)
 			return nil, err
 		}
-		lassieOpts = append(lassieOpts, sheltie.WithCandidateSource(finder))
+		sheltieOpts = append(sheltieOpts, sheltie.WithCandidateSource(finder))
 		logger.Debug("Using explicit delegated routing endpoint to find candidates", "endpoint", endpoint)
 	}
 
 	if len(providerBlockList) > 0 {
-		lassieOpts = append(lassieOpts, sheltie.WithProviderBlockList(providerBlockList))
+		sheltieOpts = append(sheltieOpts, sheltie.WithProviderBlockList(providerBlockList))
 	}
 
-	return sheltie.NewSheltieConfig(lassieOpts...), nil
+	return sheltie.NewSheltieConfig(sheltieOpts...), nil
 }
 
 func getEventRecorderConfig(endpointURL string, authToken string, instanceID string) *aggregateeventrecorder.EventRecorderConfig {
@@ -120,11 +120,11 @@ func getEventRecorderConfig(endpointURL string, authToken string, instanceID str
 	}
 }
 
-// setupLassieEventRecorder creates and subscribes an EventRecorder if an event recorder URL is given
-func setupLassieEventRecorder(
+// setupSheltieEventRecorder creates and subscribes an EventRecorder if an event recorder URL is given
+func setupSheltieEventRecorder(
 	ctx context.Context,
 	cfg *aggregateeventrecorder.EventRecorderConfig,
-	lassie *sheltie.Sheltie,
+	s *sheltie.Sheltie,
 ) {
 	if cfg.EndpointURL != "" {
 		if cfg.InstanceID == "" {
@@ -136,7 +136,7 @@ func setupLassieEventRecorder(
 		}
 
 		eventRecorder := aggregateeventrecorder.NewAggregateEventRecorder(ctx, *cfg)
-		lassie.RegisterSubscriber(eventRecorder.RetrievalEventSubscriber())
+		s.RegisterSubscriber(eventRecorder.RetrievalEventSubscriber())
 		logger.Infow("Reporting retrieval events to event recorder API", "url", cfg.EndpointURL, "instance_id", cfg.InstanceID)
 	}
 }

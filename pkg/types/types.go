@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/ipfs/go-cid"
 	"github.com/ipni/go-libipni/maurl"
 	"github.com/ipni/go-libipni/metadata"
@@ -174,9 +173,6 @@ type RetrievalStats struct {
 	Blocks            uint64
 	Duration          time.Duration
 	AverageSpeed      uint64
-	TotalPayment      abi.TokenAmount
-	NumPayments       int
-	AskPrice          abi.TokenAmount
 	TimeToFirstByte   time.Duration
 	Selector          string
 }

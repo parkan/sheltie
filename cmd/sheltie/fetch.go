@@ -87,7 +87,6 @@ var fetchFlags = []cli.Flag{
 	FlagEventRecorderUrl,
 	FlagVerbose,
 	FlagVeryVerbose,
-	FlagProtocols,
 	FlagAllowProviders,
 	FlagExcludeProviders,
 	FlagTempDir,
@@ -149,7 +148,7 @@ func fetchAction(cctx *cli.Context) error {
 		outfile = output
 	}
 
-	lassieCfg, err := buildLassieConfigFromCLIContext(cctx, nil)
+	sheltieCfg, err := buildSheltieConfigFromCLIContext(cctx, nil)
 	if err != nil {
 		return err
 	}
@@ -161,7 +160,7 @@ func fetchAction(cctx *cli.Context) error {
 
 	err = fetchRun(
 		cctx.Context,
-		lassieCfg,
+		sheltieCfg,
 		eventRecorderCfg,
 		msgWriter,
 		dataWriter,
@@ -278,7 +277,7 @@ func (ow *onlyWriter) Write(p []byte) (n int, err error) {
 
 type fetchRunFunc func(
 	ctx context.Context,
-	lassieCfg *sheltie.SheltieConfig,
+	sheltieCfg *sheltie.SheltieConfig,
 	eventRecorderCfg *aggregateeventrecorder.EventRecorderConfig,
 	msgWriter io.Writer,
 	dataWriter io.Writer,
@@ -299,7 +298,7 @@ var fetchRun fetchRunFunc = defaultFetchRun
 // programmatically for testing.
 func defaultFetchRun(
 	ctx context.Context,
-	lassieCfg *sheltie.SheltieConfig,
+	sheltieCfg *sheltie.SheltieConfig,
 	eventRecorderCfg *aggregateeventrecorder.EventRecorderConfig,
 	msgWriter io.Writer,
 	dataWriter io.Writer,
@@ -312,14 +311,14 @@ func defaultFetchRun(
 	progress bool,
 	outfile string,
 ) error {
-	lassie, err := sheltie.NewSheltieWithConfig(ctx, lassieCfg)
+	s, err := sheltie.NewSheltieWithConfig(ctx, sheltieCfg)
 	if err != nil {
 		return err
 	}
 
 	// create and subscribe an event recorder API if an endpoint URL is set
 	if eventRecorderCfg.EndpointURL != "" {
-		setupLassieEventRecorder(ctx, eventRecorderCfg, lassie)
+		setupSheltieEventRecorder(ctx, eventRecorderCfg, s)
 	}
 
 	printPath := path.String()
@@ -334,7 +333,7 @@ func defaultFetchRun(
 	if progress {
 		fmt.Fprintln(msgWriter)
 		pp := &progressPrinter{writer: msgWriter}
-		lassie.RegisterSubscriber(pp.subscriber)
+		s.RegisterSubscriber(pp.subscriber)
 	}
 
 	var carWriter storage.DeferredWriter
@@ -386,7 +385,7 @@ func defaultFetchRun(
 	}
 	request.Duplicates = duplicates
 
-	stats, err := lassie.Fetch(ctx, request)
+	stats, err := s.Fetch(ctx, request)
 	if err != nil {
 		fmt.Fprintln(msgWriter)
 		return err

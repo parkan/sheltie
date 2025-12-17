@@ -13,7 +13,7 @@ var (
 	// version is the built version.
 	// Set with ldflags in .goreleaser.yaml via -ldflags="-X github.com/parkan/sheltie/pkg/build.version=v{{.Version}}".
 	version string
-	// Version returns the current version of the Lassie application
+	// Version returns the current version of the Sheltie application
 	Version   string
 	UserAgent string
 )
@@ -35,7 +35,7 @@ func init() {
 	}
 
 	Version = fmt.Sprintf("%s-%s", version, revision.Revision)
-	UserAgent = fmt.Sprintf("lassie/%s", Version)
+	UserAgent = fmt.Sprintf("sheltie/%s", Version)
 }
 
 // versionJson is used to read the local version.json file
