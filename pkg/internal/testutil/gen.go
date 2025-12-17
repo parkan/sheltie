@@ -6,7 +6,7 @@ package testutil
 import (
 	"fmt"
 	"io"
-	"math/rand"
+	"math/rand/v2"
 	"net"
 	"strconv"
 	"testing"
@@ -37,9 +37,11 @@ var seedSeq int64
 // RandomBytes returns a byte array of the given size with random values.
 func RandomBytes(n int64) []byte {
 	data := make([]byte, n)
-	src := rand.NewSource(seedSeq)
+	var seed [32]byte
+	seed[0] = byte(seedSeq)
+	seed[1] = byte(seedSeq >> 8)
 	seedSeq++
-	r := rand.New(src)
+	r := rand.NewChaCha8(seed)
 	_, _ = r.Read(data)
 	return data
 }
@@ -72,9 +74,11 @@ func GenerateCids(n int) []cid.Cid {
 
 // GeneratePeers creates n peer ids.
 func GeneratePeers(t *testing.T, n int) []peer.ID {
-	src := rand.NewSource(seedSeq)
+	var seed [32]byte
+	seed[0] = byte(seedSeq)
+	seed[1] = byte(seedSeq >> 8)
 	seedSeq++
-	r := rand.New(src)
+	r := rand.NewChaCha8(seed)
 	peerIds := make([]peer.ID, 0, n)
 	for i := 0; i < n; i++ {
 		_, publicKey, err := crypto.GenerateEd25519Key(r)
@@ -123,7 +127,7 @@ func GenerateRetrievalCandidatesForCID(t *testing.T, n int, c cid.Cid, protocols
 
 func GenerateMultiAddr() multiaddr.Multiaddr {
 	// generate a random ipv4 address
-	addr := &net.TCPAddr{IP: net.IPv4(byte(rand.Intn(255)), byte(rand.Intn(255)), byte(rand.Intn(255)), byte(rand.Intn(255))), Port: rand.Intn(65535)}
+	addr := &net.TCPAddr{IP: net.IPv4(byte(rand.IntN(255)), byte(rand.IntN(255)), byte(rand.IntN(255)), byte(rand.IntN(255))), Port: rand.IntN(65535)}
 	maddr, err := manet.FromIP(addr.IP)
 	if err != nil {
 		panic(err)
