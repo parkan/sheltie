@@ -87,7 +87,7 @@ func (idxf *IndexerCandidateSource) newFindHttpRequest(ctx context.Context, c ci
 		query := req.URL.Query()
 		protocols := make([]string, len(idxf.protocols))
 		for i, p := range idxf.protocols {
-			protocols[i] = "transport-" + p.String()
+			protocols[i] = p.String()
 		}
 		query.Add("filter-protocols", strings.Join(protocols, ","))
 		req.URL.RawQuery = query.Encode()
@@ -149,15 +149,12 @@ func (idxf *IndexerCandidateSource) decodeDelegatedRoutingResponse(ctx context.C
 	return nil
 }
 
-// providerMatchesProtocols checks if a provider supports any of the allowed protocols
 func (idxf *IndexerCandidateSource) providerMatchesProtocols(provider *DelegatedProvider) bool {
-	// Build a map of allowed protocol strings for fast lookup
 	allowed := make(map[string]bool)
 	for _, p := range idxf.protocols {
-		allowed["transport-"+p.String()] = true
+		allowed[p.String()] = true
 	}
 
-	// Check if provider has any matching protocol
 	for _, protoName := range provider.Protocols {
 		if allowed[protoName] {
 			return true
