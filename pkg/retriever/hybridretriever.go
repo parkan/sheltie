@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -19,6 +20,11 @@ import (
 	"github.com/ipld/go-trustless-utils/traversal"
 	"github.com/parkan/sheltie/pkg/blockbroker"
 	"github.com/parkan/sheltie/pkg/types"
+)
+
+const (
+	// DefaultRawLeafConcurrency is the default number of parallel raw leaf fetches
+	DefaultRawLeafConcurrency = 8
 )
 
 // HybridRetriever wraps an existing retriever and adds fallback to per-block
@@ -149,6 +155,7 @@ func (hr *HybridRetriever) continuePerBlock(
 // streamingTraverse uses frontier-based traversal to fetch blocks without
 // requiring read-back from storage. Blocks are fetched from network, links
 // are parsed immediately, and data is written to output.
+// Raw leaf blocks are fetched in parallel for improved throughput.
 func (hr *HybridRetriever) streamingTraverse(
 	ctx context.Context,
 	request types.RetrievalRequest,
@@ -206,12 +213,39 @@ func (hr *HybridRetriever) streamingTraverse(
 			return fmt.Errorf("failed to fetch block %s: %w", c, err)
 		}
 
-		// Parse links and add to frontier
+		// Parse links and separate by codec
 		links, err := ExtractLinks(block)
 		if err != nil {
 			logger.Warnw("failed to extract links", "cid", c, "err", err)
 		} else {
-			frontier.PushAll(links)
+			rawLeaves, dagNodes := separateLinksByCodec(links, frontier)
+
+			// Push dag nodes to frontier for recursive traversal
+			frontier.PushAll(dagNodes)
+
+			// Parallel fetch raw leaves (they have no children)
+			if len(rawLeaves) > 0 {
+				fetchedBlocks, fetchErr := hr.parallelFetchRawLeaves(ctx, rawLeaves, session)
+				if fetchErr != nil {
+					return fmt.Errorf("parallel fetch failed: %w", fetchErr)
+				}
+
+				// Write fetched blocks to output
+				for _, b := range fetchedBlocks {
+					if err := hr.writeBlock(ctx, b, baseLsys); err != nil {
+						return fmt.Errorf("failed to write block %s: %w", b.Cid(), err)
+					}
+					atomic.AddUint64(bytesOut, uint64(len(b.RawData())))
+					atomic.AddUint64(blocksOut, 1)
+					frontier.MarkSeen(b.Cid())
+					blockCount++
+
+					if maxBlocks > 0 && blockCount >= maxBlocks {
+						logger.Infow("reached max blocks limit", "limit", maxBlocks)
+						return nil
+					}
+				}
+			}
 		}
 
 		// Write to output
@@ -235,6 +269,84 @@ func (hr *HybridRetriever) streamingTraverse(
 	}
 
 	return nil
+}
+
+// separateLinksByCodec separates CIDs into raw leaves and dag nodes.
+// Raw leaves (codec 0x55) have no children and can be fetched in parallel.
+// Already-seen CIDs are filtered out.
+func separateLinksByCodec(links []cid.Cid, frontier *Frontier) (rawLeaves, dagNodes []cid.Cid) {
+	for _, c := range links {
+		if frontier.Seen(c) {
+			continue
+		}
+		if c.Prefix().Codec == cid.Raw {
+			rawLeaves = append(rawLeaves, c)
+		} else {
+			dagNodes = append(dagNodes, c)
+		}
+	}
+	return
+}
+
+// parallelFetchRawLeaves fetches multiple raw leaf blocks in parallel.
+func (hr *HybridRetriever) parallelFetchRawLeaves(
+	ctx context.Context,
+	cids []cid.Cid,
+	session blockbroker.BlockSession,
+) ([]blocks.Block, error) {
+	if len(cids) == 0 {
+		return nil, nil
+	}
+
+	logger.Debugw("parallel fetching raw leaves", "count", len(cids))
+
+	results := make([]blocks.Block, len(cids))
+	var firstErr error
+	var errOnce sync.Once
+	var wg sync.WaitGroup
+
+	// Semaphore for concurrency control
+	sem := make(chan struct{}, DefaultRawLeafConcurrency)
+
+	for i, c := range cids {
+		wg.Add(1)
+		go func(idx int, c cid.Cid) {
+			defer wg.Done()
+
+			// Acquire semaphore
+			select {
+			case sem <- struct{}{}:
+				defer func() { <-sem }()
+			case <-ctx.Done():
+				errOnce.Do(func() { firstErr = ctx.Err() })
+				return
+			}
+
+			block, err := session.Get(ctx, c)
+			if err != nil {
+				errOnce.Do(func() { firstErr = fmt.Errorf("fetch %s: %w", c, err) })
+				return
+			}
+			results[idx] = block
+		}(i, c)
+	}
+
+	wg.Wait()
+
+	if firstErr != nil {
+		return nil, firstErr
+	}
+
+	// Filter out any nil results (shouldn't happen if no errors)
+	var fetched []blocks.Block
+	for _, b := range results {
+		if b != nil {
+			fetched = append(fetched, b)
+		}
+	}
+
+	logger.Debugw("parallel fetch complete", "fetched", len(fetched))
+	return fetched, nil
 }
 
 // fetchBlock tries to get a block from the network, preferring CAR subgraph fetch
