@@ -180,17 +180,23 @@ func (hr *HybridRetriever) streamingTraverse(
 			if err == nil {
 				// Block exists in storage - read it to parse links
 				data, readErr := io.ReadAll(rdr)
-				if readErr == nil {
+				if readErr != nil {
+					logger.Warnw("cached block read failed, fetching from network", "cid", c, "err", readErr)
+					// Fall through to network fetch
+				} else {
 					block, blockErr := blocks.NewBlockWithCid(data, c)
-					if blockErr == nil {
+					if blockErr != nil {
+						logger.Warnw("cached block parse failed, fetching from network", "cid", c, "err", blockErr)
+						// Fall through to network fetch
+					} else {
 						logger.Debugw("using cached block from phase 1", "cid", c)
 						// Parse links and add to frontier
 						links, _ := ExtractLinks(block)
 						frontier.PushAll(links)
+						frontier.MarkSeen(c)
+						continue
 					}
 				}
-				frontier.MarkSeen(c)
-				continue
 			}
 		}
 
@@ -252,24 +258,26 @@ func (hr *HybridRetriever) fetchBlock(
 	}
 
 	// For dag-pb/dag-cbor, try CAR subgraph first (efficient for subtrees)
-	blocksFromCAR, carErr := session.GetSubgraph(ctx, c, baseLsys)
-	if carErr == nil && blocksFromCAR > 0 {
-		logger.Debugw("fetched subgraph via CAR", "cid", c, "blocks", blocksFromCAR)
-		// The CAR fetch wrote to baseLsys, now read back the block we need
-		if baseLsys.StorageReadOpener != nil {
+	// Skip CAR if we can't read back results (StorageReadOpener nil)
+	if baseLsys.StorageReadOpener != nil {
+		blocksFromCAR, carErr := session.GetSubgraph(ctx, c, baseLsys)
+		if carErr == nil && blocksFromCAR > 0 {
+			logger.Debugw("fetched subgraph via CAR", "cid", c, "blocks", blocksFromCAR)
+			// The CAR fetch wrote to baseLsys, now read back the block we need
 			rdr, err := baseLsys.StorageReadOpener(linking.LinkContext{Ctx: ctx}, cidlink.Link{Cid: c})
 			if err == nil {
 				data, err := io.ReadAll(rdr)
 				if err == nil {
 					return blocks.NewBlockWithCid(data, c)
 				}
+				logger.Warnw("CAR readback failed after successful fetch", "cid", c, "err", err)
+			} else {
+				logger.Warnw("CAR storage read failed after successful fetch", "cid", c, "err", err)
 			}
+			// Fall through to single block fetch as last resort
+		} else if carErr != nil {
+			logger.Debugw("CAR subgraph unavailable, trying single block", "cid", c, "reason", carErr)
 		}
-	}
-
-	// CAR subgraph failed, fall back to single raw block fetch
-	if carErr != nil {
-		logger.Debugw("CAR subgraph unavailable, trying single block", "cid", c, "reason", carErr)
 	}
 
 	block, err := session.Get(ctx, c)
