@@ -12,6 +12,7 @@
 package types
 
 import (
+	"context"
 	"crypto/rand"
 	"errors"
 	"fmt"
@@ -37,6 +38,12 @@ type ReadableWritableStorage interface {
 	ipldstorage.ReadableStorage
 	ipldstorage.WritableStorage
 	ipldstorage.StreamingReadableStorage
+}
+
+// HasChecker is an optional interface for checking if a block exists in storage
+// without reading it. Used to avoid redundant fetches in per-block mode.
+type HasChecker interface {
+	Has(ctx context.Context, key string) (bool, error)
 }
 
 type RetrievalID uuid.UUID
