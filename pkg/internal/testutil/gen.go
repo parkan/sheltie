@@ -1,6 +1,3 @@
-// MODIFIED: 2025-10-30
-// - Changed default test protocol from Bitswap to IpfsGatewayHttp
-
 package testutil
 
 import (

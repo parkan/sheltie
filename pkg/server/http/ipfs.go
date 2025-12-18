@@ -1,6 +1,3 @@
-// MODIFIED: 2025-10-30
-// - Removed preload storage setup (bitswap-specific feature)
-
 package httpserver
 
 import (
