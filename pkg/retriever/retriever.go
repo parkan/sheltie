@@ -332,7 +332,7 @@ func logEvent(event types.RetrievalEvent) {
 	case events.EventWithCandidates:
 		var cands = strings.Builder{}
 		for i, c := range tevent.Candidates() {
-			cands.WriteString(c.MinerPeer.ID.String())
+			cands.WriteString(c.Endpoint())
 			if i < len(tevent.Candidates())-1 {
 				cands.WriteString(", ")
 			}

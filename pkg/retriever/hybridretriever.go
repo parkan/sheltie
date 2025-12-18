@@ -118,14 +118,26 @@ func (hr *HybridRetriever) continuePerBlock(
 	var p2BlocksOut uint64
 	var p2BytesOut uint64
 
-	// Calculate max blocks for this phase
+	// If phase 1 already hit the limit, return early
+	if request.MaxBlocks > 0 && p1Stats.blocksReceived >= request.MaxBlocks {
+		logger.Infow("max blocks limit already reached in phase 1", "limit", request.MaxBlocks)
+		duration := hr.clock.Since(startTime)
+		var speed uint64
+		if duration.Seconds() > 0 {
+			speed = uint64(float64(p1Stats.bytesReceived) / duration.Seconds())
+		}
+		return &types.RetrievalStats{
+			RootCid:      request.Root,
+			Size:         p1Stats.bytesReceived,
+			Blocks:       p1Stats.blocksReceived,
+			Duration:     duration,
+			AverageSpeed: speed,
+		}, nil
+	}
+
 	var maxBlocks uint64
 	if request.MaxBlocks > 0 {
-		if p1Stats.blocksReceived >= request.MaxBlocks {
-			maxBlocks = 1 // Need at least 1 to attempt traversal
-		} else {
-			maxBlocks = request.MaxBlocks - p1Stats.blocksReceived
-		}
+		maxBlocks = request.MaxBlocks - p1Stats.blocksReceived
 	}
 
 	// Use frontier-based streaming traversal
@@ -176,7 +188,6 @@ func (hr *HybridRetriever) streamingTraverse(
 
 		c := frontier.Pop()
 
-		// Skip if already seen
 		if frontier.Seen(c) {
 			continue
 		}
@@ -207,24 +218,19 @@ func (hr *HybridRetriever) streamingTraverse(
 			}
 		}
 
-		// Fetch block from network
 		block, err := hr.fetchBlock(ctx, c, session, baseLsys)
 		if err != nil {
 			return fmt.Errorf("failed to fetch block %s: %w", c, err)
 		}
 
-		// Parse links and separate by codec
 		links, err := ExtractLinks(block)
 		if err != nil {
 			logger.Warnw("failed to extract links", "cid", c, "err", err)
 		} else {
 			rawLeaves, dagNodes := separateLinksByCodec(ctx, links, frontier, baseLsys)
-
-			// Push dag nodes to frontier for recursive traversal
 			frontier.PushAll(dagNodes)
 
-			// Parallel fetch raw leaves (they have no children)
-			// Cap to remaining budget to avoid fetching blocks we won't use
+			// Cap raw leaves to remaining budget
 			if maxBlocks > 0 && uint64(len(rawLeaves)) > maxBlocks-blockCount {
 				rawLeaves = rawLeaves[:maxBlocks-blockCount]
 			}
@@ -234,7 +240,6 @@ func (hr *HybridRetriever) streamingTraverse(
 					return fmt.Errorf("parallel fetch failed: %w", fetchErr)
 				}
 
-				// Write fetched blocks to output
 				for _, b := range fetchedBlocks {
 					if err := hr.writeBlock(ctx, b, baseLsys); err != nil {
 						return fmt.Errorf("failed to write block %s: %w", b.Cid(), err)
@@ -252,12 +257,10 @@ func (hr *HybridRetriever) streamingTraverse(
 			}
 		}
 
-		// Write to output
 		if err := hr.writeBlock(ctx, block, baseLsys); err != nil {
 			return fmt.Errorf("failed to write block %s: %w", c, err)
 		}
 
-		// Update stats
 		blockData := block.RawData()
 		atomic.AddUint64(bytesOut, uint64(len(blockData)))
 		atomic.AddUint64(blocksOut, 1)
@@ -265,7 +268,6 @@ func (hr *HybridRetriever) streamingTraverse(
 		frontier.MarkSeen(c)
 		blockCount++
 
-		// Check max blocks limit
 		if maxBlocks > 0 && blockCount >= maxBlocks {
 			logger.Infow("reached max blocks limit", "limit", maxBlocks)
 			break
@@ -285,12 +287,9 @@ func separateLinksByCodec(ctx context.Context, links []cid.Cid, frontier *Fronti
 			continue
 		}
 		if c.Prefix().Codec == cid.Raw {
-			// Check if raw leaf already exists in storage (from phase 1)
 			if lsys.StorageReadOpener != nil {
-				rdr, err := lsys.StorageReadOpener(linking.LinkContext{Ctx: ctx}, cidlink.Link{Cid: c})
+				_, err := lsys.StorageReadOpener(linking.LinkContext{Ctx: ctx}, cidlink.Link{Cid: c})
 				if err == nil {
-					// Block exists - drain and close reader, skip fetch
-					io.Copy(io.Discard, rdr)
 					frontier.MarkSeen(c)
 					logger.Debugw("raw leaf already in storage, skipping fetch", "cid", c)
 					continue
@@ -321,7 +320,6 @@ func (hr *HybridRetriever) parallelFetchRawLeaves(
 	var errOnce sync.Once
 	var wg sync.WaitGroup
 
-	// Semaphore for concurrency control
 	sem := make(chan struct{}, DefaultRawLeafConcurrency)
 
 	for i, c := range cids {
@@ -329,7 +327,6 @@ func (hr *HybridRetriever) parallelFetchRawLeaves(
 		go func(idx int, c cid.Cid) {
 			defer wg.Done()
 
-			// Acquire semaphore
 			select {
 			case sem <- struct{}{}:
 				defer func() { <-sem }()
@@ -353,16 +350,8 @@ func (hr *HybridRetriever) parallelFetchRawLeaves(
 		return nil, firstErr
 	}
 
-	// Filter out any nil results (shouldn't happen if no errors)
-	var fetched []blocks.Block
-	for _, b := range results {
-		if b != nil {
-			fetched = append(fetched, b)
-		}
-	}
-
-	logger.Debugw("parallel fetch complete", "fetched", len(fetched))
-	return fetched, nil
+	logger.Debugw("parallel fetch complete", "fetched", len(results))
+	return results, nil
 }
 
 // fetchBlock tries to get a block from the network, preferring CAR subgraph fetch

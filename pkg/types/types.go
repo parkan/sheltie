@@ -72,6 +72,15 @@ func NewRetrievalCandidate(pid peer.ID, addrs []multiaddr.Multiaddr, rootCid cid
 	}
 }
 
+// Endpoint returns a string representation of the provider's address for logging.
+// Prefers multiaddr format (e.g. /ip4/1.2.3.4/tcp/443/https) over peer ID.
+func (rc RetrievalCandidate) Endpoint() string {
+	if len(rc.MinerPeer.Addrs) > 0 {
+		return rc.MinerPeer.Addrs[0].String()
+	}
+	return rc.MinerPeer.ID.String()
+}
+
 // ToURL generates a valid HTTP URL from the candidate if possible
 func (rc RetrievalCandidate) ToURL() (*url.URL, error) {
 	var err error
