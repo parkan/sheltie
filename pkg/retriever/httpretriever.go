@@ -173,7 +173,7 @@ func (ph *ProtocolHttp) beginRequest(ctx context.Context, request types.Retrieva
 func makeRequest(ctx context.Context, request types.RetrievalRequest, candidate types.RetrievalCandidate) (*http.Request, error) {
 	candidateURL, err := candidate.ToURL()
 	if err != nil {
-		logger.Warnf("Couldn't construct a url for miner %s: %v", candidate.MinerPeer.ID, err)
+		logger.Warnf("Couldn't construct a url for provider %s: %v", candidate.Endpoint(), err)
 		return nil, fmt.Errorf("%w: %v", ErrNoHttpForPeer, err)
 	}
 
@@ -186,8 +186,8 @@ func makeRequest(ctx context.Context, request types.RetrievalRequest, candidate 
 	reqURL := fmt.Sprintf("%s/ipfs/%s%s", candidateURL, request.Root, path)
 	req, err := http.NewRequestWithContext(ctx, "GET", reqURL, nil)
 	if err != nil {
-		logger.Warnf("Couldn't construct a http request %s: %v", candidate.MinerPeer.ID, err)
-		return nil, fmt.Errorf("%w for peer %s: %v", ErrBadPathForRequest, candidate.MinerPeer.ID, err)
+		logger.Warnf("Couldn't construct http request for %s: %v", candidateURL, err)
+		return nil, fmt.Errorf("%w for %s: %v", ErrBadPathForRequest, candidateURL, err)
 	}
 	req.Header.Add("Accept", trustlesshttp.DefaultContentType().String()) // prefer duplicates
 	req.Header.Add("X-Request-Id", request.RetrievalID.String())

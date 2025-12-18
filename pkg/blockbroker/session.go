@@ -95,10 +95,10 @@ func (s *TrustlessGatewaySession) GetSubgraph(ctx context.Context, c cid.Cid, ls
 	for _, provider := range providers {
 		blocksReceived, err := s.fetchSubgraphCAR(ctx, c, provider, lsys)
 		if err == nil {
-			logger.Debugw("subgraph CAR fetch succeeded", "cid", c, "provider", provider.MinerPeer.ID, "blocks", blocksReceived)
+			logger.Debugw("subgraph CAR fetch succeeded", "cid", c, "provider", provider.Endpoint(), "blocks", blocksReceived)
 			return blocksReceived, nil
 		}
-		logger.Debugw("subgraph CAR fetch failed", "cid", c, "provider", provider.MinerPeer.ID, "err", err)
+		logger.Debugw("subgraph CAR fetch failed", "cid", c, "provider", provider.Endpoint(), "err", err)
 		lastErr = err
 		// Don't evict - provider may still work for other CIDs or per-block fallback
 	}
@@ -193,7 +193,7 @@ func (s *TrustlessGatewaySession) tryProviders(ctx context.Context, c cid.Cid, p
 		select {
 		case result := <-results:
 			if result.err != nil {
-				logger.Debugw("provider failed", "cid", c, "provider", result.provider.MinerPeer.ID, "err", result.err)
+				logger.Debugw("provider failed", "cid", c, "provider", result.provider.Endpoint(), "err", result.err)
 				s.evictProvider(result.provider.MinerPeer.ID)
 				lastErr = result.err
 				continue
