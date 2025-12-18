@@ -224,6 +224,10 @@ func (hr *HybridRetriever) streamingTraverse(
 			frontier.PushAll(dagNodes)
 
 			// Parallel fetch raw leaves (they have no children)
+			// Cap to remaining budget to avoid fetching blocks we won't use
+			if maxBlocks > 0 && uint64(len(rawLeaves)) > maxBlocks-blockCount {
+				rawLeaves = rawLeaves[:maxBlocks-blockCount]
+			}
 			if len(rawLeaves) > 0 {
 				fetchedBlocks, fetchErr := hr.parallelFetchRawLeaves(ctx, rawLeaves, session)
 				if fetchErr != nil {
