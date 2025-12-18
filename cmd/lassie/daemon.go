@@ -1,9 +1,3 @@
-// MODIFIED: 2025-10-30
-// - Renamed application from lassie to sheltie
-// - Removed bitswap concurrency flags
-// MODIFIED: 2025-12-09
-// - Removed libp2p flags (HTTP-only)
-
 package main
 
 import (

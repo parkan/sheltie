@@ -1,14 +1,11 @@
-// MODIFIED: 2025-10-30
-// - Removed cascade-related options (ipfsDhtCascade, legacyCascade)
-// - Updated User-Agent from "lassie" to "lassie"
-// - Updated comments to reference delegated routing instead of indexer
-
 package indexerlookup
 
 import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/multiformats/go-multicodec"
 )
 
 type (
@@ -19,6 +16,7 @@ type (
 		httpClient             *http.Client
 		httpClientTimeout      time.Duration
 		httpUserAgent          string
+		protocols              []multicodec.Code
 	}
 )
 
@@ -91,6 +89,17 @@ func WithHttpUserAgent(a string) Option {
 func WithAsyncResultsChanBuffer(i int) Option {
 	return func(o *options) error {
 		o.asyncResultsChanBuffer = i
+		return nil
+	}
+}
+
+// WithProtocols sets the list of protocols to filter by when querying the delegated routing service.
+// This adds a filter-protocols query parameter to requests (for spec-compliant servers)
+// and performs client-side filtering as fallback (for non-compliant servers like cid.contact).
+// If unspecified, no protocol filtering is applied.
+func WithProtocols(protocols []multicodec.Code) Option {
+	return func(o *options) error {
+		o.protocols = protocols
 		return nil
 	}
 }

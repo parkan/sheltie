@@ -1,6 +1,3 @@
-// MODIFIED: 2025-12-09
-// - Simplified for HTTP-only (removed libp2p probing, graphsync, bitswap)
-
 package retriever
 
 import (
