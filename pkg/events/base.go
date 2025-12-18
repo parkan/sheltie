@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/ipfs/go-cid"
-	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multicodec"
 	"github.com/filecoin-project/lassie/pkg/types"
 )
@@ -21,14 +20,14 @@ func (r retrievalEvent) RootCid() cid.Cid               { return r.rootCid }
 
 type providerRetrievalEvent struct {
 	retrievalEvent
-	providerId peer.ID
+	endpoint string
 }
 
-func (e providerRetrievalEvent) ProviderId() peer.ID { return e.providerId }
+func (e providerRetrievalEvent) Endpoint() string { return e.endpoint }
 
-type EventWithProviderID interface {
+type EventWithEndpoint interface {
 	types.RetrievalEvent
-	ProviderId() peer.ID
+	Endpoint() string
 }
 
 type EventWithCandidates interface {

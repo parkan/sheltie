@@ -91,7 +91,6 @@ var fetchFlags = []cli.Flag{
 	FlagExcludeProviders,
 	FlagTempDir,
 	FlagGlobalTimeout,
-	FlagProviderTimeout,
 }
 
 var fetchCmd = &cli.Command{
@@ -254,12 +253,12 @@ func (pp *progressPrinter) subscriber(event types.RetrievalEvent) {
 		pp.candidatesFound = len(ret.Candidates())
 	case events.CandidatesFilteredEvent:
 		if len(fetchProviders) == 0 {
-			fmt.Fprintf(pp.writer, "Found %d storage provider candidate(s) in the indexer:\n", pp.candidatesFound)
+			fmt.Fprintf(pp.writer, "Found %d provider candidate(s) in the indexer:\n", pp.candidatesFound)
 		} else {
-			fmt.Fprintf(pp.writer, "Using the specified storage provider(s):\n")
+			fmt.Fprintf(pp.writer, "Using the specified provider(s):\n")
 		}
 		for _, candidate := range ret.Candidates() {
-			fmt.Fprintf(pp.writer, "\r\t%s, Protocols: %v\n", candidate.MinerPeer.ID, candidate.Metadata.Protocols())
+			fmt.Fprintf(pp.writer, "\r\t%s\n", candidate.Endpoint())
 		}
 	case events.FailedEvent:
 		fmt.Fprintf(pp.writer, "\rRetrieval failure from indexer: %s\n", ret.ErrorMessage())
@@ -402,16 +401,20 @@ func defaultFetchRun(
 		fmt.Fprintln(msgWriter)
 		return err
 	}
-	spid := stats.StorageProviderId.String()
-	if spid == "" {
-		spid = "Unknown"
+	providers := stats.Providers
+	if len(providers) == 0 && stats.StorageProviderId.String() != "" {
+		providers = []string{stats.StorageProviderId.String()}
+	}
+	providerStr := "Unknown"
+	if len(providers) > 0 {
+		providerStr = strings.Join(providers, ", ")
 	}
 	fmt.Fprintf(msgWriter, "\nFetched [%s] from [%s]:\n"+
 		"\tDuration: %s\n"+
 		"\t  Blocks: %d\n"+
 		"\t   Bytes: %s\n",
 		rootCid,
-		spid,
+		providerStr,
 		stats.Duration,
 		blockCount,
 		humanize.IBytes(stats.Size),
