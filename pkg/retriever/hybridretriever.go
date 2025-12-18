@@ -83,12 +83,11 @@ func (hr *HybridRetriever) Retrieve(
 		return nil, err
 	}
 
-	logger.Infow("whole-DAG incomplete, continuing with frontier traversal",
+	logger.Infow("switching to per-block retrieval (missing blocks in initial response)",
 		"root", request.Root,
 		"missingCid", missingCid,
 		"phase1Blocks", p1Stats.blocksReceived,
-		"phase1Bytes", p1Stats.bytesReceived,
-		"err", err)
+		"phase1Bytes", p1Stats.bytesReceived)
 
 	stats, err = hr.continuePerBlock(ctx, request, eventsCallback, startTime, p1Stats)
 	if err != nil {
@@ -184,6 +183,7 @@ func (hr *HybridRetriever) streamingTraverse(
 				if readErr == nil {
 					block, blockErr := blocks.NewBlockWithCid(data, c)
 					if blockErr == nil {
+						logger.Debugw("using cached block from phase 1", "cid", c)
 						// Parse links and add to frontier
 						links, _ := ExtractLinks(block)
 						frontier.PushAll(links)
@@ -231,17 +231,30 @@ func (hr *HybridRetriever) streamingTraverse(
 	return nil
 }
 
-// fetchBlock tries to get a block from the network, preferring CAR subgraph fetch.
+// fetchBlock tries to get a block from the network, preferring CAR subgraph fetch
+// for blocks that may have children (dag-pb, dag-cbor), but using direct raw fetch
+// for leaf blocks (raw codec) which have no children.
 func (hr *HybridRetriever) fetchBlock(
 	ctx context.Context,
 	c cid.Cid,
 	session blockbroker.BlockSession,
 	baseLsys linking.LinkSystem,
 ) (blocks.Block, error) {
-	// Try CAR subgraph first (efficient for subtrees)
+	// Raw codec (0x55) blocks are leaves with no children - skip CAR subgraph
+	// and fetch directly as raw block (more efficient, less overhead)
+	if c.Prefix().Codec == cid.Raw {
+		block, err := session.Get(ctx, c)
+		if err != nil {
+			return nil, err
+		}
+		logger.Debugw("fetched raw leaf block", "cid", c, "bytes", len(block.RawData()))
+		return block, nil
+	}
+
+	// For dag-pb/dag-cbor, try CAR subgraph first (efficient for subtrees)
 	blocksFromCAR, carErr := session.GetSubgraph(ctx, c, baseLsys)
 	if carErr == nil && blocksFromCAR > 0 {
-		logger.Debugw("subgraph CAR fetch succeeded", "cid", c, "blocks", blocksFromCAR)
+		logger.Debugw("fetched subgraph via CAR", "cid", c, "blocks", blocksFromCAR)
 		// The CAR fetch wrote to baseLsys, now read back the block we need
 		if baseLsys.StorageReadOpener != nil {
 			rdr, err := baseLsys.StorageReadOpener(linking.LinkContext{Ctx: ctx}, cidlink.Link{Cid: c})
@@ -254,11 +267,17 @@ func (hr *HybridRetriever) fetchBlock(
 		}
 	}
 
+	// CAR subgraph failed, fall back to single raw block fetch
 	if carErr != nil {
-		logger.Debugw("subgraph CAR unavailable, fetching raw block", "cid", c, "carErr", carErr)
+		logger.Debugw("CAR subgraph unavailable, trying single block", "cid", c, "reason", carErr)
 	}
 
-	return session.Get(ctx, c)
+	block, err := session.Get(ctx, c)
+	if err != nil {
+		return nil, err
+	}
+	logger.Debugw("fetched single block", "cid", c, "bytes", len(block.RawData()))
+	return block, nil
 }
 
 // writeBlock writes a block to the output via the LinkSystem's write opener.
