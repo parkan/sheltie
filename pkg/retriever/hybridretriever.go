@@ -218,7 +218,7 @@ func (hr *HybridRetriever) streamingTraverse(
 		if err != nil {
 			logger.Warnw("failed to extract links", "cid", c, "err", err)
 		} else {
-			rawLeaves, dagNodes := separateLinksByCodec(links, frontier)
+			rawLeaves, dagNodes := separateLinksByCodec(ctx, links, frontier, baseLsys)
 
 			// Push dag nodes to frontier for recursive traversal
 			frontier.PushAll(dagNodes)
@@ -277,13 +277,25 @@ func (hr *HybridRetriever) streamingTraverse(
 
 // separateLinksByCodec separates CIDs into raw leaves and dag nodes.
 // Raw leaves (codec 0x55) have no children and can be fetched in parallel.
-// Already-seen CIDs are filtered out.
-func separateLinksByCodec(links []cid.Cid, frontier *Frontier) (rawLeaves, dagNodes []cid.Cid) {
+// Already-seen CIDs are filtered out. Raw leaves already in storage are also
+// skipped to avoid redundant fetches.
+func separateLinksByCodec(ctx context.Context, links []cid.Cid, frontier *Frontier, lsys linking.LinkSystem) (rawLeaves, dagNodes []cid.Cid) {
 	for _, c := range links {
 		if frontier.Seen(c) {
 			continue
 		}
 		if c.Prefix().Codec == cid.Raw {
+			// Check if raw leaf already exists in storage (from phase 1)
+			if lsys.StorageReadOpener != nil {
+				rdr, err := lsys.StorageReadOpener(linking.LinkContext{Ctx: ctx}, cidlink.Link{Cid: c})
+				if err == nil {
+					// Block exists - drain and close reader, skip fetch
+					io.Copy(io.Discard, rdr)
+					frontier.MarkSeen(c)
+					logger.Debugw("raw leaf already in storage, skipping fetch", "cid", c)
+					continue
+				}
+			}
 			rawLeaves = append(rawLeaves, c)
 		} else {
 			dagNodes = append(dagNodes, c)
