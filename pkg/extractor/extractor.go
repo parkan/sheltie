@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
@@ -23,6 +24,7 @@ var logger = log.Logger("sheltie/extractor")
 // as it arrives, without buffering entire files in memory.
 type Extractor struct {
 	outputDir string
+	mu        sync.RWMutex
 
 	// track open file writers for chunked files
 	// key is the root CID of the file being written
@@ -88,7 +90,9 @@ func (e *Extractor) SetRootPath(rootCid cid.Cid, name string) {
 		// fall back to CID string if name is invalid
 		sanitized = rootCid.String()
 	}
+	e.mu.Lock()
 	e.pathContext[rootCid] = sanitized
+	e.mu.Unlock()
 }
 
 // ProcessBlock decodes a block and processes it according to its UnixFS type.
@@ -97,20 +101,25 @@ func (e *Extractor) ProcessBlock(ctx context.Context, block blocks.Block) ([]cid
 	c := block.Cid()
 
 	// skip already-processed blocks (handles duplicates in CAR stream)
+	e.mu.RLock()
 	if e.processed[c] {
+		e.mu.RUnlock()
 		logger.Debugw("ProcessBlock: skipping duplicate", "cid", c)
 		return nil, nil
 	}
 
 	// check if this block belongs to an open file (chunk or intermediate node)
 	rootCid, isFileChild := e.fileRoot[c]
+	e.mu.RUnlock()
 
 	// try to decode as DAG-PB
 	node, err := decodeBlock(block)
 	if err != nil {
 		// not DAG-PB - if it's a chunk, write it; otherwise treat as standalone raw
 		if isFileChild {
+			e.mu.Lock()
 			e.processed[c] = true
+			e.mu.Unlock()
 			return nil, e.writeChunk(c, rootCid, block.RawData())
 		}
 		return nil, e.handleRawBlock(c, block.RawData())
@@ -119,7 +128,9 @@ func (e *Extractor) ProcessBlock(ctx context.Context, block blocks.Block) ([]cid
 	// check if it has UnixFS data
 	if !node.FieldData().Exists() {
 		// DAG-PB without UnixFS data - extract links only
+		e.mu.Lock()
 		e.processed[c] = true
+		e.mu.Unlock()
 		return e.extractPBLinks(node), nil
 	}
 
@@ -127,7 +138,9 @@ func (e *Extractor) ProcessBlock(ctx context.Context, block blocks.Block) ([]cid
 	if err != nil {
 		// not valid UnixFS - if it's a chunk, write it; otherwise treat as raw
 		if isFileChild {
+			e.mu.Lock()
 			e.processed[c] = true
+			e.mu.Unlock()
 			return nil, e.writeChunk(c, rootCid, block.RawData())
 		}
 		return nil, e.handleRawBlock(c, block.RawData())
@@ -144,13 +157,15 @@ func (e *Extractor) ProcessBlock(ctx context.Context, block blocks.Block) ([]cid
 		}
 		return e.processFile(c, node, ufsData)
 	case data.Data_Raw:
-		// Raw type with UnixFS wrapper - extract the data
+		// Raw type with UnixFS wrapper - extract the data payload, not block.RawData()
+		rawData := ufsData.FieldData().Must().Bytes()
 		if isFileChild {
+			e.mu.Lock()
 			e.processed[c] = true
-			rawData := ufsData.FieldData().Must().Bytes()
+			e.mu.Unlock()
 			return nil, e.writeChunk(c, rootCid, rawData)
 		}
-		return nil, e.handleRawBlock(c, block.RawData())
+		return nil, e.handleRawBlock(c, rawData)
 	case data.Data_Symlink:
 		return nil, e.processSymlink(c, ufsData)
 	default:
@@ -189,11 +204,15 @@ func (e *Extractor) processDirectory(c cid.Cid, node dagpb.PBNode) ([]cid.Cid, e
 			logger.Warnw("skipping unsafe path", "cid", linkCid, "name", name, "err", err)
 			continue
 		}
+		e.mu.Lock()
 		e.pathContext[linkCid] = childPath
+		e.mu.Unlock()
 		children = append(children, linkCid)
 	}
 
+	e.mu.Lock()
 	e.processed[c] = true
+	e.mu.Unlock()
 	return children, nil
 }
 
@@ -222,7 +241,9 @@ func (e *Extractor) processFile(c cid.Cid, node dagpb.PBNode, ufsData data.UnixF
 			return nil, fmt.Errorf("failed to write file %s: %w", fullPath, err)
 		}
 		logger.Debugw("wrote single-block file", "path", fullPath, "bytes", len(fileData))
+		e.mu.Lock()
 		e.processed[c] = true
+		e.mu.Unlock()
 		return nil, nil
 	}
 
@@ -243,7 +264,9 @@ func (e *Extractor) processFile(c cid.Cid, node dagpb.PBNode, ufsData data.UnixF
 		expected:  expectedSize,
 		positions: make(map[cid.Cid][]chunkPosition),
 	}
+	e.mu.Lock()
 	e.openFiles[c] = fw
+	e.mu.Unlock()
 
 	// write any inline data first (at offset 0)
 	inlineOffset := int64(0)
@@ -279,7 +302,9 @@ func (e *Extractor) processFile(c cid.Cid, node dagpb.PBNode, ufsData data.UnixF
 
 		fw.positions[linkCid] = append(fw.positions[linkCid], chunkPosition{offset: offset, size: chunkSize})
 		fw.pending++
+		e.mu.Lock()
 		e.fileRoot[linkCid] = c
+		e.mu.Unlock()
 
 		offset += chunkSize
 		idx++
@@ -293,24 +318,33 @@ func (e *Extractor) processFile(c cid.Cid, node dagpb.PBNode, ufsData data.UnixF
 			seen[linkCid] = true
 			children = append(children, linkCid)
 			// check if this chunk arrived before us (pending)
-			if pendingData, ok := e.pendingChunks[linkCid]; ok {
+			e.mu.Lock()
+			pendingData, ok := e.pendingChunks[linkCid]
+			if ok {
+				delete(e.pendingChunks, linkCid)
+			}
+			e.mu.Unlock()
+			if ok {
 				if err := e.writeChunk(linkCid, c, pendingData); err != nil {
 					logger.Warnw("failed to write pending chunk", "cid", linkCid, "err", err)
 				}
-				delete(e.pendingChunks, linkCid)
 			}
 		}
 	}
 
 	logger.Debugw("started chunked file", "path", fullPath, "chunks", fw.pending, "uniqueCIDs", len(children), "expectedSize", expectedSize)
+	e.mu.Lock()
 	e.processed[c] = true
+	e.mu.Unlock()
 	return children, nil
 }
 
 // processIntermediateFile handles File nodes that are children of another File.
 // These are intermediate nodes in multi-level chunked files.
 func (e *Extractor) processIntermediateFile(c, rootCid cid.Cid, node dagpb.PBNode, ufsData data.UnixFSData) ([]cid.Cid, error) {
+	e.mu.RLock()
 	fw, ok := e.openFiles[rootCid]
+	e.mu.RUnlock()
 	if !ok {
 		return nil, fmt.Errorf("no open file for intermediate node %s (root %s)", c, rootCid)
 	}
@@ -360,7 +394,9 @@ func (e *Extractor) processIntermediateFile(c, rootCid cid.Cid, node dagpb.PBNod
 
 		fw.positions[linkCid] = append(fw.positions[linkCid], chunkPosition{offset: offset, size: chunkSize})
 		fw.pending++
+		e.mu.Lock()
 		e.fileRoot[linkCid] = rootCid
+		e.mu.Unlock()
 
 		offset += chunkSize
 		idx++
@@ -377,24 +413,33 @@ func (e *Extractor) processIntermediateFile(c, rootCid cid.Cid, node dagpb.PBNod
 			seen[linkCid] = true
 			children = append(children, linkCid)
 			// check if this chunk arrived before us (pending)
-			if pendingData, ok := e.pendingChunks[linkCid]; ok {
+			e.mu.Lock()
+			pendingData, ok := e.pendingChunks[linkCid]
+			if ok {
+				delete(e.pendingChunks, linkCid)
+			}
+			e.mu.Unlock()
+			if ok {
 				if err := e.writeChunk(linkCid, rootCid, pendingData); err != nil {
 					logger.Warnw("failed to write pending chunk", "cid", linkCid, "err", err)
 				}
-				delete(e.pendingChunks, linkCid)
 			}
 		}
 	}
 
+	e.mu.Lock()
 	delete(e.fileRoot, c)
 	e.processed[c] = true
+	e.mu.Unlock()
 
 	logger.Debugw("processed intermediate file node", "cid", c, "root", rootCid, "newChildren", len(children), "baseOffset", baseOffset)
 	return children, nil
 }
 
 func (e *Extractor) writeChunk(chunkCid, fileCid cid.Cid, rawData []byte) error {
+	e.mu.RLock()
 	fw, ok := e.openFiles[fileCid]
+	e.mu.RUnlock()
 	if !ok {
 		return fmt.Errorf("no open file for chunk %s (file %s)", chunkCid, fileCid)
 	}
@@ -431,7 +476,9 @@ func (e *Extractor) writeChunk(chunkCid, fileCid cid.Cid, rawData []byte) error 
 
 	// remove from positions map (this CID is done)
 	delete(fw.positions, chunkCid)
+	e.mu.Lock()
 	delete(e.fileRoot, chunkCid)
+	e.mu.Unlock()
 
 	// check if file is complete
 	if fw.pending == 0 {
@@ -443,8 +490,13 @@ func (e *Extractor) writeChunk(chunkCid, fileCid cid.Cid, rawData []byte) error 
 
 func (e *Extractor) handleRawBlock(c cid.Cid, rawData []byte) error {
 	// check if this is a chunk for an open file
-	if rootCid, ok := e.fileRoot[c]; ok {
+	e.mu.RLock()
+	rootCid, ok := e.fileRoot[c]
+	e.mu.RUnlock()
+	if ok {
+		e.mu.Lock()
 		e.processed[c] = true
+		e.mu.Unlock()
 		return e.writeChunk(c, rootCid, rawData)
 	}
 
@@ -461,13 +513,17 @@ func (e *Extractor) handleRawBlock(c cid.Cid, rawData []byte) error {
 			return fmt.Errorf("failed to write raw block %s: %w", fullPath, err)
 		}
 		logger.Debugw("wrote raw block", "path", fullPath, "bytes", len(rawData))
+		e.mu.Lock()
 		e.processed[c] = true
+		e.mu.Unlock()
 		return nil
 	}
 
 	// no path context and not in fileRoot - save as pending chunk
 	// this block arrived before its parent File node
+	e.mu.Lock()
 	e.pendingChunks[c] = rawData
+	e.mu.Unlock()
 	return nil
 }
 
@@ -489,7 +545,10 @@ func (e *Extractor) extractPBLinks(node dagpb.PBNode) []cid.Cid {
 }
 
 func (e *Extractor) getPath(c cid.Cid) string {
-	if path, ok := e.pathContext[c]; ok {
+	e.mu.RLock()
+	path, ok := e.pathContext[c]
+	e.mu.RUnlock()
+	if ok {
 		return path
 	}
 	return ""
@@ -538,28 +597,42 @@ func (e *Extractor) safePath(basePath, name string) (string, error) {
 }
 
 func (e *Extractor) closeFile(c cid.Cid) {
-	if fw, ok := e.openFiles[c]; ok {
+	e.mu.Lock()
+	fw, ok := e.openFiles[c]
+	if ok {
+		delete(e.openFiles, c)
+	}
+	e.mu.Unlock()
+	if ok {
 		fw.file.Close()
 		logger.Debugw("closed file", "path", fw.path, "expected", fw.expected)
-		delete(e.openFiles, c)
 	}
 }
 
 // Close closes any open file handles. Call when extraction is complete.
 func (e *Extractor) Close() error {
-	var errs []error
+	e.mu.Lock()
+	// copy open files to close outside the lock
+	toClose := make(map[cid.Cid]*fileWriter, len(e.openFiles))
 	for c, fw := range e.openFiles {
+		toClose[c] = fw
+	}
+	e.openFiles = make(map[cid.Cid]*fileWriter)
+	pendingCount := len(e.pendingChunks)
+	e.pendingChunks = make(map[cid.Cid][]byte)
+	e.mu.Unlock()
+
+	var errs []error
+	for _, fw := range toClose {
 		if err := fw.file.Close(); err != nil {
 			errs = append(errs, fmt.Errorf("closing %s: %w", fw.path, err))
 		}
 		if fw.pending > 0 {
 			logger.Warnw("incomplete file", "path", fw.path, "pendingChunks", fw.pending, "expected", fw.expected)
 		}
-		delete(e.openFiles, c)
 	}
-	if len(e.pendingChunks) > 0 {
-		logger.Warnw("orphan pending chunks", "count", len(e.pendingChunks))
-		e.pendingChunks = make(map[cid.Cid][]byte) // clear to free memory
+	if pendingCount > 0 {
+		logger.Warnw("orphan pending chunks", "count", pendingCount)
 	}
 	if len(errs) > 0 {
 		return fmt.Errorf("close errors: %v", errs)
