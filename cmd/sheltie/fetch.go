@@ -8,6 +8,7 @@ import (
 	"os"
 	"runtime/pprof"
 	"strings"
+	"sync/atomic"
 
 	"github.com/dustin/go-humanize"
 	"github.com/ipfs/go-cid"
@@ -526,15 +527,15 @@ func extractRun(
 		s.RegisterSubscriber(pp.subscriber)
 	}
 
-	var blockCount int
+	var blockCount int64
 	var byteLength uint64
 	store.OnPut(func(putBytes int) {
-		blockCount++
-		byteLength += uint64(putBytes)
+		bc := atomic.AddInt64(&blockCount, 1)
+		bl := atomic.AddUint64(&byteLength, uint64(putBytes))
 		if !progress {
 			fmt.Fprint(msgWriter, ".")
 		} else {
-			fmt.Fprintf(msgWriter, "\rReceived %d blocks / %s...", blockCount, humanize.IBytes(byteLength))
+			fmt.Fprintf(msgWriter, "\rReceived %d blocks / %s...", bc, humanize.IBytes(bl))
 		}
 	}, false)
 
@@ -565,8 +566,8 @@ func extractRun(
 		rootCid,
 		providerStr,
 		stats.Duration,
-		blockCount,
-		humanize.IBytes(byteLength),
+		atomic.LoadInt64(&blockCount),
+		humanize.IBytes(atomic.LoadUint64(&byteLength)),
 		extractTo,
 	)
 
