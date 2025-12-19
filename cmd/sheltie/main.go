@@ -99,6 +99,11 @@ func buildSheltieConfigFromCLIContext(cctx *cli.Context, sheltieOpts []sheltie.S
 		sheltieOpts = append(sheltieOpts, sheltie.WithProviderBlockList(providerBlockList))
 	}
 
+	if cctx.Bool("skip-block-verification") {
+		logger.Warn("DANGER: block verification disabled - malicious gateways can serve arbitrary data!")
+		sheltieOpts = append(sheltieOpts, sheltie.WithSkipBlockVerification(true))
+	}
+
 	return sheltie.NewSheltieConfig(sheltieOpts...), nil
 }
 

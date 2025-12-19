@@ -134,7 +134,7 @@ func TestCrossProviderDAGConstruction(t *testing.T) {
 	outputStore.Put(ctx, child1.(cidlink.Link).Cid.KeyString(), child1Bytes)
 
 	// Create HybridRetriever
-	hr := NewHybridRetriever(mockInner, mockSource, http.DefaultClient)
+	hr := NewHybridRetriever(mockInner, mockSource, http.DefaultClient, false)
 
 	// Create request
 	request := types.RetrievalRequest{
@@ -253,7 +253,7 @@ func TestCrossProviderDeepDAG(t *testing.T) {
 	outputStore.Put(ctx, rootCid.KeyString(), rootBytes)
 	outputStore.Put(ctx, midCid.KeyString(), midBytes)
 
-	hr := NewHybridRetriever(mockInner, mockSource, http.DefaultClient)
+	hr := NewHybridRetriever(mockInner, mockSource, http.DefaultClient, false)
 
 	request := types.RetrievalRequest{
 		Request: trustlessutils.Request{
@@ -292,7 +292,7 @@ func TestNoFallbackOnNonMissingError(t *testing.T) {
 		candidates: map[cid.Cid][]types.RetrievalCandidate{},
 	}
 
-	hr := NewHybridRetriever(mockInner, mockSource, http.DefaultClient)
+	hr := NewHybridRetriever(mockInner, mockSource, http.DefaultClient, false)
 
 	outputStore := &memstore.Store{}
 	outputLsys := cidlink.DefaultLinkSystem()
@@ -408,7 +408,7 @@ func TestEfficientSubgraphRetrieval(t *testing.T) {
 	// Pre-populate with root from partial fetch
 	outputStore.Put(ctx, rootCid.KeyString(), rootBytes)
 
-	hr := NewHybridRetriever(mockInner, mockSource, http.DefaultClient)
+	hr := NewHybridRetriever(mockInner, mockSource, http.DefaultClient, false)
 
 	request := types.RetrievalRequest{
 		Request: trustlessutils.Request{

@@ -23,10 +23,11 @@ type Sheltie struct {
 
 // SheltieConfig customizes the behavior of a Sheltie instance.
 type SheltieConfig struct {
-	Source            types.CandidateSource
-	GlobalTimeout     time.Duration
-	ProviderBlockList map[peer.ID]bool
-	ProviderAllowList map[peer.ID]bool
+	Source                types.CandidateSource
+	GlobalTimeout         time.Duration
+	ProviderBlockList     map[peer.ID]bool
+	ProviderAllowList     map[peer.ID]bool
+	SkipBlockVerification bool
 }
 
 type SheltieOption func(cfg *SheltieConfig)
@@ -75,7 +76,7 @@ func NewSheltieWithConfig(ctx context.Context, cfg *SheltieConfig) (*Sheltie, er
 	}
 
 	// Wrap the retriever with HybridRetriever for per-block fallback
-	ret.WrapWithHybrid(cfg.Source, http.DefaultClient)
+	ret.WrapWithHybrid(cfg.Source, http.DefaultClient, cfg.SkipBlockVerification)
 
 	ret.Start()
 
@@ -115,6 +116,14 @@ func WithProviderBlockList(providerBlockList map[peer.ID]bool) SheltieOption {
 func WithProviderAllowList(providerAllowList map[peer.ID]bool) SheltieOption {
 	return func(cfg *SheltieConfig) {
 		cfg.ProviderAllowList = providerAllowList
+	}
+}
+
+// WithSkipBlockVerification disables per-block hash verification.
+// WARNING: This is dangerous - malicious gateways can serve arbitrary data!
+func WithSkipBlockVerification(skip bool) SheltieOption {
+	return func(cfg *SheltieConfig) {
+		cfg.SkipBlockVerification = skip
 	}
 }
 

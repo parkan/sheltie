@@ -153,6 +153,14 @@ var FlagDelegatedRoutingEndpoint = &cli.StringFlag{
 	EnvVars:     []string{"SHELTIE_DELEGATED_ROUTING_ENDPOINT"},
 }
 
+// FlagSkipBlockVerification disables per-block hash verification.
+// WARNING: This is dangerous and should only be used for benchmarking.
+var FlagSkipBlockVerification = &cli.BoolFlag{
+	Name:    "skip-block-verification",
+	Usage:   "DANGEROUS: skip per-block hash verification. Malicious gateways can serve arbitrary data!",
+	EnvVars: []string{"SHELTIE_SKIP_BLOCK_VERIFICATION"},
+}
+
 func ResetGlobalFlags() {
 	// Reset global variables here so that they are not used
 	// in subsequent calls to commands during testing.

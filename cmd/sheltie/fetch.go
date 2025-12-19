@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"os"
+	"runtime/pprof"
 	"strings"
 
 	"github.com/dustin/go-humanize"
@@ -86,6 +88,11 @@ var fetchFlags = []cli.Flag{
 	FlagExcludeProviders,
 	FlagTempDir,
 	FlagGlobalTimeout,
+	FlagSkipBlockVerification,
+	&cli.StringFlag{
+		Name:  "cpuprofile",
+		Usage: "write cpu profile to file",
+	},
 }
 
 var fetchCmd = &cli.Command{
@@ -103,6 +110,18 @@ func fetchAction(cctx *cli.Context) error {
 		cctx.Command.Subcommands = nil
 		cli.ShowCommandHelpAndExit(cctx, "fetch", 0)
 		return nil
+	}
+
+	if cpuprofile := cctx.String("cpuprofile"); cpuprofile != "" {
+		f, err := os.Create(cpuprofile)
+		if err != nil {
+			return fmt.Errorf("could not create CPU profile: %w", err)
+		}
+		defer f.Close()
+		if err := pprof.StartCPUProfile(f); err != nil {
+			return fmt.Errorf("could not start CPU profile: %w", err)
+		}
+		defer pprof.StopCPUProfile()
 	}
 
 	msgWriter := cctx.App.ErrWriter
