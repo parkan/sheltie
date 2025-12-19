@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-unixfsnode"
@@ -17,7 +16,6 @@ import (
 	trustlesshttp "github.com/ipld/go-trustless-utils/http"
 	"github.com/multiformats/go-multicodec"
 	"github.com/parkan/sheltie/pkg/build"
-	"github.com/parkan/sheltie/pkg/heyfil"
 	"github.com/parkan/sheltie/pkg/retriever"
 	"github.com/parkan/sheltie/pkg/storage"
 	"github.com/parkan/sheltie/pkg/types"
@@ -291,14 +289,7 @@ func parseProtocols(req *http.Request) ([]multicodec.Code, error) {
 
 func parseProviders(req *http.Request) ([]types.Provider, error) {
 	if req.URL.Query().Has("providers") {
-		// in case we have been given filecoin actor addresses we can look them up
-		// with heyfil and translate to full multiaddrs, otherwise this is a
-		// pass-through
-		trans, err := heyfil.Heyfil{TranslateFaddr: true}.TranslateAll(strings.Split(req.URL.Query().Get("providers"), ","))
-		if err != nil {
-			return nil, err
-		}
-		providers, err := types.ParseProviderStrings(strings.Join(trans, ","))
+		providers, err := types.ParseProviderStrings(req.URL.Query().Get("providers"))
 		if err != nil {
 			return nil, errors.New("invalid providers parameter")
 		}

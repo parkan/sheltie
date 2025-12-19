@@ -6,7 +6,6 @@ import (
 
 	"github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/parkan/sheltie/pkg/heyfil"
 	"github.com/parkan/sheltie/pkg/types"
 	"github.com/urfave/cli/v2"
 )
@@ -18,7 +17,6 @@ var (
 		"sheltie/retriever",
 		"sheltie/httpserver",
 		"sheltie/indexerlookup",
-		"sheltie/heyfil",
 		"sheltie/aggregateeventrecorder",
 	}
 )
@@ -122,19 +120,11 @@ var FlagAllowProviders = &cli.StringFlag{
 		"Example: https://ipfs.io,/dns/gateway.example.com/tcp/443/https",
 	EnvVars: []string{"SHELTIE_ALLOW_PROVIDERS", "LASSIE_ALLOW_PROVIDERS"},
 	Action: func(cctx *cli.Context, v string) error {
-		// Do nothing if given an empty string
 		if v == "" {
 			return nil
 		}
-
-		// in case we have been given filecoin actor addresses we can look them up
-		// with heyfil and translate to full multiaddrs, otherwise this is a
-		// pass-through
-		trans, err := heyfil.Heyfil{TranslateFaddr: true}.TranslateAll(strings.Split(v, ","))
-		if err != nil {
-			return err
-		}
-		fetchProviders, err = types.ParseProviderStrings(strings.Join(trans, ","))
+		var err error
+		fetchProviders, err = types.ParseProviderStrings(v)
 		return err
 	},
 }
