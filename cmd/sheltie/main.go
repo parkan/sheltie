@@ -67,10 +67,7 @@ func after(cctx *cli.Context) error {
 }
 
 func buildSheltieConfigFromCLIContext(cctx *cli.Context, sheltieOpts []sheltie.SheltieOption) (*sheltie.SheltieConfig, error) {
-	providerTimeout := cctx.Duration("provider-timeout")
 	globalTimeout := cctx.Duration("global-timeout")
-
-	sheltieOpts = append(sheltieOpts, sheltie.WithProviderTimeout(providerTimeout))
 
 	if globalTimeout > 0 {
 		sheltieOpts = append(sheltieOpts, sheltie.WithGlobalTimeout(globalTimeout))

@@ -42,10 +42,7 @@ Download the [sheltie binary form the latest release](https://github.com/parkan/
 ```bash
 $ go install github.com/parkan/sheltie/cmd/sheltie@latest
 
-go: downloading github.com/parkan/sheltie v0.3.1
-go: downloading github.com/libp2p/go-libp2p v0.23.2
-go: downloading github.com/filecoin-project/go-state-types v0.9.9
-
+go: downloading github.com/parkan/sheltie v0.25.0
 ...
 ```
 
@@ -72,14 +69,27 @@ The sheltie command line interface (CLI) is the simplest way to retrieve content
 The CLI can be used to retrieve content from the network by passing a CID to the `sheltie fetch` command:
 
 ```bash
-$ sheltie fetch [-o <output file>] [-t <timeout>] <CID>[/path/to/content]
+$ sheltie fetch [-o <output file>] [--global-timeout <duration>] <CID>[/path/to/content]
 ```
 
-The `sheltie fetch` command will return the content of the CID to a file in the current working directory by the name of `<CID>.car`. If the `-o` output flag is used, the content will be written to the specified file. If the `-t` timeout flag is used, the timeout will be set to the specified value. The default timeout is 20 seconds.
+The `sheltie fetch` command will return the content of the CID to a file in the current working directory by the name of `<CID>.car`. If the `-o` output flag is used, the content will be written to the specified file. Use `--global-timeout` to set an overall time limit for the entire retrieval.
 
 `fetch` will also take as input [IPFS Trustless Gateway](https://specs.ipfs.tech/http-gateways/trustless-gateway/) style paths. If the CID is prefixed with `/ipfs/`, the remainder will be interpreted as a URL query, accepting query parameters that the Trustless Gateway spec accepts, including `dag-scope=`, `entity-bytes=`. For example, `sheltie fetch '/ipfs/<CID>/path/to/content?dag-scope=all'` will fetch the CID, the blocks required to navigate the path, and all the content at the terminus of the path.
 
 More information about available flags can be found by running `sheltie fetch --help`.
+
+#### Common Options
+
+| Flag | Description |
+|------|-------------|
+| `--providers`, `--provider` | Comma-separated provider addresses to use instead of discovery. Accepts HTTP URLs (e.g., `http://127.0.0.1:8080`) or multiaddrs. |
+| `--delegated-routing-endpoint` | Custom delegated routing endpoint (default: `https://cid.contact`). |
+| `--stream`, `-s` | Stream blocks directly to output (default). Disable with `--stream=false` for deduplication via temp files. |
+| `--global-timeout` | Overall time limit for the entire retrieval (default: no limit). |
+| `-v`, `--verbose` | Enable verbose logging. |
+| `--vv`, `--very-verbose` | Enable debug-level logging. |
+
+These options can also be set via environment variables prefixed with `SHELTIE_` (e.g., `SHELTIE_DELEGATED_ROUTING_ENDPOINT`). Legacy `LASSIE_` prefixed variables are also supported.
 
 #### Extracting Content from a CAR
 
@@ -103,9 +113,9 @@ This will fetch the `bafybeic56z3yccnla3cutmvqsn5zy3g24muupcsjtoyp3pu5pm5amurjx4
 
 The `-p` progress flag is used to get more detailed information about the state of the retrieval.
 
-_Note: If you received a timeout issue, try using the `-t` flag to increase your timeout time to something longer than 20 seconds. Retrievability of some CIDs is highly variable on local network characteristics._
+_Note: If you received a timeout issue, try using `--global-timeout` to increase the timeout. Retrievability of some CIDs is highly variable on local network characteristics._
 
-_Note: For the internet cautious out there, the `bafybeic56z3yccnla3cutmvqsn5zy3g24muupcsjtoyp3pu5pm5amurjx4` CID is a directory that has a video titled `birb.mp4`, which is a video of a bird bouncing to the song "Around the World" by Daft Punk. We've been using it internally during the development of Sheltie to test with._
+_Note: For the internet cautious out there, the `bafybeic56z3yccnla3cutmvqsn5zy3g24muupcsjtoyp3pu5pm5amurjx4` CID is a directory containing a short video file. You may use it to test Sheltie._
 
 To extract the contents of the `fetch-example.car` file we created in the previous example, we would run:
 
@@ -190,7 +200,7 @@ The sheltie library allows one to integrate sheltie into their own Go programs. 
 The sheltie dependency can be added to a project with the following command:
 
 ```bash
-$ go install github.com/parkan/sheltie/cmd/sheltie@latest
+$ go get github.com/parkan/sheltie@latest
 ```
 
 The sheltie library can then be imported into a project with the following import statement:

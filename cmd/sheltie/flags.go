@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"strings"
-	"time"
 
 	"github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -22,10 +21,6 @@ var (
 		"sheltie/heyfil",
 		"sheltie/aggregateeventrecorder",
 	}
-)
-
-const (
-	defaultProviderTimeout time.Duration = 20 * time.Second // 20 seconds
 )
 
 // FlagVerbose enables verbose mode, which shows info information about
@@ -161,14 +156,6 @@ var FlagGlobalTimeout = &cli.DurationFlag{
 	Aliases: []string{"gt"},
 	Usage:   "consider it an error after not completing a retrieval after this amount of time",
 	EnvVars: []string{"SHELTIE_GLOBAL_TIMEOUT", "LASSIE_GLOBAL_TIMEOUT"},
-}
-
-var FlagProviderTimeout = &cli.DurationFlag{
-	Name:    "provider-timeout",
-	Aliases: []string{"pt"},
-	Usage:   "consider it an error after not receiving a response from a storage provider after this amount of time",
-	Value:   defaultProviderTimeout,
-	EnvVars: []string{"SHELTIE_PROVIDER_TIMEOUT", "LASSIE_PROVIDER_TIMEOUT"},
 }
 
 var FlagDelegatedRoutingEndpoint = &cli.StringFlag{

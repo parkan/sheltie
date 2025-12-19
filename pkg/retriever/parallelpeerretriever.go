@@ -17,8 +17,6 @@ import (
 	"github.com/parkan/sheltie/pkg/types"
 )
 
-type GetStorageProviderTimeout func(peer peer.ID) time.Duration
-
 // TransportProtocol implements the protocol-specific portions of a parallel-
 // peer retriever. It is responsible for communicating with individual peers
 // and also bears responsibility for some of the peer-selection logic.
@@ -30,7 +28,6 @@ type TransportProtocol interface {
 		ctx context.Context,
 		retrieval *retrieval,
 		shared *retrievalShared,
-		timeout time.Duration,
 		candidate types.RetrievalCandidate,
 	) (*types.RetrievalStats, error)
 }
@@ -227,22 +224,14 @@ func (retrieval *retrieval) runRetrievalCandidate(
 	shared *retrievalShared,
 	candidate types.RetrievalCandidate,
 ) {
-	timeout := retrieval.Session.GetStorageProviderTimeout(candidate.MinerPeer.ID)
-
 	var stats *types.RetrievalStats
 	var retrievalErr error
 	var done func()
 
 	shared.sendEvent(ctx, events.StartedRetrieval(retrieval.parallelPeerRetriever.Clock.Now(), retrieval.request.RetrievalID, candidate, retrieval.Protocol.Code()))
-	connectCtx := ctx
-	if timeout != 0 {
-		var timeoutFunc func()
-		connectCtx, timeoutFunc = retrieval.parallelPeerRetriever.Clock.WithDeadline(ctx, retrieval.parallelPeerRetriever.Clock.Now().Add(timeout))
-		defer timeoutFunc()
-	}
 
 	// Setup in parallel
-	connectTime, err := retrieval.Protocol.Connect(connectCtx, retrieval, candidate)
+	connectTime, err := retrieval.Protocol.Connect(ctx, retrieval, candidate)
 	if err != nil {
 		// Exclude the case where the context was cancelled by the parent, which likely means that
 		// another protocol has succeeded.
@@ -263,17 +252,13 @@ func (retrieval *retrieval) runRetrievalCandidate(
 		done = shared.waitQueue.Wait(candidate.MinerPeer.ID)
 
 		if shared.canSendResult() { // move on to retrieval
-			stats, retrievalErr = retrieval.Protocol.Retrieve(ctx, retrieval, shared, timeout, candidate)
+			stats, retrievalErr = retrieval.Protocol.Retrieve(ctx, retrieval, shared, candidate)
 
 			if retrievalErr != nil {
 				// Exclude the case where the context was cancelled by the parent, which likely
 				// means that another protocol has succeeded.
 				if !errors.Is(ctx.Err(), context.Canceled) {
-					msg := retrievalErr.Error()
-					if errors.Is(retrievalErr, ErrRetrievalTimedOut) {
-						msg = fmt.Sprintf("%s after %s", ErrRetrievalTimedOut.Error(), timeout)
-					}
-					shared.sendEvent(ctx, events.FailedRetrieval(retrieval.parallelPeerRetriever.Clock.Now(), retrieval.request.RetrievalID, candidate, retrieval.Protocol.Code(), msg))
+					shared.sendEvent(ctx, events.FailedRetrieval(retrieval.parallelPeerRetriever.Clock.Now(), retrieval.request.RetrievalID, candidate, retrieval.Protocol.Code(), retrievalErr.Error()))
 					if err := retrieval.Session.RecordFailure(retrieval.request.RetrievalID, candidate.MinerPeer.ID); err != nil {
 						logger.Errorf("Error recording retrieval failure for protocol %s: %v", retrieval.Protocol.Code().String(), err)
 					}

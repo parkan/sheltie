@@ -15,8 +15,6 @@ import (
 
 var _ types.Fetcher = &Sheltie{}
 
-const DefaultProviderTimeout = 20 * time.Second
-
 // Sheltie represents a reusable retrieval client.
 type Sheltie struct {
 	cfg       *SheltieConfig
@@ -26,7 +24,6 @@ type Sheltie struct {
 // SheltieConfig customizes the behavior of a Sheltie instance.
 type SheltieConfig struct {
 	Source            types.CandidateSource
-	ProviderTimeout   time.Duration
 	GlobalTimeout     time.Duration
 	ProviderBlockList map[peer.ID]bool
 	ProviderAllowList map[peer.ID]bool
@@ -66,16 +63,9 @@ func NewSheltieWithConfig(ctx context.Context, cfg *SheltieConfig) (*Sheltie, er
 		}
 	}
 
-	if cfg.ProviderTimeout == 0 {
-		cfg.ProviderTimeout = DefaultProviderTimeout
-	}
-
 	sessionConfig := session.DefaultConfig().
 		WithProviderBlockList(cfg.ProviderBlockList).
-		WithProviderAllowList(cfg.ProviderAllowList).
-		WithDefaultProviderConfig(session.ProviderConfig{
-			RetrievalTimeout: cfg.ProviderTimeout,
-		})
+		WithProviderAllowList(cfg.ProviderAllowList)
 	sess := session.NewSession(sessionConfig, true)
 
 	httpRetriever := retriever.NewHttpRetriever(sess, http.DefaultClient)
@@ -101,15 +91,6 @@ func NewSheltieWithConfig(ctx context.Context, cfg *SheltieConfig) (*Sheltie, er
 func WithCandidateSource(finder types.CandidateSource) SheltieOption {
 	return func(cfg *SheltieConfig) {
 		cfg.Source = finder
-	}
-}
-
-// WithProviderTimeout allows you to specify a custom timeout for retrieving
-// data from a provider. Beyond this limit, when no data has been received,
-// the retrieval will fail.
-func WithProviderTimeout(timeout time.Duration) SheltieOption {
-	return func(cfg *SheltieConfig) {
-		cfg.ProviderTimeout = timeout
 	}
 }
 

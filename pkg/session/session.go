@@ -1,8 +1,6 @@
 package session
 
 import (
-	"time"
-
 	"github.com/ipni/go-libipni/metadata"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multicodec"
@@ -37,12 +35,6 @@ func NewSession(config *Config, withState bool) *Session {
 		config = &Config{}
 	}
 	return &Session{state, config}
-}
-
-// GetStorageProviderTimeout returns the per-retrieval timeout from the
-// RetrievalTimeout configuration option.
-func (session *Session) GetStorageProviderTimeout(storageProviderId peer.ID) time.Duration {
-	return session.config.getProviderConfig(storageProviderId).RetrievalTimeout
 }
 
 // FilterIndexerCandidate filters out protocols that are not acceptable for

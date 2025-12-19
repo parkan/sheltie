@@ -45,7 +45,6 @@ var daemonFlags = []cli.Flag{
 	FlagExcludeProviders,
 	FlagTempDir,
 	FlagGlobalTimeout,
-	FlagProviderTimeout,
 	&cli.StringFlag{
 		Name:  "access-token",
 		Usage: "require HTTP clients to authorize using Bearer scheme and given access token",

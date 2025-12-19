@@ -2,7 +2,6 @@ package session
 
 import (
 	"math/rand/v2"
-	"time"
 
 	"github.com/libp2p/go-libp2p/core/peer"
 )
@@ -10,7 +9,6 @@ import (
 type Random interface{ Float64() float64 }
 
 type ProviderConfig struct {
-	RetrievalTimeout        time.Duration
 	MaxConcurrentRetrievals uint
 }
 
@@ -207,9 +205,6 @@ func (cfg *Config) getProviderConfig(peer peer.ID) ProviderConfig {
 	if individual, ok := cfg.ProviderConfigs[peer]; ok {
 		if individual.MaxConcurrentRetrievals != 0 {
 			minerCfg.MaxConcurrentRetrievals = individual.MaxConcurrentRetrievals
-		}
-		if individual.RetrievalTimeout != 0 {
-			minerCfg.RetrievalTimeout = individual.RetrievalTimeout
 		}
 	}
 	return minerCfg
