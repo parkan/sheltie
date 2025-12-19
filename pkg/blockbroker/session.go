@@ -39,24 +39,28 @@ type TrustlessGatewaySession struct {
 
 	usedProviders     map[string]struct{}
 	usedProvidersLock sync.RWMutex
+
+	skipBlockVerification bool
 }
 
 // NewSession creates a new TrustlessGatewaySession for per-block HTTP fetching.
 func NewSession(
 	routing types.CandidateSource,
 	httpClient *http.Client,
+	skipBlockVerification bool,
 ) *TrustlessGatewaySession {
 	if httpClient == nil {
 		httpClient = http.DefaultClient
 	}
 
 	return &TrustlessGatewaySession{
-		routing:       routing,
-		httpClient:    httpClient,
-		providers:     make([]types.RetrievalCandidate, 0),
-		evictedPeers:  make(map[peer.ID]time.Time),
-		evictBackoff:  30 * time.Second,
-		usedProviders: make(map[string]struct{}),
+		routing:               routing,
+		httpClient:            httpClient,
+		providers:             make([]types.RetrievalCandidate, 0),
+		evictedPeers:          make(map[peer.ID]time.Time),
+		evictBackoff:          30 * time.Second,
+		usedProviders:         make(map[string]struct{}),
+		skipBlockVerification: skipBlockVerification,
 	}
 }
 
@@ -245,9 +249,20 @@ func (s *TrustlessGatewaySession) fetchBlock(
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
 
+	// verify cid matches data (NewBlockWithCid only checks in debug builds)
+	if !s.skipBlockVerification {
+		computed, err := c.Prefix().Sum(data)
+		if err != nil {
+			return nil, fmt.Errorf("failed to compute hash: %w", err)
+		}
+		if !computed.Equals(c) {
+			return nil, fmt.Errorf("cid mismatch: expected %s, got %s", c, computed)
+		}
+	}
+
 	block, err := blocks.NewBlockWithCid(data, c)
 	if err != nil {
-		return nil, fmt.Errorf("block verification failed: %w", err)
+		return nil, fmt.Errorf("block creation failed: %w", err)
 	}
 
 	return block, nil

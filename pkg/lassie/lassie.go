@@ -23,10 +23,11 @@ type Lassie struct {
 
 // LassieConfig customizes the behavior of a Lassie instance.
 type LassieConfig struct {
-	Source            types.CandidateSource
-	GlobalTimeout     time.Duration
-	ProviderBlockList map[peer.ID]bool
-	ProviderAllowList map[peer.ID]bool
+	Source                types.CandidateSource
+	GlobalTimeout         time.Duration
+	ProviderBlockList     map[peer.ID]bool
+	ProviderAllowList     map[peer.ID]bool
+	SkipBlockVerification bool
 }
 
 type LassieOption func(cfg *LassieConfig)
@@ -75,7 +76,7 @@ func NewLassieWithConfig(ctx context.Context, cfg *LassieConfig) (*Lassie, error
 	}
 
 	// Wrap the retriever with HybridRetriever for per-block fallback
-	ret.WrapWithHybrid(cfg.Source, http.DefaultClient)
+	ret.WrapWithHybrid(cfg.Source, http.DefaultClient, cfg.SkipBlockVerification)
 
 	ret.Start()
 
@@ -115,6 +116,14 @@ func WithProviderBlockList(providerBlockList map[peer.ID]bool) LassieOption {
 func WithProviderAllowList(providerAllowList map[peer.ID]bool) LassieOption {
 	return func(cfg *LassieConfig) {
 		cfg.ProviderAllowList = providerAllowList
+	}
+}
+
+// WithSkipBlockVerification disables per-block hash verification.
+// WARNING: This is dangerous - malicious gateways can serve arbitrary data!
+func WithSkipBlockVerification(skip bool) LassieOption {
+	return func(cfg *LassieConfig) {
+		cfg.SkipBlockVerification = skip
 	}
 }
 
