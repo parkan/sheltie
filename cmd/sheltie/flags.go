@@ -90,7 +90,7 @@ var providerBlockList map[peer.ID]bool
 var FlagExcludeProviders = &cli.StringFlag{
 	Name:        "exclude-providers",
 	DefaultText: "All providers allowed",
-	Usage:       "Provider peer IDs, separated by a comma. Example: 12D3KooWBSTEYMLSu5FnQjshEVah9LFGEZoQt26eacCEVYfedWA4",
+	Usage:       "Provider peer IDs to exclude, separated by a comma. Note: peer IDs are opaque identifiers from the delegated router. Example: 12D3KooWBSTEYMLSu5FnQjshEVah9LFGEZoQt26eacCEVYfedWA4",
 	EnvVars:     []string{"SHELTIE_EXCLUDE_PROVIDERS", "LASSIE_EXCLUDE_PROVIDERS"},
 	Action: func(cctx *cli.Context, v string) error {
 		// Do nothing if given an empty string
@@ -117,12 +117,9 @@ var FlagAllowProviders = &cli.StringFlag{
 	Name:        "providers",
 	Aliases:     []string{"provider"},
 	DefaultText: "Providers will be discovered automatically",
-	Usage: "Comma-separated addresses of providers, to use instead of " +
-		"automatic discovery. Accepts full multiaddrs including peer ID, " +
-		"multiaddrs without peer ID and url-style addresses for HTTP and " +
-		"Filecoin SP f0 actor addresses. Sheltie will attempt to connect to the " +
-		"peer(s). Example: " +
-		"/ip4/1.2.3.4/tcp/1234/p2p/12D3KooWBSTEYMLSu5FnQjshEVah9LFGEZoQt26eacCEVYfedWA4,http://ipfs.io,f01234",
+	Usage: "Comma-separated addresses of HTTP gateways to use instead of " +
+		"automatic discovery. Accepts HTTP URLs and multiaddrs with /http or /https. " +
+		"Example: https://ipfs.io,/dns/gateway.example.com/tcp/443/https",
 	EnvVars: []string{"SHELTIE_ALLOW_PROVIDERS", "LASSIE_ALLOW_PROVIDERS"},
 	Action: func(cctx *cli.Context, v string) error {
 		// Do nothing if given an empty string
