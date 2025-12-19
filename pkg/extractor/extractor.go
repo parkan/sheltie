@@ -15,9 +15,26 @@ import (
 	"github.com/ipfs/go-unixfsnode/data"
 	dagpb "github.com/ipld/go-codec-dagpb"
 	cidlink "github.com/ipld/go-ipld-prime/linking/cid"
+	"github.com/multiformats/go-multihash"
 )
 
 var logger = log.Logger("sheltie/extractor")
+
+// isIdentityCid returns true if the CID uses identity multihash (data embedded in CID).
+func isIdentityCid(c cid.Cid) bool {
+	return c.Prefix().MhType == multihash.IDENTITY
+}
+
+// extractIdentityData extracts the raw data from an identity CID.
+// Identity CIDs have their data embedded directly in the multihash.
+func extractIdentityData(c cid.Cid) ([]byte, error) {
+	hash := c.Hash()
+	decoded, err := multihash.Decode(hash)
+	if err != nil {
+		return nil, err
+	}
+	return decoded.Digest, nil
+}
 
 // Extractor handles streaming extraction of UnixFS content to disk.
 // It processes blocks one at a time and writes file/directory content
@@ -310,12 +327,26 @@ func (e *Extractor) processFile(c cid.Cid, node dagpb.PBNode, ufsData data.UnixF
 		idx++
 	}
 
-	// return deduplicated CIDs to fetch
+	// return deduplicated CIDs to fetch (handle identity CIDs inline)
 	seen := make(map[cid.Cid]bool)
 	var children []cid.Cid
 	for linkCid := range fw.positions {
 		if !seen[linkCid] {
 			seen[linkCid] = true
+
+			// identity CIDs have data embedded - write inline, don't queue for fetch
+			if isIdentityCid(linkCid) {
+				identData, err := extractIdentityData(linkCid)
+				if err != nil {
+					logger.Warnw("failed to extract identity data", "cid", linkCid, "err", err)
+				} else {
+					if err := e.writeChunk(linkCid, c, identData); err != nil {
+						logger.Warnw("failed to write identity chunk", "cid", linkCid, "err", err)
+					}
+				}
+				continue
+			}
+
 			children = append(children, linkCid)
 			// check if this chunk arrived before us (pending)
 			e.mu.Lock()
@@ -402,7 +433,7 @@ func (e *Extractor) processIntermediateFile(c, rootCid cid.Cid, node dagpb.PBNod
 		idx++
 	}
 
-	// return deduplicated new CIDs to fetch
+	// return deduplicated new CIDs to fetch (handle identity CIDs inline)
 	seen := make(map[cid.Cid]bool)
 	var children []cid.Cid
 	linksIter = node.Links.Iterator()
@@ -411,6 +442,20 @@ func (e *Extractor) processIntermediateFile(c, rootCid cid.Cid, node dagpb.PBNod
 		linkCid := link.Hash.Link().(cidlink.Link).Cid
 		if !seen[linkCid] {
 			seen[linkCid] = true
+
+			// identity CIDs have data embedded - write inline, don't queue for fetch
+			if isIdentityCid(linkCid) {
+				identData, err := extractIdentityData(linkCid)
+				if err != nil {
+					logger.Warnw("failed to extract identity data", "cid", linkCid, "err", err)
+				} else {
+					if err := e.writeChunk(linkCid, rootCid, identData); err != nil {
+						logger.Warnw("failed to write identity chunk", "cid", linkCid, "err", err)
+					}
+				}
+				continue
+			}
+
 			children = append(children, linkCid)
 			// check if this chunk arrived before us (pending)
 			e.mu.Lock()

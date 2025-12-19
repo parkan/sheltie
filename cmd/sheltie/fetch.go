@@ -484,6 +484,17 @@ func extractRun(
 	progress bool,
 	extractTo string,
 ) error {
+	// path and scope/byteRange not yet supported in streaming extraction
+	if path.Len() > 0 {
+		return fmt.Errorf("path traversal not yet supported in streaming extraction")
+	}
+	if dagScope != trustlessutils.DagScopeAll {
+		return fmt.Errorf("dag-scope other than 'all' not yet supported in streaming extraction")
+	}
+	if entityBytes != nil {
+		return fmt.Errorf("entity-bytes not yet supported in streaming extraction")
+	}
+
 	s, err := sheltie.NewSheltieWithConfig(ctx, sheltieCfg)
 	if err != nil {
 		return err
@@ -501,16 +512,7 @@ func extractRun(
 	defer ext.Close()
 
 	// set root path context
-	rootName := rootCid.String()
-	if path.Len() > 0 {
-		// use last segment of path as name
-		rootName = path.Last().String()
-	}
-	ext.SetRootPath(rootCid, rootName)
-
-	// create extracting store
-	store := extractor.NewExtractingStore(ext)
-	defer store.Close()
+	ext.SetRootPath(rootCid, rootCid.String())
 
 	printPath := path.String()
 	if printPath != "" {
@@ -529,7 +531,7 @@ func extractRun(
 
 	var blockCount int64
 	var byteLength uint64
-	store.OnPut(func(putBytes int) {
+	onBlock := func(putBytes int) {
 		bc := atomic.AddInt64(&blockCount, 1)
 		bl := atomic.AddUint64(&byteLength, uint64(putBytes))
 		if !progress {
@@ -537,14 +539,9 @@ func extractRun(
 		} else {
 			fmt.Fprintf(msgWriter, "\rReceived %d blocks / %s...", bc, humanize.IBytes(bl))
 		}
-	}, false)
-
-	request, err := types.NewRequestForPath(store, rootCid, path.String(), dagScope, entityBytes)
-	if err != nil {
-		return err
 	}
 
-	stats, err := s.Fetch(ctx, request)
+	stats, err := s.Extract(ctx, rootCid, ext, nil, onBlock)
 	if err != nil {
 		fmt.Fprintln(msgWriter)
 		return err

@@ -16,6 +16,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multicodec"
 	"github.com/parkan/sheltie/pkg/events"
+	"github.com/parkan/sheltie/pkg/extractor"
 	"github.com/parkan/sheltie/pkg/types"
 )
 
@@ -312,6 +313,27 @@ func handleCandidatesFilteredEvent(
 			logger.Errorf("failed to add storage providers to tracked retrieval for %s: %s", retrievalCid, err.Error())
 		}
 	}
+}
+
+// RetrieveAndExtract extracts content directly to disk using streaming extraction.
+// Requires the retriever to be wrapped with HybridRetriever.
+func (retriever *Retriever) RetrieveAndExtract(
+	ctx context.Context,
+	rootCid cid.Cid,
+	ext *extractor.Extractor,
+	eventsCallback func(types.RetrievalEvent),
+	onBlock func(int),
+) (*types.RetrievalStats, error) {
+	if !retriever.eventManager.IsStarted() {
+		return nil, ErrRetrieverNotStarted
+	}
+
+	hr, ok := retriever.executor.(*HybridRetriever)
+	if !ok {
+		return nil, errors.New("streaming extraction requires HybridRetriever")
+	}
+
+	return hr.RetrieveAndExtract(ctx, rootCid, ext, eventsCallback, onBlock)
 }
 
 func logEvent(event types.RetrievalEvent) {
