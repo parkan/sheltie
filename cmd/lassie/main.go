@@ -99,6 +99,11 @@ func buildLassieConfigFromCLIContext(cctx *cli.Context, lassieOpts []lassie.Lass
 		lassieOpts = append(lassieOpts, lassie.WithProviderBlockList(providerBlockList))
 	}
 
+	if cctx.Bool("skip-block-verification") {
+		logger.Warn("DANGER: block verification disabled - malicious gateways can serve arbitrary data!")
+		lassieOpts = append(lassieOpts, lassie.WithSkipBlockVerification(true))
+	}
+
 	return lassie.NewLassieConfig(lassieOpts...), nil
 }
 

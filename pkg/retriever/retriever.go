@@ -95,9 +95,9 @@ func NewRetrieverWithClock(
 	return retriever, nil
 }
 
-func (retriever *Retriever) WrapWithHybrid(candidateSource types.CandidateSource, httpClient *http.Client) {
+func (retriever *Retriever) WrapWithHybrid(candidateSource types.CandidateSource, httpClient *http.Client, skipBlockVerification bool) {
 	base := &baseRetriever{retriever: retriever}
-	retriever.executor = NewHybridRetriever(base, candidateSource, httpClient)
+	retriever.executor = NewHybridRetriever(base, candidateSource, httpClient, skipBlockVerification)
 }
 
 type baseRetriever struct {

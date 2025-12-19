@@ -30,10 +30,11 @@ const (
 // HybridRetriever wraps an existing retriever and adds fallback to per-block
 // retrieval when the primary retriever fails with a missing block error.
 type HybridRetriever struct {
-	inner           types.Retriever
-	candidateSource types.CandidateSource
-	httpClient      *http.Client
-	clock           clock.Clock
+	inner                 types.Retriever
+	candidateSource       types.CandidateSource
+	httpClient            *http.Client
+	clock                 clock.Clock
+	skipBlockVerification bool
 }
 
 // NewHybridRetriever creates a new hybrid retriever that wraps an existing
@@ -42,15 +43,17 @@ func NewHybridRetriever(
 	inner types.Retriever,
 	candidateSource types.CandidateSource,
 	httpClient *http.Client,
+	skipBlockVerification bool,
 ) *HybridRetriever {
 	if httpClient == nil {
 		httpClient = http.DefaultClient
 	}
 	return &HybridRetriever{
-		inner:           inner,
-		candidateSource: candidateSource,
-		httpClient:      httpClient,
-		clock:           clock.New(),
+		inner:                 inner,
+		candidateSource:       candidateSource,
+		httpClient:            httpClient,
+		clock:                 clock.New(),
+		skipBlockVerification: skipBlockVerification,
 	}
 }
 
@@ -109,7 +112,7 @@ func (hr *HybridRetriever) continuePerBlock(
 	startTime time.Time,
 	p1Stats phaseOneStats,
 ) (*types.RetrievalStats, error) {
-	session := blockbroker.NewSession(hr.candidateSource, hr.httpClient)
+	session := blockbroker.NewSession(hr.candidateSource, hr.httpClient, hr.skipBlockVerification)
 	defer session.Close()
 
 	session.SeedProviders(ctx, request.Root)
