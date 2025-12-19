@@ -124,7 +124,7 @@ func (ph *ProtocolHttp) Retrieve(
 	var ttfb time.Duration
 	rdr := newTimeToFirstByteReader(resp.Body, func() {
 		ttfb = retrieval.Clock.Since(retrievalStart)
-		shared.sendEvent(ctx, events.FirstByte(retrieval.Clock.Now(), retrieval.request.RetrievalID, candidate, ttfb, multicodec.TransportIpfsGatewayHttp))
+		shared.sendEvent(ctx, candidate.MinerPeer.ID, events.FirstByte(retrieval.Clock.Now(), retrieval.request.RetrievalID, candidate, ttfb, multicodec.TransportIpfsGatewayHttp))
 	})
 	cfg := traversal.Config{
 		Root:               retrieval.request.Root,
@@ -136,7 +136,7 @@ func (ph *ProtocolHttp) Retrieve(
 		WriteDuplicatesOut: expectDuplicates,
 		MaxBlocks:          retrieval.request.MaxBlocks,
 		OnBlockIn: func(read uint64) {
-			shared.sendEvent(ctx, events.BlockReceived(retrieval.Clock.Now(), retrieval.request.RetrievalID, candidate, multicodec.TransportIpfsGatewayHttp, read))
+			shared.sendEvent(ctx, candidate.MinerPeer.ID, events.BlockReceived(retrieval.Clock.Now(), retrieval.request.RetrievalID, candidate, multicodec.TransportIpfsGatewayHttp, read))
 		},
 	}
 

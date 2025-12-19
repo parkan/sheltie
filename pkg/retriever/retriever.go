@@ -187,11 +187,15 @@ func (retriever *Retriever) Retrieve(
 	}
 
 	// success
+	provider := retrievalStats.StorageProviderId.String()
+	if len(retrievalStats.Providers) > 0 {
+		provider = strings.Join(retrievalStats.Providers, ", ")
+	}
 	logger.Infof(
-		"Successfully retrieved from miner %s for %s\n"+
+		"Successfully retrieved from %s for %s\n"+
 			"\tDuration: %s\n"+
 			"\tBytes Received: %s",
-		retrievalStats.StorageProviderId,
+		provider,
 		request.Root,
 		retrievalStats.Duration,
 		humanize.IBytes(retrievalStats.Size),
@@ -286,8 +290,8 @@ func handleFailureEvent(
 ) {
 	eventStats.failedCount++
 	logger.Warnf(
-		"Failed to retrieve from miner %s for %s: %s",
-		event.ProviderId(),
+		"Failed to retrieve from %s for %s: %s",
+		event.Endpoint(),
 		event.RootCid(),
 		event.ErrorMessage(),
 	)

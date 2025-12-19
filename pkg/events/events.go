@@ -1,19 +1,14 @@
 package events
 
 import (
-	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multicodec"
 	"github.com/parkan/sheltie/pkg/types"
 )
 
-// Identifier returns the HTTP endpoint of the storage provider if available,
-// otherwise falls back to peer ID
+// Identifier returns the HTTP endpoint of the storage provider
 func Identifier(evt types.RetrievalEvent) string {
-	if epEvent, ok := evt.(EventWithEndpoint); ok && epEvent.Endpoint() != "" {
+	if epEvent, ok := evt.(EventWithEndpoint); ok {
 		return epEvent.Endpoint()
-	}
-	if spEvent, ok := evt.(EventWithProviderID); ok && spEvent.ProviderId() != peer.ID("") {
-		return spEvent.ProviderId().String()
 	}
 	return ""
 }
