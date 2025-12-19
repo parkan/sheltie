@@ -15,8 +15,6 @@ import (
 
 var _ types.Fetcher = &Lassie{}
 
-const DefaultProviderTimeout = 20 * time.Second
-
 // Lassie represents a reusable retrieval client.
 type Lassie struct {
 	cfg       *LassieConfig
@@ -26,7 +24,6 @@ type Lassie struct {
 // LassieConfig customizes the behavior of a Lassie instance.
 type LassieConfig struct {
 	Source            types.CandidateSource
-	ProviderTimeout   time.Duration
 	GlobalTimeout     time.Duration
 	ProviderBlockList map[peer.ID]bool
 	ProviderAllowList map[peer.ID]bool
@@ -66,16 +63,9 @@ func NewLassieWithConfig(ctx context.Context, cfg *LassieConfig) (*Lassie, error
 		}
 	}
 
-	if cfg.ProviderTimeout == 0 {
-		cfg.ProviderTimeout = DefaultProviderTimeout
-	}
-
 	sessionConfig := session.DefaultConfig().
 		WithProviderBlockList(cfg.ProviderBlockList).
-		WithProviderAllowList(cfg.ProviderAllowList).
-		WithDefaultProviderConfig(session.ProviderConfig{
-			RetrievalTimeout: cfg.ProviderTimeout,
-		})
+		WithProviderAllowList(cfg.ProviderAllowList)
 	sess := session.NewSession(sessionConfig, true)
 
 	httpRetriever := retriever.NewHttpRetriever(sess, http.DefaultClient)
@@ -101,15 +91,6 @@ func NewLassieWithConfig(ctx context.Context, cfg *LassieConfig) (*Lassie, error
 func WithCandidateSource(finder types.CandidateSource) LassieOption {
 	return func(cfg *LassieConfig) {
 		cfg.Source = finder
-	}
-}
-
-// WithProviderTimeout allows you to specify a custom timeout for retrieving
-// data from a provider. Beyond this limit, when no data has been received,
-// the retrieval will fail.
-func WithProviderTimeout(timeout time.Duration) LassieOption {
-	return func(cfg *LassieConfig) {
-		cfg.ProviderTimeout = timeout
 	}
 }
 
