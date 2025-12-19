@@ -95,9 +95,9 @@ func (r *ExtractingCarReader) ReadAndExtract(ctx context.Context, rdr io.Reader)
 			// continue processing other blocks
 		}
 
-		// add children to expected set
+		// add children to expected set (skip identity CIDs - already handled inline)
 		for _, child := range children {
-			if !r.extractor.processed[child] {
+			if !r.extractor.processed[child] && !isIdentityCid(child) {
 				r.expected[child] = struct{}{}
 			}
 		}
