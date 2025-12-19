@@ -566,7 +566,7 @@ func extractRun(
 		providerStr,
 		stats.Duration,
 		blockCount,
-		humanize.IBytes(stats.Size),
+		humanize.IBytes(byteLength),
 		extractTo,
 	)
 
