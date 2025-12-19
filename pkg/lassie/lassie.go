@@ -5,8 +5,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multicodec"
+	"github.com/filecoin-project/lassie/pkg/extractor"
 	"github.com/filecoin-project/lassie/pkg/indexerlookup"
 	"github.com/filecoin-project/lassie/pkg/retriever"
 	"github.com/filecoin-project/lassie/pkg/session"
@@ -144,4 +146,21 @@ func (l *Lassie) Fetch(ctx context.Context, request types.RetrievalRequest, opts
 // The returned function can be called to unregister the subscriber.
 func (l *Lassie) RegisterSubscriber(subscriber types.RetrievalEventSubscriber) func() {
 	return l.retriever.RegisterSubscriber(subscriber)
+}
+
+// Extract retrieves content and extracts it directly to disk.
+// This is memory-efficient: blocks are processed once and discarded.
+func (l *Lassie) Extract(
+	ctx context.Context,
+	rootCid cid.Cid,
+	ext *extractor.Extractor,
+	eventsCallback func(types.RetrievalEvent),
+	onBlock func(int),
+) (*types.RetrievalStats, error) {
+	var cancel context.CancelFunc
+	if l.cfg.GlobalTimeout != time.Duration(0) {
+		ctx, cancel = context.WithTimeout(ctx, l.cfg.GlobalTimeout)
+		defer cancel()
+	}
+	return l.retriever.RetrieveAndExtract(ctx, rootCid, ext, eventsCallback, onBlock)
 }
