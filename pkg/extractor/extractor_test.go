@@ -289,3 +289,70 @@ func TestDuplicateBlockHandling(t *testing.T) {
 		t.Errorf("file size %d, expected %d (duplicate not handled)", info.Size(), len(fileContent))
 	}
 }
+
+func TestDuplicateChunksInFile(t *testing.T) {
+	// test file with repeated identical chunks (same CID multiple times in links)
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	ext, err := New(tmpDir)
+	if err != nil {
+		t.Fatalf("failed to create extractor: %v", err)
+	}
+	defer ext.Close()
+
+	// create content with repeated 1024-byte patterns so chunks are identical
+	// AAA pattern: 3 identical chunks
+	chunk := bytes.Repeat([]byte("x"), 1024)
+	fileContent := bytes.Repeat(chunk, 3) // 3072 bytes, 3 identical 1024-byte chunks
+
+	store := &memstore.Store{}
+	lsys := cidlink.DefaultLinkSystem()
+	lsys.SetWriteStorage(store)
+	lsys.SetReadStorage(store)
+
+	link, _, err := builder.BuildUnixFSFile(bytes.NewReader(fileContent), "size-1024", &lsys)
+	if err != nil {
+		t.Fatalf("BuildUnixFSFile failed: %v", err)
+	}
+	rootCidLink := link.(cidlink.Link)
+
+	ext.SetRootPath(rootCidLink.Cid, "repeated.txt")
+
+	// process root block
+	rootData, _ := store.Get(ctx, rootCidLink.Cid.KeyString())
+	rootBlock, _ := blocks.NewBlockWithCid(rootData, rootCidLink.Cid)
+
+	children, err := ext.ProcessBlock(ctx, rootBlock)
+	if err != nil {
+		t.Fatalf("ProcessBlock (root) failed: %v", err)
+	}
+
+	// should return deduplicated children (only 1 unique CID for 3 positions)
+	t.Logf("root returned %d unique children for file with repeated chunks", len(children))
+
+	// process all child blocks (should be just 1 unique block)
+	for _, childCid := range children {
+		childData, err := store.Get(ctx, childCid.KeyString())
+		if err != nil {
+			t.Fatalf("failed to get child block %s: %v", childCid, err)
+		}
+		childBlock, _ := blocks.NewBlockWithCid(childData, childCid)
+		_, err = ext.ProcessBlock(ctx, childBlock)
+		if err != nil {
+			t.Fatalf("ProcessBlock (chunk %s) failed: %v", childCid, err)
+		}
+	}
+
+	// verify file was created with correct content (all 3072 bytes, not just 1024)
+	content, err := os.ReadFile(filepath.Join(tmpDir, "repeated.txt"))
+	if err != nil {
+		t.Fatalf("failed to read output file: %v", err)
+	}
+	if len(content) != len(fileContent) {
+		t.Errorf("content length mismatch: got %d, want %d (duplicate chunks not expanded)", len(content), len(fileContent))
+	}
+	if !bytes.Equal(content, fileContent) {
+		t.Error("content mismatch")
+	}
+}

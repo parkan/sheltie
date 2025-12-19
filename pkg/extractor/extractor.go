@@ -44,11 +44,18 @@ type Extractor struct {
 	pendingChunks map[cid.Cid][]byte
 }
 
+// chunkPosition tracks where a chunk should be written in a file
+type chunkPosition struct {
+	offset int64
+	size   int64
+}
+
 type fileWriter struct {
-	path     string
-	file     *os.File
-	expected int64
-	written  int64
+	path      string
+	file      *os.File
+	expected  int64
+	positions map[cid.Cid][]chunkPosition // CID -> all offsets where it appears
+	pending   int                         // number of positions still needing data
 }
 
 // ChildLink represents a link to a child block with its name (for directories)
@@ -231,44 +238,71 @@ func (e *Extractor) processFile(c cid.Cid, node dagpb.PBNode, ufsData data.UnixF
 	}
 
 	fw := &fileWriter{
-		path:     fullPath,
-		file:     f,
-		expected: expectedSize,
+		path:      fullPath,
+		file:      f,
+		expected:  expectedSize,
+		positions: make(map[cid.Cid][]chunkPosition),
 	}
 	e.openFiles[c] = fw
 
-	// write any inline data first
+	// write any inline data first (at offset 0)
+	inlineOffset := int64(0)
 	if ufsData.FieldData().Exists() {
 		inlineData := ufsData.FieldData().Must().Bytes()
 		if len(inlineData) > 0 {
-			n, err := f.Write(inlineData)
+			n, err := f.WriteAt(inlineData, 0)
 			if err != nil {
 				f.Close()
 				return nil, fmt.Errorf("failed to write inline data: %w", err)
 			}
-			fw.written += int64(n)
+			inlineOffset = int64(n)
 		}
 	}
 
-	// collect child CIDs and register them as belonging to this file
-	var children []cid.Cid
+	// build position map from links and blocksizes
+	offset := inlineOffset
 	linksIter = node.Links.Iterator()
+	idx := 0
 	for !linksIter.Done() {
 		_, link := linksIter.Next()
 		linkCid := link.Hash.Link().(cidlink.Link).Cid
-		e.fileRoot[linkCid] = c
-		children = append(children, linkCid)
-		// check if this chunk arrived before us (pending)
-		if pendingData, ok := e.pendingChunks[linkCid]; ok {
-			if err := e.writeChunk(linkCid, c, pendingData); err != nil {
-				logger.Warnw("failed to write pending chunk", "cid", linkCid, "err", err)
+
+		// get chunk size from blocksizes
+		var chunkSize int64
+		sizes := ufsData.FieldBlockSizes()
+		if int64(idx) < sizes.Length() {
+			sizeVal, _ := sizes.LookupByIndex(int64(idx))
+			if sizeVal != nil {
+				chunkSize, _ = sizeVal.AsInt()
 			}
-			delete(e.pendingChunks, linkCid)
-			e.processed[linkCid] = true
+		}
+
+		fw.positions[linkCid] = append(fw.positions[linkCid], chunkPosition{offset: offset, size: chunkSize})
+		fw.pending++
+		e.fileRoot[linkCid] = c
+
+		offset += chunkSize
+		idx++
+	}
+
+	// return deduplicated CIDs to fetch
+	seen := make(map[cid.Cid]bool)
+	var children []cid.Cid
+	for linkCid := range fw.positions {
+		if !seen[linkCid] {
+			seen[linkCid] = true
+			children = append(children, linkCid)
+			// check if this chunk arrived before us (pending)
+			if pendingData, ok := e.pendingChunks[linkCid]; ok {
+				if err := e.writeChunk(linkCid, c, pendingData); err != nil {
+					logger.Warnw("failed to write pending chunk", "cid", linkCid, "err", err)
+				}
+				delete(e.pendingChunks, linkCid)
+			}
 		}
 	}
 
-	logger.Debugw("started chunked file", "path", fullPath, "chunks", len(children), "expectedSize", expectedSize, "fileRootLen", len(e.fileRoot))
+	logger.Debugw("started chunked file", "path", fullPath, "chunks", fw.pending, "uniqueCIDs", len(children), "expectedSize", expectedSize)
 	e.processed[c] = true
 	return children, nil
 }
@@ -281,48 +315,93 @@ func (e *Extractor) processIntermediateFile(c, rootCid cid.Cid, node dagpb.PBNod
 		return nil, fmt.Errorf("no open file for intermediate node %s (root %s)", c, rootCid)
 	}
 
-	// write any inline data
+	// get this intermediate node's position(s) from the parent
+	myPositions := fw.positions[c]
+	if len(myPositions) == 0 {
+		return nil, fmt.Errorf("intermediate node %s has no position in file", c)
+	}
+	// intermediate nodes should appear exactly once (they're internal structure, not data)
+	baseOffset := myPositions[0].offset
+
+	// remove this intermediate from positions and pending (it doesn't write data itself)
+	delete(fw.positions, c)
+	fw.pending -= len(myPositions)
+
+	// write any inline data at base offset
+	inlineLen := int64(0)
 	if ufsData.FieldData().Exists() {
 		inlineData := ufsData.FieldData().Must().Bytes()
 		if len(inlineData) > 0 {
-			n, err := fw.file.Write(inlineData)
+			_, err := fw.file.WriteAt(inlineData, baseOffset)
 			if err != nil {
 				return nil, fmt.Errorf("failed to write intermediate inline data: %w", err)
 			}
-			fw.written += int64(n)
+			inlineLen = int64(len(inlineData))
 		}
 	}
 
-	// register children with the root file CID
-	var children []cid.Cid
+	// add children to positions with offsets starting at baseOffset + inlineLen
+	offset := baseOffset + inlineLen
 	linksIter := node.Links.Iterator()
+	idx := 0
 	for !linksIter.Done() {
 		_, link := linksIter.Next()
 		linkCid := link.Hash.Link().(cidlink.Link).Cid
-		e.fileRoot[linkCid] = rootCid
-		children = append(children, linkCid)
 
-		// check if this chunk arrived before us (pending)
-		if pendingData, ok := e.pendingChunks[linkCid]; ok {
-			if err := e.writeChunk(linkCid, rootCid, pendingData); err != nil {
-				logger.Warnw("failed to write pending chunk", "cid", linkCid, "err", err)
+		// get chunk size from blocksizes
+		var chunkSize int64
+		sizes := ufsData.FieldBlockSizes()
+		if int64(idx) < sizes.Length() {
+			sizeVal, _ := sizes.LookupByIndex(int64(idx))
+			if sizeVal != nil {
+				chunkSize, _ = sizeVal.AsInt()
 			}
-			delete(e.pendingChunks, linkCid)
-			e.processed[linkCid] = true
+		}
+
+		fw.positions[linkCid] = append(fw.positions[linkCid], chunkPosition{offset: offset, size: chunkSize})
+		fw.pending++
+		e.fileRoot[linkCid] = rootCid
+
+		offset += chunkSize
+		idx++
+	}
+
+	// return deduplicated new CIDs to fetch
+	seen := make(map[cid.Cid]bool)
+	var children []cid.Cid
+	linksIter = node.Links.Iterator()
+	for !linksIter.Done() {
+		_, link := linksIter.Next()
+		linkCid := link.Hash.Link().(cidlink.Link).Cid
+		if !seen[linkCid] {
+			seen[linkCid] = true
+			children = append(children, linkCid)
+			// check if this chunk arrived before us (pending)
+			if pendingData, ok := e.pendingChunks[linkCid]; ok {
+				if err := e.writeChunk(linkCid, rootCid, pendingData); err != nil {
+					logger.Warnw("failed to write pending chunk", "cid", linkCid, "err", err)
+				}
+				delete(e.pendingChunks, linkCid)
+			}
 		}
 	}
 
 	delete(e.fileRoot, c)
 	e.processed[c] = true
 
-	logger.Debugw("processed intermediate file node", "cid", c, "root", rootCid, "children", len(children))
+	logger.Debugw("processed intermediate file node", "cid", c, "root", rootCid, "newChildren", len(children), "baseOffset", baseOffset)
 	return children, nil
 }
 
-func (e *Extractor) writeChunk(chunkCid, parentCid cid.Cid, rawData []byte) error {
-	fw, ok := e.openFiles[parentCid]
+func (e *Extractor) writeChunk(chunkCid, fileCid cid.Cid, rawData []byte) error {
+	fw, ok := e.openFiles[fileCid]
 	if !ok {
-		return fmt.Errorf("no open file for chunk %s (parent %s)", chunkCid, parentCid)
+		return fmt.Errorf("no open file for chunk %s (file %s)", chunkCid, fileCid)
+	}
+
+	positions := fw.positions[chunkCid]
+	if len(positions) == 0 {
+		return fmt.Errorf("chunk %s has no positions in file", chunkCid)
 	}
 
 	// for raw blocks, the entire block is file data
@@ -341,17 +420,22 @@ func (e *Extractor) writeChunk(chunkCid, parentCid cid.Cid, rawData []byte) erro
 		}
 	}
 
-	n, err := fw.file.Write(chunkData)
-	if err != nil {
-		return fmt.Errorf("failed to write chunk: %w", err)
+	// write to ALL positions where this chunk appears
+	for _, pos := range positions {
+		_, err := fw.file.WriteAt(chunkData, pos.offset)
+		if err != nil {
+			return fmt.Errorf("failed to write chunk at offset %d: %w", pos.offset, err)
+		}
+		fw.pending--
 	}
-	fw.written += int64(n)
 
+	// remove from positions map (this CID is done)
+	delete(fw.positions, chunkCid)
 	delete(e.fileRoot, chunkCid)
 
 	// check if file is complete
-	if fw.expected > 0 && fw.written >= fw.expected {
-		e.closeFile(parentCid)
+	if fw.pending == 0 {
+		e.closeFile(fileCid)
 	}
 
 	return nil
@@ -456,7 +540,7 @@ func (e *Extractor) safePath(basePath, name string) (string, error) {
 func (e *Extractor) closeFile(c cid.Cid) {
 	if fw, ok := e.openFiles[c]; ok {
 		fw.file.Close()
-		logger.Debugw("closed file", "path", fw.path, "written", fw.written, "expected", fw.expected)
+		logger.Debugw("closed file", "path", fw.path, "expected", fw.expected)
 		delete(e.openFiles, c)
 	}
 }
@@ -468,8 +552,8 @@ func (e *Extractor) Close() error {
 		if err := fw.file.Close(); err != nil {
 			errs = append(errs, fmt.Errorf("closing %s: %w", fw.path, err))
 		}
-		if fw.expected > 0 && fw.written < fw.expected {
-			logger.Warnw("incomplete file", "path", fw.path, "written", fw.written, "expected", fw.expected)
+		if fw.pending > 0 {
+			logger.Warnw("incomplete file", "path", fw.path, "pendingChunks", fw.pending, "expected", fw.expected)
 		}
 		delete(e.openFiles, c)
 	}
