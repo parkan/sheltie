@@ -19,6 +19,7 @@ import (
 	cidlink "github.com/ipld/go-ipld-prime/linking/cid"
 	"github.com/ipld/go-trustless-utils/traversal"
 	"github.com/parkan/sheltie/pkg/blockbroker"
+	"github.com/parkan/sheltie/pkg/extractor"
 	"github.com/parkan/sheltie/pkg/types"
 )
 
@@ -446,4 +447,153 @@ func extractMissingCid(err error) (cid.Cid, bool) {
 	}
 
 	return cid.Undef, false
+}
+
+// RetrieveAndExtract retrieves content and extracts it directly to disk.
+// This is memory-efficient: blocks are processed once and discarded.
+func (hr *HybridRetriever) RetrieveAndExtract(
+	ctx context.Context,
+	rootCid cid.Cid,
+	ext *extractor.Extractor,
+	eventsCallback func(types.RetrievalEvent),
+	onBlock func(int),
+) (*types.RetrievalStats, error) {
+	startTime := hr.clock.Now()
+
+	if eventsCallback == nil {
+		eventsCallback = func(types.RetrievalEvent) {}
+	}
+
+	session := blockbroker.NewSession(hr.candidateSource, hr.httpClient, hr.skipBlockVerification)
+	defer session.Close()
+
+	session.SeedProviders(ctx, rootCid)
+
+	carReader := extractor.NewExtractingCarReader(ext, rootCid)
+	if onBlock != nil {
+		carReader.OnBlock(onBlock)
+	}
+
+	var totalBlocks uint64
+	var totalBytes uint64
+
+	// try CAR stream first
+	rdr, provider, err := session.GetSubgraphStream(ctx, rootCid)
+	if err == nil {
+		logger.Infow("streaming CAR extraction", "root", rootCid, "provider", provider)
+
+		blocks, bytes, extractErr := carReader.ReadAndExtract(ctx, rdr)
+		rdr.Close()
+
+		totalBlocks = blocks
+		totalBytes = bytes
+
+		if extractErr == nil {
+			duration := hr.clock.Since(startTime)
+			var speed uint64
+			if duration.Seconds() > 0 {
+				speed = uint64(float64(totalBytes) / duration.Seconds())
+			}
+			return &types.RetrievalStats{
+				RootCid:      rootCid,
+				Size:         totalBytes,
+				Blocks:       totalBlocks,
+				Duration:     duration,
+				AverageSpeed: speed,
+				Providers:    session.UsedProviders(),
+			}, nil
+		}
+
+		missing, isMissing := extractor.IsMissing(extractErr)
+		if !isMissing {
+			return nil, fmt.Errorf("extraction failed: %w", extractErr)
+		}
+
+		logger.Infow("CAR incomplete, falling back to per-block",
+			"root", rootCid,
+			"blocksFromCAR", totalBlocks,
+			"missing", len(missing))
+
+		p2Blocks, p2Bytes, err := hr.extractPerBlock(ctx, ext, session, missing, onBlock)
+		if err != nil {
+			return nil, fmt.Errorf("per-block extraction failed: %w", err)
+		}
+		totalBlocks += p2Blocks
+		totalBytes += p2Bytes
+	} else {
+		logger.Infow("CAR unavailable, using per-block extraction", "root", rootCid, "err", err)
+
+		p2Blocks, p2Bytes, err := hr.extractPerBlock(ctx, ext, session, []cid.Cid{rootCid}, onBlock)
+		if err != nil {
+			return nil, fmt.Errorf("per-block extraction failed: %w", err)
+		}
+		totalBlocks = p2Blocks
+		totalBytes = p2Bytes
+	}
+
+	duration := hr.clock.Since(startTime)
+	var speed uint64
+	if duration.Seconds() > 0 {
+		speed = uint64(float64(totalBytes) / duration.Seconds())
+	}
+
+	return &types.RetrievalStats{
+		RootCid:      rootCid,
+		Size:         totalBytes,
+		Blocks:       totalBlocks,
+		Duration:     duration,
+		AverageSpeed: speed,
+		Providers:    session.UsedProviders(),
+	}, nil
+}
+
+// extractPerBlock fetches and extracts blocks using frontier traversal.
+func (hr *HybridRetriever) extractPerBlock(
+	ctx context.Context,
+	ext *extractor.Extractor,
+	session blockbroker.BlockSession,
+	startCids []cid.Cid,
+	onBlock func(int),
+) (uint64, uint64, error) {
+	frontier := NewFrontier(cid.Undef)
+	for _, c := range startCids {
+		frontier.pending = append(frontier.pending, c)
+	}
+
+	var totalBlocks uint64
+	var totalBytes uint64
+
+	for !frontier.Empty() {
+		if ctx.Err() != nil {
+			return totalBlocks, totalBytes, ctx.Err()
+		}
+
+		c := frontier.Pop()
+		if frontier.Seen(c) {
+			continue
+		}
+
+		block, err := session.Get(ctx, c)
+		if err != nil {
+			return totalBlocks, totalBytes, fmt.Errorf("failed to fetch block %s: %w", c, err)
+		}
+
+		children, err := ext.ProcessBlock(ctx, block)
+		if err != nil {
+			logger.Warnw("extraction failed for block", "cid", c, "err", err)
+		}
+
+		frontier.PushAll(children)
+		frontier.MarkSeen(c)
+
+		blockSize := len(block.RawData())
+		totalBlocks++
+		totalBytes += uint64(blockSize)
+
+		if onBlock != nil {
+			onBlock(blockSize)
+		}
+	}
+
+	return totalBlocks, totalBytes, nil
 }

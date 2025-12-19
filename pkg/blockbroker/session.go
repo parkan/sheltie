@@ -366,6 +366,65 @@ func (s *TrustlessGatewaySession) UsedProviders() []string {
 	return result
 }
 
+// GetSubgraphStream fetches a subgraph CAR and returns the raw stream.
+// Caller must close the returned ReadCloser.
+func (s *TrustlessGatewaySession) GetSubgraphStream(ctx context.Context, c cid.Cid) (io.ReadCloser, string, error) {
+	providers := s.getProviders()
+	if len(providers) == 0 {
+		if err := s.findNewProviders(ctx, c); err != nil {
+			return nil, "", fmt.Errorf("no providers found for %s: %w", c, err)
+		}
+		providers = s.getProviders()
+	}
+
+	if len(providers) == 0 {
+		return nil, "", fmt.Errorf("no providers available for %s", c)
+	}
+
+	var lastErr error
+	for _, provider := range providers {
+		rdr, err := s.fetchSubgraphStream(ctx, c, provider)
+		if err == nil {
+			s.markProviderUsed(provider.Endpoint())
+			return rdr, provider.Endpoint(), nil
+		}
+		logger.Debugw("subgraph stream fetch failed", "cid", c, "provider", provider.Endpoint(), "err", err)
+		lastErr = err
+	}
+
+	return nil, "", fmt.Errorf("all providers failed for subgraph stream %s: %w", c, lastErr)
+}
+
+func (s *TrustlessGatewaySession) fetchSubgraphStream(
+	ctx context.Context,
+	c cid.Cid,
+	provider types.RetrievalCandidate,
+) (io.ReadCloser, error) {
+	providerURL, err := provider.ToURL()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get URL for provider: %w", err)
+	}
+
+	reqURL := fmt.Sprintf("%s/ipfs/%s?dag-scope=all&dups=y", providerURL, c)
+	req, err := http.NewRequestWithContext(ctx, "GET", reqURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Accept", trustlesshttp.DefaultContentType().String())
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("HTTP request failed: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
+		return nil, fmt.Errorf("HTTP %d from %s", resp.StatusCode, providerURL)
+	}
+
+	return resp.Body, nil
+}
+
 func (s *TrustlessGatewaySession) Close() error {
 	s.providersLock.Lock()
 	s.providers = nil
