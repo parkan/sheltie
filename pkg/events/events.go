@@ -6,11 +6,13 @@ import (
 	"github.com/parkan/sheltie/pkg/types"
 )
 
-// Identifier returns the peer ID of the storage provider if this retrieval was
-// requested via peer ID
+// Identifier returns the HTTP endpoint of the storage provider if available,
+// otherwise falls back to peer ID
 func Identifier(evt types.RetrievalEvent) string {
-	spEvent, spOk := evt.(EventWithProviderID)
-	if spOk && spEvent.ProviderId() != peer.ID("") {
+	if epEvent, ok := evt.(EventWithEndpoint); ok && epEvent.Endpoint() != "" {
+		return epEvent.Endpoint()
+	}
+	if spEvent, ok := evt.(EventWithProviderID); ok && spEvent.ProviderId() != peer.ID("") {
 		return spEvent.ProviderId().String()
 	}
 	return ""

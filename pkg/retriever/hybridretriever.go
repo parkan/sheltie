@@ -112,7 +112,6 @@ func (hr *HybridRetriever) continuePerBlock(
 	session := blockbroker.NewSession(hr.candidateSource, hr.httpClient)
 	defer session.Close()
 
-	// Seed with providers from root CID to reuse partial-content providers
 	session.SeedProviders(ctx, request.Root)
 
 	var p2BlocksOut uint64
@@ -132,6 +131,7 @@ func (hr *HybridRetriever) continuePerBlock(
 			Blocks:       p1Stats.blocksReceived,
 			Duration:     duration,
 			AverageSpeed: speed,
+			Providers:    session.UsedProviders(),
 		}, nil
 	}
 
@@ -161,6 +161,7 @@ func (hr *HybridRetriever) continuePerBlock(
 		Blocks:       totalBlocks,
 		Duration:     duration,
 		AverageSpeed: speed,
+		Providers:    session.UsedProviders(),
 	}, nil
 }
 

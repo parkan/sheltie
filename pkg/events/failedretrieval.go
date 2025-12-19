@@ -28,5 +28,5 @@ func (e FailedRetrievalEvent) String() string {
 }
 
 func FailedRetrieval(at time.Time, retrievalId types.RetrievalID, candidate types.RetrievalCandidate, protocol multicodec.Code, errorMessage string) FailedRetrievalEvent {
-	return FailedRetrievalEvent{providerRetrievalEvent{retrievalEvent{at, retrievalId, candidate.RootCid}, candidate.MinerPeer.ID}, protocol, errorMessage}
+	return FailedRetrievalEvent{providerRetrievalEvent{retrievalEvent{at, retrievalId, candidate.RootCid}, candidate.MinerPeer.ID, candidate.Endpoint()}, protocol, errorMessage}
 }

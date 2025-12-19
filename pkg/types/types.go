@@ -163,6 +163,8 @@ type RetrievalStats struct {
 	AverageSpeed      uint64
 	TimeToFirstByte   time.Duration
 	Selector          string
+	// Providers lists HTTP endpoints that served blocks during retrieval
+	Providers []string
 }
 
 type RetrievalResult struct {

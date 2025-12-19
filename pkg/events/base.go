@@ -22,13 +22,20 @@ func (r retrievalEvent) RootCid() cid.Cid               { return r.rootCid }
 type providerRetrievalEvent struct {
 	retrievalEvent
 	providerId peer.ID
+	endpoint   string
 }
 
 func (e providerRetrievalEvent) ProviderId() peer.ID { return e.providerId }
+func (e providerRetrievalEvent) Endpoint() string    { return e.endpoint }
 
 type EventWithProviderID interface {
 	types.RetrievalEvent
 	ProviderId() peer.ID
+}
+
+type EventWithEndpoint interface {
+	types.RetrievalEvent
+	Endpoint() string
 }
 
 type EventWithCandidates interface {

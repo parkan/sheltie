@@ -86,7 +86,6 @@ var fetchFlags = []cli.Flag{
 	FlagExcludeProviders,
 	FlagTempDir,
 	FlagGlobalTimeout,
-	FlagProviderTimeout,
 }
 
 var fetchCmd = &cli.Command{
@@ -397,16 +396,20 @@ func defaultFetchRun(
 		fmt.Fprintln(msgWriter)
 		return err
 	}
-	spid := stats.StorageProviderId.String()
-	if spid == "" {
-		spid = "Unknown"
+	providers := stats.Providers
+	if len(providers) == 0 && stats.StorageProviderId.String() != "" {
+		providers = []string{stats.StorageProviderId.String()}
+	}
+	providerStr := "Unknown"
+	if len(providers) > 0 {
+		providerStr = strings.Join(providers, ", ")
 	}
 	fmt.Fprintf(msgWriter, "\nFetched [%s] from [%s]:\n"+
 		"\tDuration: %s\n"+
 		"\t  Blocks: %d\n"+
 		"\t   Bytes: %s\n",
 		rootCid,
-		spid,
+		providerStr,
 		stats.Duration,
 		blockCount,
 		humanize.IBytes(stats.Size),

@@ -27,5 +27,5 @@ func (e StartedRetrievalEvent) String() string {
 }
 
 func StartedRetrieval(at time.Time, retrievalId types.RetrievalID, candidate types.RetrievalCandidate, protocol multicodec.Code) StartedRetrievalEvent {
-	return StartedRetrievalEvent{providerRetrievalEvent{retrievalEvent{at, retrievalId, candidate.RootCid}, candidate.MinerPeer.ID}, protocol}
+	return StartedRetrievalEvent{providerRetrievalEvent{retrievalEvent{at, retrievalId, candidate.RootCid}, candidate.MinerPeer.ID, candidate.Endpoint()}, protocol}
 }
