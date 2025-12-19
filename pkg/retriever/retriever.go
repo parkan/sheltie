@@ -36,7 +36,6 @@ var (
 )
 
 type Session interface {
-	GetStorageProviderTimeout(storageProviderId peer.ID) time.Duration
 	FilterIndexerCandidate(candidate types.RetrievalCandidate) (bool, types.RetrievalCandidate)
 
 	RegisterRetrieval(retrievalId types.RetrievalID, cid cid.Cid, selector datamodel.Node) bool

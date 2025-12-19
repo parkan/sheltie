@@ -67,10 +67,7 @@ func after(cctx *cli.Context) error {
 }
 
 func buildLassieConfigFromCLIContext(cctx *cli.Context, lassieOpts []lassie.LassieOption) (*lassie.LassieConfig, error) {
-	providerTimeout := cctx.Duration("provider-timeout")
 	globalTimeout := cctx.Duration("global-timeout")
-
-	lassieOpts = append(lassieOpts, sheltie.WithProviderTimeout(providerTimeout))
 
 	if globalTimeout > 0 {
 		lassieOpts = append(lassieOpts, lassie.WithGlobalTimeout(globalTimeout))
