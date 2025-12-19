@@ -201,8 +201,7 @@ func (a *aggregateEventRecorder) ingestEvents() {
 				}
 
 			case events.BlockReceivedEvent:
-				// data received is unique in that it always has a provider
-				spid := ret.ProviderId().String()
+				spid := events.Identifier(ret)
 				attempt, ok := tempData.retrievalAttempts[spid]
 				if !ok {
 					attempt = new(RetrievalAttempt)

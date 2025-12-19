@@ -29,5 +29,5 @@ func (e BlockReceivedEvent) String() string {
 }
 
 func BlockReceived(at time.Time, retrievalId types.RetrievalID, candidate types.RetrievalCandidate, protocol multicodec.Code, byteCount uint64) BlockReceivedEvent {
-	return BlockReceivedEvent{providerRetrievalEvent{retrievalEvent{at, retrievalId, candidate.RootCid}, candidate.MinerPeer.ID}, protocol, byteCount}
+	return BlockReceivedEvent{providerRetrievalEvent{retrievalEvent{at, retrievalId, candidate.RootCid}, candidate.MinerPeer.ID, candidate.Endpoint()}, protocol, byteCount}
 }

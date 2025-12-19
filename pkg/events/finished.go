@@ -22,5 +22,5 @@ func (e FinishedEvent) String() string {
 }
 
 func Finished(at time.Time, retrievalId types.RetrievalID, candidate types.RetrievalCandidate) FinishedEvent {
-	return FinishedEvent{providerRetrievalEvent{retrievalEvent{at, retrievalId, candidate.RootCid}, candidate.MinerPeer.ID}}
+	return FinishedEvent{providerRetrievalEvent{retrievalEvent{at, retrievalId, candidate.RootCid}, candidate.MinerPeer.ID, candidate.Endpoint()}}
 }

@@ -96,7 +96,6 @@ func (ph *ProtocolHttp) Retrieve(
 	ctx context.Context,
 	retrieval *retrieval,
 	shared *retrievalShared,
-	timeout time.Duration,
 	candidate types.RetrievalCandidate,
 ) (*types.RetrievalStats, error) {
 	// Connect and read body in one flow, we can move ph.beginRequest() to Connect()
@@ -157,6 +156,7 @@ func (ph *ProtocolHttp) Retrieve(
 		Duration:          duration,
 		AverageSpeed:      speed,
 		TimeToFirstByte:   ttfb,
+		Providers:         []string{candidate.Endpoint()},
 	}, nil
 }
 

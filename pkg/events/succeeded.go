@@ -32,5 +32,5 @@ func (e SucceededEvent) String() string {
 }
 
 func Success(at time.Time, retrievalId types.RetrievalID, candidate types.RetrievalCandidate, receivedBytesSize uint64, receivedCidsCount uint64, duration time.Duration, protocol multicodec.Code) SucceededEvent {
-	return SucceededEvent{providerRetrievalEvent{retrievalEvent{at, retrievalId, candidate.RootCid}, candidate.MinerPeer.ID}, receivedBytesSize, receivedCidsCount, duration, protocol}
+	return SucceededEvent{providerRetrievalEvent{retrievalEvent{at, retrievalId, candidate.RootCid}, candidate.MinerPeer.ID, candidate.Endpoint()}, receivedBytesSize, receivedCidsCount, duration, protocol}
 }

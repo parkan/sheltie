@@ -36,6 +36,9 @@ type TrustlessGatewaySession struct {
 	evictedPeers     map[peer.ID]time.Time
 	evictedPeersLock sync.RWMutex
 	evictBackoff     time.Duration
+
+	usedProviders     map[string]struct{}
+	usedProvidersLock sync.RWMutex
 }
 
 // NewSession creates a new TrustlessGatewaySession for per-block HTTP fetching.
@@ -48,11 +51,12 @@ func NewSession(
 	}
 
 	return &TrustlessGatewaySession{
-		routing:      routing,
-		httpClient:   httpClient,
-		providers:    make([]types.RetrievalCandidate, 0),
-		evictedPeers: make(map[peer.ID]time.Time),
-		evictBackoff: 30 * time.Second,
+		routing:       routing,
+		httpClient:    httpClient,
+		providers:     make([]types.RetrievalCandidate, 0),
+		evictedPeers:  make(map[peer.ID]time.Time),
+		evictBackoff:  30 * time.Second,
+		usedProviders: make(map[string]struct{}),
 	}
 }
 
@@ -96,6 +100,7 @@ func (s *TrustlessGatewaySession) GetSubgraph(ctx context.Context, c cid.Cid, ls
 		blocksReceived, err := s.fetchSubgraphCAR(ctx, c, provider, lsys)
 		if err == nil {
 			logger.Debugw("subgraph CAR fetch succeeded", "cid", c, "provider", provider.Endpoint(), "blocks", blocksReceived)
+			s.markProviderUsed(provider.Endpoint())
 			return blocksReceived, nil
 		}
 		logger.Debugw("subgraph CAR fetch failed", "cid", c, "provider", provider.Endpoint(), "err", err)
@@ -199,6 +204,7 @@ func (s *TrustlessGatewaySession) tryProviders(ctx context.Context, c cid.Cid, p
 				continue
 			}
 			cancel()
+			s.markProviderUsed(result.provider.Endpoint())
 			return result.block, nil
 		case <-ctx.Done():
 			return nil, ctx.Err()
@@ -329,6 +335,22 @@ func (s *TrustlessGatewaySession) hasHTTPProtocol(candidate types.RetrievalCandi
 	return false
 }
 
+func (s *TrustlessGatewaySession) markProviderUsed(endpoint string) {
+	s.usedProvidersLock.Lock()
+	defer s.usedProvidersLock.Unlock()
+	s.usedProviders[endpoint] = struct{}{}
+}
+
+func (s *TrustlessGatewaySession) UsedProviders() []string {
+	s.usedProvidersLock.RLock()
+	defer s.usedProvidersLock.RUnlock()
+	result := make([]string, 0, len(s.usedProviders))
+	for endpoint := range s.usedProviders {
+		result = append(result, endpoint)
+	}
+	return result
+}
+
 func (s *TrustlessGatewaySession) Close() error {
 	s.providersLock.Lock()
 	s.providers = nil
@@ -337,6 +359,10 @@ func (s *TrustlessGatewaySession) Close() error {
 	s.evictedPeersLock.Lock()
 	s.evictedPeers = nil
 	s.evictedPeersLock.Unlock()
+
+	s.usedProvidersLock.Lock()
+	s.usedProviders = nil
+	s.usedProvidersLock.Unlock()
 
 	return nil
 }

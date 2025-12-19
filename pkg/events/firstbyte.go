@@ -28,5 +28,5 @@ func (e FirstByteEvent) String() string {
 }
 
 func FirstByte(at time.Time, retrievalId types.RetrievalID, candidate types.RetrievalCandidate, duration time.Duration, protocol multicodec.Code) FirstByteEvent {
-	return FirstByteEvent{providerRetrievalEvent{retrievalEvent{at, retrievalId, candidate.RootCid}, candidate.MinerPeer.ID}, duration, protocol}
+	return FirstByteEvent{providerRetrievalEvent{retrievalEvent{at, retrievalId, candidate.RootCid}, candidate.MinerPeer.ID, candidate.Endpoint()}, duration, protocol}
 }

@@ -25,5 +25,5 @@ func (e ConnectedToProviderEvent) String() string {
 }
 
 func ConnectedToProvider(at time.Time, retrievalId types.RetrievalID, candidate types.RetrievalCandidate, protocol multicodec.Code) ConnectedToProviderEvent {
-	return ConnectedToProviderEvent{providerRetrievalEvent{retrievalEvent{at, retrievalId, candidate.RootCid}, candidate.MinerPeer.ID}, protocol}
+	return ConnectedToProviderEvent{providerRetrievalEvent{retrievalEvent{at, retrievalId, candidate.RootCid}, candidate.MinerPeer.ID, candidate.Endpoint()}, protocol}
 }
