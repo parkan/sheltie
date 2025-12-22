@@ -19,6 +19,7 @@ import (
 	cidlink "github.com/ipld/go-ipld-prime/linking/cid"
 	"github.com/ipld/go-trustless-utils/traversal"
 	"github.com/parkan/sheltie/pkg/blockbroker"
+	"github.com/parkan/sheltie/pkg/events"
 	"github.com/parkan/sheltie/pkg/extractor"
 	"github.com/parkan/sheltie/pkg/types"
 )
@@ -459,7 +460,9 @@ func (hr *HybridRetriever) RetrieveAndExtract(
 	onBlock func(int),
 ) (*types.RetrievalStats, error) {
 	startTime := hr.clock.Now()
-	_ = eventsCallback // TODO: fire events
+	if eventsCallback == nil {
+		eventsCallback = func(types.RetrievalEvent) {}
+	}
 
 	session := blockbroker.NewSession(hr.candidateSource, hr.httpClient, hr.skipBlockVerification)
 	defer session.Close()
@@ -473,10 +476,13 @@ func (hr *HybridRetriever) RetrieveAndExtract(
 
 	var totalBlocks uint64
 	var totalBytes uint64
+	var primaryProvider string
 
 	// try CAR stream first
 	rdr, provider, err := session.GetSubgraphStream(ctx, rootCid)
 	if err == nil {
+		primaryProvider = provider
+		eventsCallback(events.ExtractionStarted(hr.clock.Now(), rootCid, provider))
 		logger.Infow("streaming CAR extraction", "root", rootCid, "provider", provider)
 
 		blocks, bytes, extractErr := carReader.ReadAndExtract(ctx, rdr)
@@ -491,6 +497,7 @@ func (hr *HybridRetriever) RetrieveAndExtract(
 			if duration.Seconds() > 0 {
 				speed = uint64(float64(totalBytes) / duration.Seconds())
 			}
+			eventsCallback(events.ExtractionSucceeded(hr.clock.Now(), rootCid, provider, totalBytes, totalBlocks, duration))
 			return &types.RetrievalStats{
 				RootCid:      rootCid,
 				Size:         totalBytes,
@@ -519,6 +526,8 @@ func (hr *HybridRetriever) RetrieveAndExtract(
 		totalBytes += p2Bytes
 	} else {
 		logger.Infow("CAR unavailable, using per-block extraction", "root", rootCid, "err", err)
+		eventsCallback(events.ExtractionStarted(hr.clock.Now(), rootCid, "per-block"))
+		primaryProvider = "per-block"
 
 		p2Blocks, p2Bytes, err := hr.extractPerBlock(ctx, ext, session, []cid.Cid{rootCid}, onBlock)
 		if err != nil {
@@ -534,6 +543,7 @@ func (hr *HybridRetriever) RetrieveAndExtract(
 		speed = uint64(float64(totalBytes) / duration.Seconds())
 	}
 
+	eventsCallback(events.ExtractionSucceeded(hr.clock.Now(), rootCid, primaryProvider, totalBytes, totalBlocks, duration))
 	return &types.RetrievalStats{
 		RootCid:      rootCid,
 		Size:         totalBytes,
