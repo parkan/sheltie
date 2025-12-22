@@ -17,8 +17,8 @@ import (
 // notFoundError implements the interface expected by IPLD storage
 type notFoundError struct{}
 
-func (notFoundError) Error() string   { return "not found" }
-func (notFoundError) NotFound() bool  { return true }
+func (notFoundError) Error() string  { return "not found" }
+func (notFoundError) NotFound() bool { return true }
 
 var errNotFound = notFoundError{}
 
@@ -151,7 +151,7 @@ func cidFromKey(key string) (cid.Cid, error) {
 
 // interface assertions
 var (
-	_ storage.ReadableStorage  = (*ExtractingStore)(nil)
-	_ storage.WritableStorage  = (*ExtractingStore)(nil)
+	_ storage.ReadableStorage          = (*ExtractingStore)(nil)
+	_ storage.WritableStorage          = (*ExtractingStore)(nil)
 	_ storage.StreamingReadableStorage = (*ExtractingStore)(nil)
 )
