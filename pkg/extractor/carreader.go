@@ -63,9 +63,7 @@ func (r *ExtractingCarReader) ReadAndExtract(ctx context.Context, rdr io.Reader)
 		if _, ok := r.expected[c]; !ok {
 			// unexpected block - could be duplicate or out-of-scope
 			// in streaming CAR with dups=y, duplicates are expected
-			// check if already processed
-			if r.extractor.processed[c] {
-				// duplicate, skip
+			if r.extractor.IsProcessed(c) {
 				continue
 			}
 			// might be a block we haven't seen the parent for yet
@@ -97,7 +95,7 @@ func (r *ExtractingCarReader) ReadAndExtract(ctx context.Context, rdr io.Reader)
 
 		// add children to expected set (skip identity CIDs - already handled inline)
 		for _, child := range children {
-			if !r.extractor.processed[child] && !isIdentityCid(child) {
+			if !r.extractor.IsProcessed(child) && !isIdentityCid(child) {
 				r.expected[child] = struct{}{}
 			}
 		}
