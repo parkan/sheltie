@@ -36,6 +36,10 @@ func extractIdentityData(c cid.Cid) ([]byte, error) {
 	return decoded.Digest, nil
 }
 
+// FileProgressCallback is called when file extraction progress is made.
+// path is relative to output dir, written is bytes written so far, total is expected size (-1 if unknown).
+type FileProgressCallback func(path string, written, total int64)
+
 // Extractor handles streaming extraction of UnixFS content to disk.
 // It processes blocks one at a time and writes file/directory content
 // as it arrives, without buffering entire files in memory.
@@ -61,6 +65,11 @@ type Extractor struct {
 	// pending raw blocks that arrived before their parent File node
 	// maps CID -> raw block data
 	pendingChunks map[cid.Cid][]byte
+
+	// file progress callbacks
+	onFileStart    FileProgressCallback
+	onFileProgress FileProgressCallback
+	onFileComplete FileProgressCallback
 }
 
 // chunkPosition tracks where a chunk should be written in a file
@@ -73,6 +82,7 @@ type fileWriter struct {
 	path      string
 	file      *os.File
 	expected  int64
+	written   int64                       // bytes written so far
 	positions map[cid.Cid][]chunkPosition // CID -> all offsets where it appears
 	pending   int                         // number of positions still needing data
 }
@@ -96,6 +106,21 @@ func New(outputDir string) (*Extractor, error) {
 		processed:     make(map[cid.Cid]bool),
 		pendingChunks: make(map[cid.Cid][]byte),
 	}, nil
+}
+
+// OnFileStart sets a callback invoked when a file extraction begins.
+func (e *Extractor) OnFileStart(cb FileProgressCallback) {
+	e.onFileStart = cb
+}
+
+// OnFileProgress sets a callback invoked when file data is written.
+func (e *Extractor) OnFileProgress(cb FileProgressCallback) {
+	e.onFileProgress = cb
+}
+
+// OnFileComplete sets a callback invoked when a file extraction finishes.
+func (e *Extractor) OnFileComplete(cb FileProgressCallback) {
+	e.onFileComplete = cb
 }
 
 // SetRootPath sets the path context for the root CID.
@@ -254,8 +279,15 @@ func (e *Extractor) processFile(c cid.Cid, node dagpb.PBNode, ufsData data.UnixF
 		if ufsData.FieldData().Exists() {
 			fileData = ufsData.FieldData().Must().Bytes()
 		}
+		size := int64(len(fileData))
+		if e.onFileStart != nil {
+			e.onFileStart(path, 0, size)
+		}
 		if err := os.WriteFile(fullPath, fileData, 0644); err != nil {
 			return nil, fmt.Errorf("failed to write file %s: %w", fullPath, err)
+		}
+		if e.onFileComplete != nil {
+			e.onFileComplete(path, size, size)
 		}
 		logger.Debugw("wrote single-block file", "path", fullPath, "bytes", len(fileData))
 		e.mu.Lock()
@@ -270,13 +302,13 @@ func (e *Extractor) processFile(c cid.Cid, node dagpb.PBNode, ufsData data.UnixF
 		return nil, fmt.Errorf("failed to create file %s: %w", fullPath, err)
 	}
 
-	var expectedSize int64
+	var expectedSize int64 = -1
 	if ufsData.FieldFileSize().Exists() {
 		expectedSize = ufsData.FieldFileSize().Must().Int()
 	}
 
 	fw := &fileWriter{
-		path:      fullPath,
+		path:      path, // relative path for callbacks
 		file:      f,
 		expected:  expectedSize,
 		positions: make(map[cid.Cid][]chunkPosition),
@@ -284,6 +316,10 @@ func (e *Extractor) processFile(c cid.Cid, node dagpb.PBNode, ufsData data.UnixF
 	e.mu.Lock()
 	e.openFiles[c] = fw
 	e.mu.Unlock()
+
+	if e.onFileStart != nil {
+		e.onFileStart(path, 0, expectedSize)
+	}
 
 	// write any inline data first (at offset 0)
 	inlineOffset := int64(0)
@@ -511,12 +547,19 @@ func (e *Extractor) writeChunk(chunkCid, fileCid cid.Cid, rawData []byte) error 
 	}
 
 	// write to ALL positions where this chunk appears
+	var bytesWritten int64
 	for _, pos := range positions {
 		_, err := fw.file.WriteAt(chunkData, pos.offset)
 		if err != nil {
 			return fmt.Errorf("failed to write chunk at offset %d: %w", pos.offset, err)
 		}
+		bytesWritten += int64(len(chunkData))
 		fw.pending--
+	}
+	fw.written += bytesWritten
+
+	if e.onFileProgress != nil {
+		e.onFileProgress(fw.path, fw.written, fw.expected)
 	}
 
 	// remove from positions map (this CID is done)
@@ -554,8 +597,15 @@ func (e *Extractor) handleRawBlock(c cid.Cid, rawData []byte) error {
 		if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
 			return fmt.Errorf("failed to create parent directory: %w", err)
 		}
+		size := int64(len(rawData))
+		if e.onFileStart != nil {
+			e.onFileStart(path, 0, size)
+		}
 		if err := os.WriteFile(fullPath, rawData, 0644); err != nil {
 			return fmt.Errorf("failed to write raw block %s: %w", fullPath, err)
+		}
+		if e.onFileComplete != nil {
+			e.onFileComplete(path, size, size)
 		}
 		logger.Debugw("wrote raw block", "path", fullPath, "bytes", len(rawData))
 		e.mu.Lock()
@@ -650,6 +700,9 @@ func (e *Extractor) closeFile(c cid.Cid) {
 	e.mu.Unlock()
 	if ok {
 		fw.file.Close()
+		if e.onFileComplete != nil {
+			e.onFileComplete(fw.path, fw.written, fw.expected)
+		}
 		logger.Debugw("closed file", "path", fw.path, "expected", fw.expected)
 	}
 }
