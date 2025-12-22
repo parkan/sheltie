@@ -123,6 +123,13 @@ func (e *Extractor) OnFileComplete(cb FileProgressCallback) {
 	e.onFileComplete = cb
 }
 
+// IsProcessed returns true if the block has already been processed.
+func (e *Extractor) IsProcessed(c cid.Cid) bool {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.processed[c]
+}
+
 // SetRootPath sets the path context for the root CID.
 // Call this before processing to set the base name for single-file extractions.
 // The name is sanitized to prevent path traversal.
@@ -307,6 +314,20 @@ func (e *Extractor) processFile(c cid.Cid, node dagpb.PBNode, ufsData data.UnixF
 		expectedSize = ufsData.FieldFileSize().Must().Int()
 	}
 
+	// write any inline data first (at offset 0), before committing to openFiles
+	inlineOffset := int64(0)
+	if ufsData.FieldData().Exists() {
+		inlineData := ufsData.FieldData().Must().Bytes()
+		if len(inlineData) > 0 {
+			n, err := f.WriteAt(inlineData, 0)
+			if err != nil {
+				f.Close()
+				return nil, fmt.Errorf("failed to write inline data: %w", err)
+			}
+			inlineOffset = int64(n)
+		}
+	}
+
 	fw := &fileWriter{
 		path:      path, // relative path for callbacks
 		file:      f,
@@ -319,20 +340,6 @@ func (e *Extractor) processFile(c cid.Cid, node dagpb.PBNode, ufsData data.UnixF
 
 	if e.onFileStart != nil {
 		e.onFileStart(path, 0, expectedSize)
-	}
-
-	// write any inline data first (at offset 0)
-	inlineOffset := int64(0)
-	if ufsData.FieldData().Exists() {
-		inlineData := ufsData.FieldData().Must().Bytes()
-		if len(inlineData) > 0 {
-			n, err := f.WriteAt(inlineData, 0)
-			if err != nil {
-				f.Close()
-				return nil, fmt.Errorf("failed to write inline data: %w", err)
-			}
-			inlineOffset = int64(n)
-		}
 	}
 
 	// build position map from links and blocksizes
