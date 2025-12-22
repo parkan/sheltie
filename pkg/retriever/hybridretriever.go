@@ -459,10 +459,7 @@ func (hr *HybridRetriever) RetrieveAndExtract(
 	onBlock func(int),
 ) (*types.RetrievalStats, error) {
 	startTime := hr.clock.Now()
-
-	if eventsCallback == nil {
-		eventsCallback = func(types.RetrievalEvent) {}
-	}
+	_ = eventsCallback // TODO: fire events
 
 	session := blockbroker.NewSession(hr.candidateSource, hr.httpClient, hr.skipBlockVerification)
 	defer session.Close()
@@ -556,9 +553,7 @@ func (hr *HybridRetriever) extractPerBlock(
 	onBlock func(int),
 ) (uint64, uint64, error) {
 	frontier := NewFrontier(cid.Undef)
-	for _, c := range startCids {
-		frontier.pending = append(frontier.pending, c)
-	}
+	frontier.pending = append(frontier.pending, startCids...)
 
 	var totalBlocks uint64
 	var totalBytes uint64

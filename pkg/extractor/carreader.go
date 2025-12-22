@@ -16,7 +16,7 @@ import (
 type ExtractingCarReader struct {
 	extractor *Extractor
 	expected  map[cid.Cid]struct{} // blocks we expect to receive
-	onBlock   func(int)           // callback for each block (bytes)
+	onBlock   func(int)            // callback for each block (bytes)
 }
 
 // NewExtractingCarReader creates a reader that extracts from a CAR stream.
