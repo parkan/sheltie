@@ -97,16 +97,6 @@ More information about available flags can be found by running `sheltie fetch --
 
 These options can also be set via environment variables prefixed with `SHELTIE_` (e.g., `SHELTIE_DELEGATED_ROUTING_ENDPOINT`). Legacy `LASSIE_` prefixed variables are also supported.
 
-#### Extracting Content from a CAR
-
-The go-car package can be used to extract the contents of the CAR file into usable files. For example, if the content of the CID is a video, the go-car package can be used to extract the video into a file on the local filesystem.
-
-```bash
-$ car extract -f <CID>.car
-```
-
-The `-f` flag is used to specify the CAR file to extract the contents from. The contents of the CAR will be extracted into the current working directory.
-
 #### Fetch Example
 
 Let's grab some content from the Filecoin/IPFS network using the `sheltie fetch` command:
@@ -119,9 +109,7 @@ This will fetch the `bafybeic56z3yccnla3cutmvqsn5zy3g24muupcsjtoyp3pu5pm5amurjx4
 
 The `-p` progress flag is used to get more detailed information about the state of the retrieval.
 
-_Note: If you received a timeout issue, try using `--global-timeout` to increase the timeout. Retrievability of some CIDs is highly variable on local network characteristics._
-
-_Note: For the internet cautious out there, the `bafybeic56z3yccnla3cutmvqsn5zy3g24muupcsjtoyp3pu5pm5amurjx4` CID is a directory containing a short video file. You may use it to test Sheltie._
+_Note: try fetching `bafybeibxtfn2zibw4olisv3aajmrqnozxtm2h4q6zvh7ea6s2foul4kkgm` for a little easer egg._
 
 To extract the contents of the `fetch-example.car` file we created in the previous example, we would run:
 
@@ -129,7 +117,7 @@ To extract the contents of the `fetch-example.car` file we created in the previo
 $ car extract -f fetch-example.car
 ```
 
-To fetch and extract at the same time, use the `--extract` flag:
+To fetch and extract at the same time (recommended), use the `--extract` flag:
 
 ```bash
 $ sheltie fetch --extract -p bafybeic56z3yccnla3cutmvqsn5zy3g24muupcsjtoyp3pu5pm5amurjx4
@@ -139,11 +127,11 @@ This streams content directly to disk as it arrives, without intermediate CAR fi
 
 _Note: The `car extract` tool requires seekable input and cannot process streamed CAR data. The `--extract` flag provides integrated extraction that works with sheltie's streaming retrieval._
 
-You should now have a `birb.mp4` file in your current working directory. Feel free to play it with your favorite video player!
+You should now have a `birb.mp4` file under `bafybeic56z3yccnla3cutmvqsn5zy3g24muupcsjtoyp3pu5pm5amurjx4/` in your current working directory. Feel free to play it with your favorite video player!
 
 ### HTTP API
 
-The sheltie HTTP API allows one to run a web server that can be used to retrieve content from the Filecoin/IPFS network via HTTP requests. The HTTP API is best used when needing to retrieve content from the network via HTTP requests, whether that be from a browser or a programmatic tool like `curl`. We will be using `curl` for the following examples but know that any HTTP client can be used including a web browser. Curl specific behavior will be noted when applicable.
+The sheltie HTTP API allows one to run a web server that can be used to retrieve content from the Filecoin/IPFS network via HTTP requests. It's primarily retained for backwards comaptibility with lassie.
 
 The API server can be started with the `sheltie daemon` command:
 
@@ -175,31 +163,6 @@ $ curl http://127.0.0.1:41443/ipfs/<CID>[/path/to/content]?filename=<filename> -
 _CURL Note: With curl we need to also specify the `--output <filename>` option. However, putting the above URL into a browser will download the file with the given filename parameter value upon a successful fetch._
 
 More information about HTTP API requests and responses, as well as the numerous request parameters that can be used to control fetch behavior on a per request basis, can be found in the [HTTP Specification](./docs/HTTP_SPEC.md) document.
-
-#### Daemon Example
-
-We can start the sheltie daemon by running:
-
-```bash
-$ sheltie daemon
-
-Sheltie daemon listening on address 127.0.0.1:41443
-Hit CTRL-C to stop the daemon
-```
-
-We can now fetch the same content we did in the [CLI example](#fetch-example) by running:
-
-```bash
-$ curl http://127.0.0.1:41443/ipfs/bafybeic56z3yccnla3cutmvqsn5zy3g24muupcsjtoyp3pu5pm5amurjx4?filename=daemon-example.car --output daemon-example.car
-```
-
-_CURL Note: With curl we need to also specify the `--output <filename>` option. However, putting the above URL into a browser will download the file with the given filename parameter value upon a successful fetch._
-
-To extract the contents of the `daemon-example.car` file we created in the above example, we would run:
-
-```bash
-$ car extract -f daemon-example.car
-```
 
 #### In-Depth Changes from Lassie
 The original lassie design aimed to accomodate the plurarlity of protocols in the IPFS/Filecoin ecosystems, simultaneously attempting retrievals over graphsync, bitswap, and http from multiple providers.
@@ -327,12 +290,6 @@ if err != nil {
 ```
 
 The `Fetch` function takes a `context.Context`, a `*types.Request`, and a `*types.FetchOptions`. The `context.Context` is used to control the lifecycle of the fetch. The `*types.Request` is the fetch request we made above. The `*types.FetchOptions` is used to control the behavior of the fetch, but it's variadic, so we don't pass anything. The function returns a `*types.FetchStats` and an `error`. The `*types.FetchStats` is the fetch stats. The `error` is used to indicate if there was an error fetching the CID.
-
-### Roots, pieces and payloads
-
-Sheltie uses the term **Root** to refer to the head block of a potential graph (DAG) of IPLD blocks. This is typically the block you request, using its CID, when you perform a _fetch_ with Sheltie. Of course, a root could also be a sub-root of a larger graph, but when performing a retrieval with Sheltie, you are focusing on the graph underneath the block you are fetching, and considerations of larger DAGs are not relevant.
-
-In the Filecoin ecosystem, there exists terminology related to "pieces" and "payloads" and there may be confusion between the way sheltie uses the term "root CID" and some of the language used in Filecoin. A **Piece** is a Filecoin storage deal unit, typically containing user data organized into a CAR; then padded to size to form a portion of a Filecoin sector. Filecoin pieces have their own CIDs, and it is possible to retrieve a whole, raw piece, from Filecoin. This can lead to terminology such as "piece root CID". Sheltie currently does not perform whole-piece retrievals and is not intended to be able to handle piece CIDs. Additionally, in Filecoin the term **Payload** is sometimes used in reference to the IPLD data inside a piece when performing a storage or retrieval deal. This is closer to the way Sheltie uses the term **Root** and historical Sheltie code contains some references to "payloads" that are actually referring to the root CID of a graph.
 
 ## Contribute
 
