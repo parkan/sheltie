@@ -34,5 +34,13 @@ archives:
       {{- else }}{{ .Os }}{{ end }}_{{ .Arch }}
 release:
   mode: keep-existing
+  header: |
+    ## changes from lassie
+
+    - ripped out bitswap and graphsync. http only, no negotiation overhead
+    - switched from legacy ipni to delegated routing v1 api for provider discovery
+    - added frontier traversal: when a provider returns an incomplete car, we continue fetching missing blocks from other providers. efficiently handles the case where content is split across multiple nodes
+    - full client-side implementation of the trustless gateway spec, including entity-bytes range requests
+    - streaming extraction (--extract): writes files directly to disk as blocks arrive. no intermediate car, no seeking, no car extract required. handles chunked files, deduplication, and out-of-order block arrival
 changelog:
   disable: true
