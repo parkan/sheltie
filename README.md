@@ -137,11 +137,7 @@ $ sheltie fetch --extract -p bafybeic56z3yccnla3cutmvqsn5zy3g24muupcsjtoyp3pu5pm
 
 This streams content directly to disk as it arrives, without intermediate CAR files. Use `--extract-to` to specify a different output directory.
 
-Alternatively, pipe the CAR output to the `car extract` command:
-
-```bash
-$ sheltie fetch -o - -p bafybeic56z3yccnla3cutmvqsn5zy3g24muupcsjtoyp3pu5pm5amurjx4 | car extract
-```
+_Note: The `car extract` tool requires seekable input and cannot process streamed CAR data. The `--extract` flag provides integrated extraction that works with sheltie's streaming retrieval._
 
 You should now have a `birb.mp4` file in your current working directory. Feel free to play it with your favorite video player!
 
