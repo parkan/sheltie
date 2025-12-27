@@ -29,7 +29,7 @@ Sheltie is the leaner, nimbler cousin of [lassie](https://github.com/filecoin-pr
 - Sheltie **uses delegated routing V1 API** to find providers instead of legacy IPNI, see https://github.com/filecoin-project/lassie/issues/489
 - Sheltie **reconstructs DAGs across HTTP providers** via frontier traversal when a provider returns an incomplete CAR
 - Sheltie fully implements the client side of the **[trustless gateway spec](https://specs.ipfs.tech/http-gateways/trustless-gateway/)**
-- Sheltie streams output by default and supports on-the-fly extraction of the original files
+- Sheltie supports **streaming extraction** (`--extract`) to write UnixFS content directly to disk during retrieval
 
 See below for more details.
 
@@ -89,6 +89,8 @@ More information about available flags can be found by running `sheltie fetch --
 | `--providers`, `--provider` | Comma-separated provider addresses to use instead of discovery. Accepts HTTP URLs (e.g., `http://127.0.0.1:8080`) or multiaddrs. |
 | `--delegated-routing-endpoint` | Custom delegated routing endpoint (default: `https://cid.contact`). |
 | `--stream`, `-s` | Stream blocks directly to output (default). Disable with `--stream=false` for deduplication via temp files. |
+| `--extract` | Extract UnixFS content directly to files instead of CAR output. |
+| `--extract-to` | Directory to extract files to (default: current directory). |
 | `--global-timeout` | Overall time limit for the entire retrieval (default: no limit). |
 | `-v`, `--verbose` | Enable verbose logging. |
 | `--vv`, `--very-verbose` | Enable debug-level logging. |
@@ -127,13 +129,19 @@ To extract the contents of the `fetch-example.car` file we created in the previo
 $ car extract -f fetch-example.car
 ```
 
-To fetch and extract at the same time, we can use the `sheltie fetch` command and pipe the output to the `car extract` command:
+To fetch and extract at the same time, use the `--extract` flag:
+
+```bash
+$ sheltie fetch --extract -p bafybeic56z3yccnla3cutmvqsn5zy3g24muupcsjtoyp3pu5pm5amurjx4
+```
+
+This streams content directly to disk as it arrives, without intermediate CAR files. Use `--extract-to` to specify a different output directory.
+
+Alternatively, pipe the CAR output to the `car extract` command:
 
 ```bash
 $ sheltie fetch -o - -p bafybeic56z3yccnla3cutmvqsn5zy3g24muupcsjtoyp3pu5pm5amurjx4 | car extract
 ```
-
-The `-o` output flag is used with the `-` character to specify that the output should be written to `stdout`. The `car extract` command reads input via `stdin` by default, so the output of the `sheltie fetch` command is piped to the `car extract` command.
 
 You should now have a `birb.mp4` file in your current working directory. Feel free to play it with your favorite video player!
 

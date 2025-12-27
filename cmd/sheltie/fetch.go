@@ -8,6 +8,7 @@ import (
 	"os"
 	"runtime/pprof"
 	"strings"
+	"sync/atomic"
 
 	"github.com/dustin/go-humanize"
 	"github.com/ipfs/go-cid"
@@ -18,6 +19,7 @@ import (
 	trustlesshttp "github.com/ipld/go-trustless-utils/http"
 	"github.com/parkan/sheltie/pkg/aggregateeventrecorder"
 	"github.com/parkan/sheltie/pkg/events"
+	"github.com/parkan/sheltie/pkg/extractor"
 	"github.com/parkan/sheltie/pkg/sheltie"
 	"github.com/parkan/sheltie/pkg/storage"
 	"github.com/parkan/sheltie/pkg/types"
@@ -93,6 +95,15 @@ var fetchFlags = []cli.Flag{
 		Name:  "cpuprofile",
 		Usage: "write cpu profile to file",
 	},
+	&cli.BoolFlag{
+		Name:  "extract",
+		Usage: "extract UnixFS content to files instead of CAR output",
+	},
+	&cli.StringFlag{
+		Name:  "extract-to",
+		Usage: "directory to extract files to (default: current directory)",
+		Value: ".",
+	},
 }
 
 var fetchCmd = &cli.Command{
@@ -161,6 +172,14 @@ func fetchAction(cctx *cli.Context) error {
 		outfile = output
 	}
 
+	extractMode := cctx.Bool("extract")
+	extractTo := cctx.String("extract-to")
+
+	// validate flags
+	if extractMode && cctx.IsSet("output") {
+		return fmt.Errorf("--extract and --output are mutually exclusive")
+	}
+
 	sheltieCfg, err := buildSheltieConfigFromCLIContext(cctx, nil)
 	if err != nil {
 		return err
@@ -171,21 +190,36 @@ func fetchAction(cctx *cli.Context) error {
 	instanceID := cctx.String("event-recorder-instance-id")
 	eventRecorderCfg := getEventRecorderConfig(eventRecorderURL, authToken, instanceID)
 
-	err = fetchRun(
-		cctx.Context,
-		sheltieCfg,
-		eventRecorderCfg,
-		msgWriter,
-		dataWriter,
-		root,
-		path,
-		scope,
-		byteRange,
-		stream,
-		tempDir,
-		progress,
-		outfile,
-	)
+	if extractMode {
+		err = extractRun(
+			cctx.Context,
+			sheltieCfg,
+			eventRecorderCfg,
+			msgWriter,
+			root,
+			path,
+			scope,
+			byteRange,
+			progress,
+			extractTo,
+		)
+	} else {
+		err = fetchRun(
+			cctx.Context,
+			sheltieCfg,
+			eventRecorderCfg,
+			msgWriter,
+			dataWriter,
+			root,
+			path,
+			scope,
+			byteRange,
+			stream,
+			tempDir,
+			progress,
+			outfile,
+		)
+	}
 	if err != nil {
 		return cli.Exit(err, 1)
 	}
@@ -432,6 +466,106 @@ func defaultFetchRun(
 		stats.Duration,
 		blockCount,
 		humanize.IBytes(stats.Size),
+	)
+
+	return nil
+}
+
+// extractRun handles extraction mode - extracting UnixFS content to files
+func extractRun(
+	ctx context.Context,
+	sheltieCfg *sheltie.SheltieConfig,
+	eventRecorderCfg *aggregateeventrecorder.EventRecorderConfig,
+	msgWriter io.Writer,
+	rootCid cid.Cid,
+	path datamodel.Path,
+	dagScope trustlessutils.DagScope,
+	entityBytes *trustlessutils.ByteRange,
+	progress bool,
+	extractTo string,
+) error {
+	// path and scope/byteRange not yet supported in streaming extraction
+	if path.Len() > 0 {
+		return fmt.Errorf("path traversal not yet supported in streaming extraction")
+	}
+	if dagScope != trustlessutils.DagScopeAll {
+		return fmt.Errorf("dag-scope other than 'all' not yet supported in streaming extraction")
+	}
+	if entityBytes != nil {
+		return fmt.Errorf("entity-bytes not yet supported in streaming extraction")
+	}
+
+	s, err := sheltie.NewSheltieWithConfig(ctx, sheltieCfg)
+	if err != nil {
+		return err
+	}
+
+	if eventRecorderCfg.EndpointURL != "" {
+		setupSheltieEventRecorder(ctx, eventRecorderCfg, s)
+	}
+
+	// create extractor
+	ext, err := extractor.New(extractTo)
+	if err != nil {
+		return fmt.Errorf("failed to create extractor: %w", err)
+	}
+	defer ext.Close()
+
+	// set root path context
+	ext.SetRootPath(rootCid, rootCid.String())
+
+	printPath := path.String()
+	if printPath != "" {
+		printPath = "/" + printPath
+	}
+	if len(fetchProviders) == 0 {
+		fmt.Fprintf(msgWriter, "Extracting %s to %s", rootCid.String()+printPath, extractTo)
+	} else {
+		fmt.Fprintf(msgWriter, "Extracting %s to %s from specified provider(s)", rootCid.String()+printPath, extractTo)
+	}
+	if progress {
+		fmt.Fprintln(msgWriter)
+		pp := &progressPrinter{writer: msgWriter}
+		s.RegisterSubscriber(pp.subscriber)
+	}
+
+	var blockCount int64
+	var byteLength uint64
+	onBlock := func(putBytes int) {
+		bc := atomic.AddInt64(&blockCount, 1)
+		bl := atomic.AddUint64(&byteLength, uint64(putBytes))
+		if !progress {
+			fmt.Fprint(msgWriter, ".")
+		} else {
+			fmt.Fprintf(msgWriter, "\rReceived %d blocks / %s...", bc, humanize.IBytes(bl))
+		}
+	}
+
+	stats, err := s.Extract(ctx, rootCid, ext, nil, onBlock)
+	if err != nil {
+		fmt.Fprintln(msgWriter)
+		return err
+	}
+
+	providers := stats.Providers
+	if len(providers) == 0 && stats.StorageProviderId.String() != "" {
+		providers = []string{stats.StorageProviderId.String()}
+	}
+	providerStr := "Unknown"
+	if len(providers) > 0 {
+		providerStr = strings.Join(providers, ", ")
+	}
+	fmt.Fprintf(msgWriter, "\nExtracted [%s] from [%s]:\n"+
+		"\tDuration: %s\n"+
+		"\t  Blocks: %d\n"+
+		"\t   Bytes: %s\n"+
+		"\t      To: %s\n",
+		rootCid,
+		providerStr,
+		stats.Duration,
+		atomic.LoadInt64(&blockCount),
+		humanize.IBytes(atomic.LoadUint64(&byteLength)),
+		extractTo,
 	)
 
 	return nil
