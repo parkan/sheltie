@@ -45,6 +45,7 @@ type FileProgressCallback func(path string, written, total int64)
 // as it arrives, without buffering entire files in memory.
 type Extractor struct {
 	outputDir string
+	spoolDir  string // temp dir for orphan large blocks
 	mu        sync.RWMutex
 
 	// track open file writers for chunked files
@@ -63,8 +64,12 @@ type Extractor struct {
 	processed map[cid.Cid]bool
 
 	// pending raw blocks that arrived before their parent File node
-	// maps CID -> raw block data
+	// maps CID -> raw block data (small blocks only)
 	pendingChunks map[cid.Cid][]byte
+
+	// spooled large blocks waiting for parent File node
+	// maps CID -> spool file path
+	spooledBlocks map[cid.Cid]string
 
 	// file progress callbacks
 	onFileStart    FileProgressCallback
@@ -87,6 +92,18 @@ type fileWriter struct {
 	pending   int                         // number of positions still needing data
 }
 
+// offsetWriter wraps a file for writing at a specific offset
+type offsetWriter struct {
+	f      *os.File
+	offset int64
+}
+
+func (w *offsetWriter) Write(p []byte) (int, error) {
+	n, err := w.f.WriteAt(p, w.offset)
+	w.offset += int64(n)
+	return n, err
+}
+
 // ChildLink represents a link to a child block with its name (for directories)
 type ChildLink struct {
 	Cid  cid.Cid
@@ -98,13 +115,19 @@ func New(outputDir string) (*Extractor, error) {
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create output directory: %w", err)
 	}
+	spoolDir := filepath.Join(outputDir, ".sheltie-spool")
+	if err := os.MkdirAll(spoolDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create spool directory: %w", err)
+	}
 	return &Extractor{
 		outputDir:     outputDir,
+		spoolDir:      spoolDir,
 		openFiles:     make(map[cid.Cid]*fileWriter),
 		pathContext:   make(map[cid.Cid]string),
 		fileRoot:      make(map[cid.Cid]cid.Cid),
 		processed:     make(map[cid.Cid]bool),
 		pendingChunks: make(map[cid.Cid][]byte),
+		spooledBlocks: make(map[cid.Cid]string),
 	}, nil
 }
 
@@ -128,6 +151,203 @@ func (e *Extractor) IsProcessed(c cid.Cid) bool {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	return e.processed[c]
+}
+
+// IsKnownLeaf returns true if this CID is a known leaf (chunk of a file).
+// This is determined by having seen the parent File node first.
+func (e *Extractor) IsKnownLeaf(c cid.Cid) bool {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	_, ok := e.fileRoot[c]
+	return ok
+}
+
+// StreamLeaf streams a large leaf block directly to its file position.
+// The block is verified against its CID while streaming.
+func (e *Extractor) StreamLeaf(ctx context.Context, c cid.Cid, r io.Reader, size int64) (int64, error) {
+	e.mu.RLock()
+	rootCid, ok := e.fileRoot[c]
+	if !ok {
+		e.mu.RUnlock()
+		return 0, fmt.Errorf("unknown leaf %s", c)
+	}
+	fw, ok := e.openFiles[rootCid]
+	if !ok {
+		e.mu.RUnlock()
+		return 0, fmt.Errorf("no open file for leaf %s (root %s)", c, rootCid)
+	}
+	positions := fw.positions[c]
+	e.mu.RUnlock()
+
+	if len(positions) == 0 {
+		return 0, fmt.Errorf("leaf %s has no positions", c)
+	}
+
+	// stream to first position with verification
+	pos := positions[0]
+	ow := &offsetWriter{f: fw.file, offset: pos.offset}
+
+	vw, err := NewTeeVerifyingWriter(ow, c)
+	if err != nil {
+		return 0, err
+	}
+
+	n, err := io.Copy(vw, r)
+	if err != nil {
+		return n, fmt.Errorf("streaming write: %w", err)
+	}
+
+	if err := vw.Verify(); err != nil {
+		return n, err
+	}
+
+	// handle duplicate positions by copying from first
+	for _, p := range positions[1:] {
+		_, err := fw.file.Seek(pos.offset, io.SeekStart)
+		if err != nil {
+			return n, fmt.Errorf("seeking for dup: %w", err)
+		}
+		dstOw := &offsetWriter{f: fw.file, offset: p.offset}
+		copied, err := io.CopyN(dstOw, fw.file, n)
+		if err != nil && err != io.EOF {
+			return n, fmt.Errorf("copying dup: %w", err)
+		}
+		if copied != n {
+			return n, fmt.Errorf("short copy for dup: %d vs %d", copied, n)
+		}
+	}
+
+	// update state
+	e.mu.Lock()
+	fw.written += n * int64(len(positions))
+	fw.pending -= len(positions)
+	delete(fw.positions, c)
+	delete(e.fileRoot, c)
+	e.processed[c] = true
+	complete := fw.pending == 0
+	e.mu.Unlock()
+
+	if e.onFileProgress != nil {
+		e.onFileProgress(fw.path, fw.written, fw.expected)
+	}
+
+	if complete {
+		e.closeFile(rootCid)
+	}
+
+	return n, nil
+}
+
+// SpoolOrphan streams a large block to a temp file when parent is unknown.
+// The block is verified while spooling. Call when IsKnownLeaf returns false.
+func (e *Extractor) SpoolOrphan(ctx context.Context, c cid.Cid, r io.Reader) (int64, error) {
+	spoolPath := filepath.Join(e.spoolDir, c.String())
+	f, err := os.Create(spoolPath)
+	if err != nil {
+		return 0, fmt.Errorf("creating spool file: %w", err)
+	}
+	defer f.Close()
+
+	vw, err := NewTeeVerifyingWriter(f, c)
+	if err != nil {
+		os.Remove(spoolPath)
+		return 0, err
+	}
+
+	n, err := io.Copy(vw, r)
+	if err != nil {
+		os.Remove(spoolPath)
+		return n, fmt.Errorf("spooling: %w", err)
+	}
+
+	if err := vw.Verify(); err != nil {
+		os.Remove(spoolPath)
+		return n, err
+	}
+
+	e.mu.Lock()
+	e.spooledBlocks[c] = spoolPath
+	e.mu.Unlock()
+
+	logger.Debugw("spooled orphan block", "cid", c, "size", n)
+	return n, nil
+}
+
+// HasSpooled returns true if this CID was spooled as an orphan.
+func (e *Extractor) HasSpooled(c cid.Cid) bool {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	_, ok := e.spooledBlocks[c]
+	return ok
+}
+
+// UseSpooled copies a spooled block to its final position in a file.
+// Should be called when a File node arrives and references a spooled block.
+func (e *Extractor) UseSpooled(c cid.Cid, rootCid cid.Cid) error {
+	e.mu.Lock()
+	spoolPath, ok := e.spooledBlocks[c]
+	if !ok {
+		e.mu.Unlock()
+		return fmt.Errorf("no spooled block for %s", c)
+	}
+	fw, ok := e.openFiles[rootCid]
+	if !ok {
+		e.mu.Unlock()
+		return fmt.Errorf("no open file for %s", rootCid)
+	}
+	positions := fw.positions[c]
+	e.mu.Unlock()
+
+	if len(positions) == 0 {
+		return fmt.Errorf("no positions for spooled %s", c)
+	}
+
+	src, err := os.Open(spoolPath)
+	if err != nil {
+		return fmt.Errorf("opening spool: %w", err)
+	}
+	defer src.Close()
+
+	stat, err := src.Stat()
+	if err != nil {
+		return fmt.Errorf("stat spool: %w", err)
+	}
+	size := stat.Size()
+
+	// copy to all positions
+	for _, pos := range positions {
+		src.Seek(0, io.SeekStart)
+		ow := &offsetWriter{f: fw.file, offset: pos.offset}
+		n, err := io.Copy(ow, src)
+		if err != nil {
+			return fmt.Errorf("copying spooled to pos %d: %w", pos.offset, err)
+		}
+		if n != size {
+			return fmt.Errorf("short copy: %d vs %d", n, size)
+		}
+	}
+
+	// cleanup
+	e.mu.Lock()
+	delete(e.spooledBlocks, c)
+	delete(fw.positions, c)
+	delete(e.fileRoot, c)
+	fw.written += size * int64(len(positions))
+	fw.pending -= len(positions)
+	e.processed[c] = true
+	complete := fw.pending == 0
+	e.mu.Unlock()
+
+	os.Remove(spoolPath)
+
+	if e.onFileProgress != nil {
+		e.onFileProgress(fw.path, fw.written, fw.expected)
+	}
+	if complete {
+		e.closeFile(rootCid)
+	}
+
+	return nil
 }
 
 // SetRootPath sets the path context for the root CID.
@@ -403,6 +623,12 @@ func (e *Extractor) processFile(c cid.Cid, node dagpb.PBNode, ufsData data.UnixF
 					logger.Warnw("failed to write pending chunk", "cid", linkCid, "err", err)
 				}
 			}
+			// check if this chunk was spooled as orphan (large block arrived before us)
+			if e.HasSpooled(linkCid) {
+				if err := e.UseSpooled(linkCid, c); err != nil {
+					logger.Warnw("failed to use spooled chunk", "cid", linkCid, "err", err)
+				}
+			}
 		}
 	}
 
@@ -510,6 +736,12 @@ func (e *Extractor) processIntermediateFile(c, rootCid cid.Cid, node dagpb.PBNod
 			if ok {
 				if err := e.writeChunk(linkCid, rootCid, pendingData); err != nil {
 					logger.Warnw("failed to write pending chunk", "cid", linkCid, "err", err)
+				}
+			}
+			// check if this chunk was spooled as orphan (large block arrived before us)
+			if e.HasSpooled(linkCid) {
+				if err := e.UseSpooled(linkCid, rootCid); err != nil {
+					logger.Warnw("failed to use spooled chunk", "cid", linkCid, "err", err)
 				}
 			}
 		}
@@ -738,6 +970,12 @@ func (e *Extractor) Close() error {
 	}
 	if pendingCount > 0 {
 		logger.Warnw("orphan pending chunks", "count", pendingCount)
+	}
+	// clean up spool directory
+	if e.spoolDir != "" {
+		if err := os.RemoveAll(e.spoolDir); err != nil {
+			errs = append(errs, fmt.Errorf("removing spool dir: %w", err))
+		}
 	}
 	if len(errs) > 0 {
 		return fmt.Errorf("close errors: %v", errs)
