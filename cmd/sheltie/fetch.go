@@ -39,7 +39,12 @@ var fetchFlags = []cli.Flag{
 	&cli.BoolFlag{
 		Name:    "progress",
 		Aliases: []string{"p"},
-		Usage:   "print progress output",
+		Usage:   "print verbose progress including provider events",
+	},
+	&cli.BoolFlag{
+		Name:    "quiet",
+		Aliases: []string{"q"},
+		Usage:   "suppress progress output",
 	},
 	&cli.StringFlag{
 		Name: "dag-scope",
@@ -165,6 +170,7 @@ func fetchAction(cctx *cli.Context) error {
 
 	tempDir := cctx.String("tempdir")
 	progress := cctx.Bool("progress")
+	quiet := cctx.Bool("quiet")
 
 	output := cctx.String("output")
 	outfile := fmt.Sprintf("%s.car", root.String())
@@ -201,6 +207,7 @@ func fetchAction(cctx *cli.Context) error {
 			scope,
 			byteRange,
 			progress,
+			quiet,
 			extractTo,
 		)
 	} else {
@@ -217,6 +224,7 @@ func fetchAction(cctx *cli.Context) error {
 			stream,
 			tempDir,
 			progress,
+			quiet,
 			outfile,
 		)
 	}
@@ -314,6 +322,10 @@ func (pp *progressPrinter) subscriber(event types.RetrievalEvent) {
 		fmt.Fprintf(pp.writer, "\rRetrieval failure for [%s]: %s\n", events.Identifier(ret), ret.ErrorMessage())
 	case events.SucceededEvent:
 		// noop, handled at return from Retrieve()
+	case events.ExtractionStartedEvent:
+		fmt.Fprintf(pp.writer, "Streaming from [%s]...\n", ret.Endpoint())
+	case events.ExtractionSucceededEvent:
+		// noop, handled at return from Extract()
 	}
 }
 
@@ -338,6 +350,7 @@ type fetchRunFunc func(
 	stream bool,
 	tempDir string,
 	progress bool,
+	quiet bool,
 	outfile string,
 ) error
 
@@ -359,6 +372,7 @@ func defaultFetchRun(
 	stream bool,
 	tempDir string,
 	progress bool,
+	quiet bool,
 	outfile string,
 ) error {
 	s, err := sheltie.NewSheltieWithConfig(ctx, sheltieCfg)
@@ -376,12 +390,11 @@ func defaultFetchRun(
 		printPath = "/" + printPath
 	}
 	if len(fetchProviders) == 0 {
-		fmt.Fprintf(msgWriter, "Fetching %s", rootCid.String()+printPath)
+		fmt.Fprintf(msgWriter, "Fetching %s\n", rootCid.String()+printPath)
 	} else {
-		fmt.Fprintf(msgWriter, "Fetching %s from specified provider(s)", rootCid.String()+printPath)
+		fmt.Fprintf(msgWriter, "Fetching %s from specified provider(s)\n", rootCid.String()+printPath)
 	}
 	if progress {
-		fmt.Fprintln(msgWriter)
 		pp := &progressPrinter{writer: msgWriter}
 		s.RegisterSubscriber(pp.subscriber)
 	}
@@ -431,9 +444,7 @@ func defaultFetchRun(
 	carWriter.OnPut(func(putBytes int) {
 		blockCount++
 		byteLength += uint64(putBytes)
-		if !progress {
-			fmt.Fprint(msgWriter, ".")
-		} else {
+		if !quiet && !progress {
 			fmt.Fprintf(msgWriter, "\rReceived %d blocks / %s...", blockCount, humanize.IBytes(byteLength))
 		}
 	}, false)
@@ -482,6 +493,7 @@ func extractRun(
 	dagScope trustlessutils.DagScope,
 	entityBytes *trustlessutils.ByteRange,
 	progress bool,
+	quiet bool,
 	extractTo string,
 ) error {
 	// path and scope/byteRange not yet supported in streaming extraction
@@ -519,12 +531,11 @@ func extractRun(
 		printPath = "/" + printPath
 	}
 	if len(fetchProviders) == 0 {
-		fmt.Fprintf(msgWriter, "Extracting %s to %s", rootCid.String()+printPath, extractTo)
+		fmt.Fprintf(msgWriter, "Extracting %s to %s\n", rootCid.String()+printPath, extractTo)
 	} else {
-		fmt.Fprintf(msgWriter, "Extracting %s to %s from specified provider(s)", rootCid.String()+printPath, extractTo)
+		fmt.Fprintf(msgWriter, "Extracting %s to %s from specified provider(s)\n", rootCid.String()+printPath, extractTo)
 	}
 	if progress {
-		fmt.Fprintln(msgWriter)
 		pp := &progressPrinter{writer: msgWriter}
 		s.RegisterSubscriber(pp.subscriber)
 	}
@@ -534,9 +545,7 @@ func extractRun(
 	onBlock := func(putBytes int) {
 		bc := atomic.AddInt64(&blockCount, 1)
 		bl := atomic.AddUint64(&byteLength, uint64(putBytes))
-		if !progress {
-			fmt.Fprint(msgWriter, ".")
-		} else {
+		if !quiet && !progress {
 			fmt.Fprintf(msgWriter, "\rReceived %d blocks / %s...", bc, humanize.IBytes(bl))
 		}
 	}
