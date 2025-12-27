@@ -333,7 +333,15 @@ func (retriever *Retriever) RetrieveAndExtract(
 		return nil, errors.New("streaming extraction requires HybridRetriever")
 	}
 
-	return hr.RetrieveAndExtract(ctx, rootCid, ext, eventsCallback, onBlock)
+	// wrap callback to also dispatch to subscribers
+	wrappedCallback := func(event types.RetrievalEvent) {
+		retriever.eventManager.DispatchEvent(event)
+		if eventsCallback != nil {
+			eventsCallback(event)
+		}
+	}
+
+	return hr.RetrieveAndExtract(ctx, rootCid, ext, wrappedCallback, onBlock)
 }
 
 func logEvent(event types.RetrievalEvent) {
