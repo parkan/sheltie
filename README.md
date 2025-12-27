@@ -91,6 +91,8 @@ More information about available flags can be found by running `sheltie fetch --
 | `--stream`, `-s` | Stream blocks directly to output (default). Disable with `--stream=false` for deduplication via temp files. |
 | `--extract` | Extract UnixFS content directly to files instead of CAR output. |
 | `--extract-to` | Directory to extract files to (default: current directory). |
+| `-p`, `--progress` | Show verbose provider events during retrieval. |
+| `-q`, `--quiet` | Suppress progress output. |
 | `--global-timeout` | Overall time limit for the entire retrieval (default: no limit). |
 | `-v`, `--verbose` | Enable verbose logging. |
 | `--vv`, `--very-verbose` | Enable debug-level logging. |
@@ -117,7 +119,7 @@ $ sheltie fetch -o fetch-example.car -p bafybeic56z3yccnla3cutmvqsn5zy3g24muupcs
 
 This will fetch the `bafybeic56z3yccnla3cutmvqsn5zy3g24muupcsjtoyp3pu5pm5amurjx4` CID from the network and save it to a file named `fetch-example.car` in our current working directory.
 
-The `-p` progress flag is used to get more detailed information about the state of the retrieval.
+The `-p` flag shows verbose provider events (indexer queries, connections, etc). Progress is shown by default; use `-q` to suppress it.
 
 _Note: If you received a timeout issue, try using `--global-timeout` to increase the timeout. Retrievability of some CIDs is highly variable on local network characteristics._
 
