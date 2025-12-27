@@ -28,9 +28,12 @@ Sheltie is the leaner, nimbler cousin of [lassie](https://github.com/filecoin-pr
 - Sheltie is **HTTP-only** (no Bitswap, no Graphsync)
 - Sheltie **uses delegated routing V1 API** to find providers instead of legacy IPNI, see https://github.com/filecoin-project/lassie/issues/489
 - Sheltie **reconstructs DAGs across HTTP providers** via frontier traversal when a provider returns an incomplete CAR
+- Sheltie fully implements the client side of the **[trustless gateway spec](https://specs.ipfs.tech/http-gateways/trustless-gateway/)**
 - Sheltie supports **streaming extraction** (`--extract`) to write UnixFS content directly to disk during retrieval
 
-This project is a fork of Protocol Labs’s Lassie (https://github.com/filecoin-project/lassie) under Apache 2.0/MIT.
+See below for more details.
+
+_This project is a fork of Protocol Labs’s Lassie (https://github.com/filecoin-project/lassie) under Apache 2.0/MIT._
 
 ## Overview
 
@@ -201,6 +204,22 @@ To extract the contents of the `daemon-example.car` file we created in the above
 ```bash
 $ car extract -f daemon-example.car
 ```
+
+#### In-Depth Changes from Lassie
+The original lassie design aimed to accomodate the plurarlity of protocols in the IPFS/Filecoin ecosystems, simultaneously attempting retrievals over graphsync, bitswap, and http from multiple providers.
+This approach meaningfully bridged the two ecosystems and (theoretically) maximized the odds of successful retrieval, but at the cost of significant complexity (in general and due to the inter-protocol
+architectural differences specifically). As delegated routing and trustless gateway/HTTP based retrievals have gained prominence, sheltie aims to be the best possible retrieval client within a more focused
+conceptual scope. Think of it as a "trustless gateway aware cURL" (cf. https://curl.se/docs/ipfs.html)
+
+The sheltie model focuses entirely on resolving providers (which may be individual filecoin SPs, kubo nodes, etc) via delegated routing endpoints and retrieving via the [trustless gateway](https://specs.ipfs.tech/http-gateways/trustless-gateway/)
+protocol. Collecting and forwarwding subgraphs from libp2p peers may be handled by specific gateways, however this is completely abstracted at the client level (apart from verifying blocks received).
+
+The removal of bitswap does come at a cost: the original implementation of HTTP retrieval assumed only complete graphs would be returned for the requested root CID, and bailed out otherwise.
+Luckily, the trustless gateway (hereafter TG) spec indicates that an incomplete DAG should still be served, and it's up to the client to handle it. Therefore, we can recursively attempt to re-discover
+missing subgraphs, thereby achieving a similar behavior to the graph stitching that we get "for free" in bitswap (though efficient CAR stream retrieval of the subgraph is always preferred).
+
+The other major change is moving to a fully streaming-by-default architecture; instead of keeping a temporary on-disk blockstore for the duration of the retrieval, we only keep a "frontier" of blocks seen and needed;
+this allows for retrieving potentially TiB-to-PiB scale datasets. Furthermore, the `--extract` option unpacks the car stream on the fly (assuming unixfs input) and constructs the files without needing to flush the CAR.
 
 ### Golang Library
 
