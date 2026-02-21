@@ -12,16 +12,16 @@ import (
 	"time"
 
 	"github.com/filecoin-project/go-clock"
+	"github.com/filecoin-project/lassie/pkg/blockbroker"
+	"github.com/filecoin-project/lassie/pkg/events"
+	"github.com/filecoin-project/lassie/pkg/extractor"
+	"github.com/filecoin-project/lassie/pkg/types"
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/ipld/go-ipld-prime/linking"
 	cidlink "github.com/ipld/go-ipld-prime/linking/cid"
 	"github.com/ipld/go-trustless-utils/traversal"
-	"github.com/filecoin-project/lassie/pkg/blockbroker"
-	"github.com/filecoin-project/lassie/pkg/events"
-	"github.com/filecoin-project/lassie/pkg/extractor"
-	"github.com/filecoin-project/lassie/pkg/types"
 )
 
 const (

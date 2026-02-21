@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/filecoin-project/lassie/pkg/aggregateeventrecorder"
-	httpserver "github.com/filecoin-project/lassie/pkg/server/http"
 	"github.com/filecoin-project/lassie/pkg/lassie"
+	httpserver "github.com/filecoin-project/lassie/pkg/server/http"
 	"github.com/urfave/cli/v2"
 )
 

@@ -6,11 +6,11 @@ import (
 	"io"
 	"sync"
 
+	"github.com/filecoin-project/lassie/pkg/types"
 	"github.com/ipfs/go-cid"
 	carstorage "github.com/ipld/go-car/v2/storage"
 	"github.com/ipld/go-ipld-prime/linking"
 	cidlink "github.com/ipld/go-ipld-prime/linking/cid"
-	"github.com/filecoin-project/lassie/pkg/types"
 )
 
 var _ types.ReadableWritableStorage = (*StreamingStore)(nil)

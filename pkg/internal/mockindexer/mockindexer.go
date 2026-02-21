@@ -11,12 +11,12 @@ import (
 	"time"
 
 	"github.com/filecoin-project/go-clock"
+	"github.com/filecoin-project/lassie/pkg/indexerlookup"
 	"github.com/ipfs/go-cid"
 	"github.com/ipni/go-libipni/find/model"
 	"github.com/ipni/go-libipni/metadata"
 	"github.com/multiformats/go-multicodec"
 	"github.com/multiformats/go-multihash"
-	"github.com/filecoin-project/lassie/pkg/indexerlookup"
 )
 
 type MockIndexer struct {

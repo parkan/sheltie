@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ipfs/go-log/v2"
 	"github.com/filecoin-project/lassie/pkg/events"
 	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/ipfs/go-log/v2"
 )
 
 var logger = log.Logger("lassie/aggregateeventrecorder")

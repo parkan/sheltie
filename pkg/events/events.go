@@ -1,8 +1,8 @@
 package events
 
 import (
-	"github.com/multiformats/go-multicodec"
 	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/multiformats/go-multicodec"
 )
 
 // Identifier returns the HTTP endpoint of the storage provider

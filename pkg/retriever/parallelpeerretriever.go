@@ -8,13 +8,13 @@ import (
 	"time"
 
 	"github.com/filecoin-project/go-clock"
+	"github.com/filecoin-project/lassie/pkg/events"
+	"github.com/filecoin-project/lassie/pkg/retriever/prioritywaitqueue"
+	"github.com/filecoin-project/lassie/pkg/types"
 	"github.com/ipfs/go-cid"
 	"github.com/ipni/go-libipni/metadata"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multicodec"
-	"github.com/filecoin-project/lassie/pkg/events"
-	"github.com/filecoin-project/lassie/pkg/retriever/prioritywaitqueue"
-	"github.com/filecoin-project/lassie/pkg/types"
 )
 
 // TransportProtocol implements the protocol-specific portions of a parallel-

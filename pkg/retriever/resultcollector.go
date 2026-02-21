@@ -3,9 +3,9 @@ package retriever
 import (
 	"context"
 
-	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/filecoin-project/lassie/pkg/retriever/prioritywaitqueue"
 	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"go.uber.org/multierr"
 )
 

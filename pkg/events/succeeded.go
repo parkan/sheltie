@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/multiformats/go-multicodec"
 	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/multiformats/go-multicodec"
 )
 
 var (
