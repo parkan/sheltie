@@ -9,12 +9,12 @@ import (
 
 	"github.com/ipfs/go-log/v2"
 	servertiming "github.com/mitchellh/go-server-timing"
-	"github.com/filecoin-project/lassie/pkg/lassie"
+	"github.com/parkan/sheltie/pkg/sheltie"
 )
 
-var logger = log.Logger("lassie/httpserver")
+var logger = log.Logger("sheltie/httpserver")
 
-// HttpServer is a Lassie server for fetching data from the network via HTTP
+// HttpServer is a Sheltie server for fetching data from the network via HTTP
 type HttpServer struct {
 	cancel        context.CancelFunc
 	ctx           context.Context
@@ -43,7 +43,7 @@ func saveConnInCTX(ctx context.Context, c net.Conn) context.Context {
 }
 
 // NewHttpServer creates a new HttpServer
-func NewHttpServer(ctx context.Context, s *lassie.Lassie, cfg HttpServerConfig) (*HttpServer, error) {
+func NewHttpServer(ctx context.Context, s *sheltie.Sheltie, cfg HttpServerConfig) (*HttpServer, error) {
 	addr := fmt.Sprintf("%s:%d", cfg.Address, cfg.Port)
 	listener, err := net.Listen("tcp", addr) // assigns a port if port is 0
 	if err != nil {

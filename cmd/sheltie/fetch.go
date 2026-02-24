@@ -17,12 +17,12 @@ import (
 	"github.com/ipld/go-ipld-prime/datamodel"
 	trustlessutils "github.com/ipld/go-trustless-utils"
 	trustlesshttp "github.com/ipld/go-trustless-utils/http"
-	"github.com/filecoin-project/lassie/pkg/aggregateeventrecorder"
-	"github.com/filecoin-project/lassie/pkg/events"
-	"github.com/filecoin-project/lassie/pkg/extractor"
-	"github.com/filecoin-project/lassie/pkg/lassie"
-	"github.com/filecoin-project/lassie/pkg/storage"
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/aggregateeventrecorder"
+	"github.com/parkan/sheltie/pkg/events"
+	"github.com/parkan/sheltie/pkg/extractor"
+	"github.com/parkan/sheltie/pkg/sheltie"
+	"github.com/parkan/sheltie/pkg/storage"
+	"github.com/parkan/sheltie/pkg/types"
 	"github.com/urfave/cli/v2"
 )
 
@@ -186,7 +186,7 @@ func fetchAction(cctx *cli.Context) error {
 		return fmt.Errorf("--extract and --output are mutually exclusive")
 	}
 
-	lassieCfg, err := buildLassieConfigFromCLIContext(cctx, nil)
+	sheltieCfg, err := buildConfigFromCLIContext(cctx, nil)
 	if err != nil {
 		return err
 	}
@@ -199,7 +199,7 @@ func fetchAction(cctx *cli.Context) error {
 	if extractMode {
 		err = extractRun(
 			cctx.Context,
-			lassieCfg,
+			sheltieCfg,
 			eventRecorderCfg,
 			msgWriter,
 			root,
@@ -213,7 +213,7 @@ func fetchAction(cctx *cli.Context) error {
 	} else {
 		err = fetchRun(
 			cctx.Context,
-			lassieCfg,
+			sheltieCfg,
 			eventRecorderCfg,
 			msgWriter,
 			dataWriter,
@@ -339,7 +339,7 @@ func (ow *onlyWriter) Write(p []byte) (n int, err error) {
 
 type fetchRunFunc func(
 	ctx context.Context,
-	lassieCfg *lassie.LassieConfig,
+	sheltieCfg *sheltie.SheltieConfig,
 	eventRecorderCfg *aggregateeventrecorder.EventRecorderConfig,
 	msgWriter io.Writer,
 	dataWriter io.Writer,
@@ -356,12 +356,9 @@ type fetchRunFunc func(
 
 var fetchRun fetchRunFunc = defaultFetchRun
 
-// defaultFetchRun is the handler for the fetch command.
-// This abstraction allows the fetch command to be invoked
-// programmatically for testing.
 func defaultFetchRun(
 	ctx context.Context,
-	lassieCfg *lassie.LassieConfig,
+	sheltieCfg *sheltie.SheltieConfig,
 	eventRecorderCfg *aggregateeventrecorder.EventRecorderConfig,
 	msgWriter io.Writer,
 	dataWriter io.Writer,
@@ -375,14 +372,13 @@ func defaultFetchRun(
 	quiet bool,
 	outfile string,
 ) error {
-	s, err := lassie.NewLassieWithConfig(ctx, lassieCfg)
+	s, err := sheltie.NewSheltieWithConfig(ctx, sheltieCfg)
 	if err != nil {
 		return err
 	}
 
-	// create and subscribe an event recorder API if an endpoint URL is set
 	if eventRecorderCfg.EndpointURL != "" {
-		setupLassieEventRecorder(ctx, eventRecorderCfg, s)
+		setupEventRecorder(ctx, eventRecorderCfg, s)
 	}
 
 	printPath := path.String()
@@ -482,10 +478,9 @@ func defaultFetchRun(
 	return nil
 }
 
-// extractRun handles extraction mode - extracting UnixFS content to files
 func extractRun(
 	ctx context.Context,
-	lassieCfg *lassie.LassieConfig,
+	sheltieCfg *sheltie.SheltieConfig,
 	eventRecorderCfg *aggregateeventrecorder.EventRecorderConfig,
 	msgWriter io.Writer,
 	rootCid cid.Cid,
@@ -507,13 +502,13 @@ func extractRun(
 		return fmt.Errorf("entity-bytes not yet supported in streaming extraction")
 	}
 
-	s, err := lassie.NewLassieWithConfig(ctx, lassieCfg)
+	s, err := sheltie.NewSheltieWithConfig(ctx, sheltieCfg)
 	if err != nil {
 		return err
 	}
 
 	if eventRecorderCfg.EndpointURL != "" {
-		setupLassieEventRecorder(ctx, eventRecorderCfg, s)
+		setupEventRecorder(ctx, eventRecorderCfg, s)
 	}
 
 	// create extractor

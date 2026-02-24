@@ -14,9 +14,9 @@ import (
 	"github.com/ipld/go-trustless-utils/traversal"
 	"github.com/ipni/go-libipni/metadata"
 	"github.com/multiformats/go-multicodec"
-	"github.com/filecoin-project/lassie/pkg/build"
-	"github.com/filecoin-project/lassie/pkg/events"
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/build"
+	"github.com/parkan/sheltie/pkg/events"
+	"github.com/parkan/sheltie/pkg/types"
 )
 
 var (

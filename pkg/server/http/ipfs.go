@@ -15,10 +15,10 @@ import (
 	trustlessutils "github.com/ipld/go-trustless-utils"
 	trustlesshttp "github.com/ipld/go-trustless-utils/http"
 	"github.com/multiformats/go-multicodec"
-	"github.com/filecoin-project/lassie/pkg/build"
-	"github.com/filecoin-project/lassie/pkg/retriever"
-	"github.com/filecoin-project/lassie/pkg/storage"
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/build"
+	"github.com/parkan/sheltie/pkg/retriever"
+	"github.com/parkan/sheltie/pkg/storage"
+	"github.com/parkan/sheltie/pkg/types"
 )
 
 func IpfsHandler(fetcher types.Fetcher, cfg HttpServerConfig) func(http.ResponseWriter, *http.Request) {
@@ -76,7 +76,7 @@ func IpfsHandler(fetcher types.Fetcher, cfg HttpServerConfig) func(http.Response
 
 		carWriter.OnPut(func(int) {
 			// called once we start writing blocks into the CAR (on the first Put())
-			res.Header().Set("Server", build.UserAgent) // "lassie/vx.y.z-<git commit hash>"
+			res.Header().Set("Server", build.UserAgent) // "sheltie/vx.y.z-<git commit hash>"
 			res.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", fileName))
 			res.Header().Set("Accept-Ranges", "none")
 			res.Header().Set("Cache-Control", trustlesshttp.ResponseCacheControlHeader)

@@ -10,14 +10,14 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/ipfs/go-log/v2"
-	"github.com/filecoin-project/lassie/pkg/aggregateeventrecorder"
-	"github.com/filecoin-project/lassie/pkg/indexerlookup"
-	"github.com/filecoin-project/lassie/pkg/retriever"
-	"github.com/filecoin-project/lassie/pkg/lassie"
+	"github.com/parkan/sheltie/pkg/aggregateeventrecorder"
+	"github.com/parkan/sheltie/pkg/indexerlookup"
+	"github.com/parkan/sheltie/pkg/retriever"
+	"github.com/parkan/sheltie/pkg/sheltie"
 	"github.com/urfave/cli/v2"
 )
 
-var logger = log.Logger("lassie/main")
+var logger = log.Logger("sheltie/main")
 
 func main() {
 	// set up a context that is canceled when a command is interrupted
@@ -42,8 +42,8 @@ func main() {
 	}()
 
 	app := &cli.App{
-		Name:    "lassie",
-		Usage:   "Lassie - Utility for retrieving content from the Filecoin network",
+		Name:    "sheltie",
+		Usage:   "Sheltie - Utility for retrieving content from the Filecoin network",
 		Suggest: true,
 		Flags: []cli.Flag{
 			FlagVerbose,
@@ -66,19 +66,19 @@ func after(cctx *cli.Context) error {
 	return nil
 }
 
-func buildLassieConfigFromCLIContext(cctx *cli.Context, lassieOpts []lassie.LassieOption) (*lassie.LassieConfig, error) {
+func buildConfigFromCLIContext(cctx *cli.Context, sheltieOpts []sheltie.SheltieOption) (*sheltie.SheltieConfig, error) {
 	globalTimeout := cctx.Duration("global-timeout")
 
 	if globalTimeout > 0 {
-		lassieOpts = append(lassieOpts, lassie.WithGlobalTimeout(globalTimeout))
+		sheltieOpts = append(sheltieOpts, sheltie.WithGlobalTimeout(globalTimeout))
 	}
 
 	if len(fetchProviders) > 0 {
-		finderOpt := lassie.WithCandidateSource(retriever.NewDirectCandidateSource(fetchProviders))
+		finderOpt := sheltie.WithCandidateSource(retriever.NewDirectCandidateSource(fetchProviders))
 		if cctx.IsSet("delegated-routing-endpoint") {
 			logger.Warn("Ignoring delegated-routing-endpoint flag since direct provider is specified")
 		}
-		lassieOpts = append(lassieOpts, finderOpt)
+		sheltieOpts = append(sheltieOpts, finderOpt)
 	} else if cctx.IsSet("delegated-routing-endpoint") {
 		endpoint := cctx.String("delegated-routing-endpoint")
 		endpointUrl, err := url.ParseRequestURI(endpoint)
@@ -91,20 +91,20 @@ func buildLassieConfigFromCLIContext(cctx *cli.Context, lassieOpts []lassie.Lass
 			logger.Errorw("Failed to instantiate delegated routing candidate finder", "err", err)
 			return nil, err
 		}
-		lassieOpts = append(lassieOpts, lassie.WithCandidateSource(finder))
+		sheltieOpts = append(sheltieOpts, sheltie.WithCandidateSource(finder))
 		logger.Debug("Using explicit delegated routing endpoint to find candidates", "endpoint", endpoint)
 	}
 
 	if len(providerBlockList) > 0 {
-		lassieOpts = append(lassieOpts, lassie.WithProviderBlockList(providerBlockList))
+		sheltieOpts = append(sheltieOpts, sheltie.WithProviderBlockList(providerBlockList))
 	}
 
 	if cctx.Bool("skip-block-verification") {
 		logger.Warn("DANGER: block verification disabled - malicious gateways can serve arbitrary data!")
-		lassieOpts = append(lassieOpts, lassie.WithSkipBlockVerification(true))
+		sheltieOpts = append(sheltieOpts, sheltie.WithSkipBlockVerification(true))
 	}
 
-	return lassie.NewLassieConfig(lassieOpts...), nil
+	return sheltie.NewSheltieConfig(sheltieOpts...), nil
 }
 
 func getEventRecorderConfig(endpointURL string, authToken string, instanceID string) *aggregateeventrecorder.EventRecorderConfig {
@@ -115,11 +115,10 @@ func getEventRecorderConfig(endpointURL string, authToken string, instanceID str
 	}
 }
 
-// setupLassieEventRecorder creates and subscribes an EventRecorder if an event recorder URL is given
-func setupLassieEventRecorder(
+func setupEventRecorder(
 	ctx context.Context,
 	cfg *aggregateeventrecorder.EventRecorderConfig,
-	s *lassie.Lassie,
+	s *sheltie.Sheltie,
 ) {
 	if cfg.EndpointURL != "" {
 		if cfg.InstanceID == "" {

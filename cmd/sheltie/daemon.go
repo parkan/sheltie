@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/filecoin-project/lassie/pkg/aggregateeventrecorder"
-	httpserver "github.com/filecoin-project/lassie/pkg/server/http"
-	"github.com/filecoin-project/lassie/pkg/lassie"
+	"github.com/parkan/sheltie/pkg/aggregateeventrecorder"
+	httpserver "github.com/parkan/sheltie/pkg/server/http"
+	"github.com/parkan/sheltie/pkg/sheltie"
 	"github.com/urfave/cli/v2"
 )
 
@@ -17,7 +17,7 @@ var daemonFlags = []cli.Flag{
 		Usage:       "the address the http server listens on",
 		Value:       "127.0.0.1",
 		DefaultText: "127.0.0.1",
-		EnvVars:     []string{"LASSIE_ADDRESS", "LASSIE_ADDRESS"},
+		EnvVars:     []string{"SHELTIE_ADDRESS", "LASSIE_ADDRESS"},
 	},
 	&cli.UintFlag{
 		Name:        "port",
@@ -25,7 +25,7 @@ var daemonFlags = []cli.Flag{
 		Usage:       "the port the http server listens on",
 		Value:       0,
 		DefaultText: "random",
-		EnvVars:     []string{"LASSIE_PORT", "LASSIE_PORT"},
+		EnvVars:     []string{"SHELTIE_PORT", "LASSIE_PORT"},
 	},
 	&cli.Uint64Flag{
 		Name:        "maxblocks",
@@ -33,7 +33,7 @@ var daemonFlags = []cli.Flag{
 		Usage:       "maximum number of blocks sent before closing connection",
 		Value:       0,
 		DefaultText: "no limit",
-		EnvVars:     []string{"LASSIE_MAX_BLOCKS_PER_REQUEST", "LASSIE_MAX_BLOCKS_PER_REQUEST"},
+		EnvVars:     []string{"SHELTIE_MAX_BLOCKS_PER_REQUEST", "LASSIE_MAX_BLOCKS_PER_REQUEST"},
 	},
 	FlagDelegatedRoutingEndpoint,
 	FlagEventRecorderAuth,
@@ -54,20 +54,16 @@ var daemonFlags = []cli.Flag{
 
 var daemonCmd = &cli.Command{
 	Name:   "daemon",
-	Usage:  "Starts a lassie daemon, accepting http requests",
+	Usage:  "Starts a sheltie daemon, accepting http requests",
 	After:  after,
 	Flags:  daemonFlags,
 	Action: daemonAction,
 }
 
-// daemonAction is the cli action for the daemon command. This function is
-// called by the cli framework when the daemon command is invoked. It translates
-// the cli context into the appropriate config objects and then calls the
-// daemonRun function.
 func daemonAction(cctx *cli.Context) error {
-	lassieOpts := []lassie.LassieOption{}
+	sheltieOpts := []sheltie.SheltieOption{}
 
-	lassieCfg, err := buildLassieConfigFromCLIContext(cctx, lassieOpts)
+	sheltieCfg, err := buildConfigFromCLIContext(cctx, sheltieOpts)
 	if err != nil {
 		return err
 	}
@@ -88,7 +84,7 @@ func daemonAction(cctx *cli.Context) error {
 
 	err = daemonRun(
 		cctx.Context,
-		lassieCfg,
+		sheltieCfg,
 		httpServerCfg,
 		eventRecorderCfg,
 	)
@@ -99,34 +95,28 @@ func daemonAction(cctx *cli.Context) error {
 	return nil
 }
 
-// daemonRunFunc is the function signature for the daemonRun function.
 type daemonRunFunc func(
 	ctx context.Context,
-	lassieCfg *lassie.LassieConfig,
+	sheltieCfg *sheltie.SheltieConfig,
 	httpServerCfg httpserver.HttpServerConfig,
 	eventRecorderCfg *aggregateeventrecorder.EventRecorderConfig,
 ) error
 
-// daemonRun is the instance of a daemonRunFunc function that will
-// execute when running the daemon command. It is set to
-// defaultDaemonRun by default, but can be replaced for testing.
 var daemonRun daemonRunFunc = defaultDaemonRun
 
-// defaultDaemonRun is the default implementation for the daemonRun function.
 func defaultDaemonRun(
 	ctx context.Context,
-	lassieCfg *lassie.LassieConfig,
+	sheltieCfg *sheltie.SheltieConfig,
 	httpServerCfg httpserver.HttpServerConfig,
 	eventRecorderCfg *aggregateeventrecorder.EventRecorderConfig,
 ) error {
-	s, err := lassie.NewLassieWithConfig(ctx, lassieCfg)
+	s, err := sheltie.NewSheltieWithConfig(ctx, sheltieCfg)
 	if err != nil {
 		return err
 	}
 
-	// create and subscribe an event recorder API if an endpoint URL is set
 	if eventRecorderCfg.EndpointURL != "" {
-		setupLassieEventRecorder(ctx, eventRecorderCfg, s)
+		setupEventRecorder(ctx, eventRecorderCfg, s)
 	}
 
 	httpServer, err := httpserver.NewHttpServer(ctx, s, httpServerCfg)
@@ -137,7 +127,7 @@ func defaultDaemonRun(
 
 	serverErrChan := make(chan error, 1)
 	go func() {
-		fmt.Printf("Lassie daemon listening on address %s\n", httpServer.Addr())
+		fmt.Printf("Sheltie daemon listening on address %s\n", httpServer.Addr())
 		fmt.Println("Hit CTRL-C to stop the daemon")
 		serverErrChan <- httpServer.Start()
 	}()
@@ -148,16 +138,15 @@ func defaultDaemonRun(
 		logger.Errorw("failed to start http server", "err", err)
 	}
 
-	fmt.Println("Shutting down Lassie daemon")
+	fmt.Println("Shutting down sheltie daemon")
 	if err = httpServer.Close(); err != nil {
 		logger.Errorw("failed to close http server", "err", err)
 	}
 
-	fmt.Println("Lassie daemon stopped")
+	fmt.Println("Sheltie daemon stopped")
 	return err
 }
 
-// getHttpServerConfigForDaemon returns a HttpServerConfig for the daemon command.
 func getHttpServerConfigForDaemon(address string, port uint, tempDir string, maxBlocks uint64, accessToken string) httpserver.HttpServerConfig {
 	return httpserver.HttpServerConfig{
 		Address:             address,

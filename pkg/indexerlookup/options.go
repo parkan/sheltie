@@ -26,7 +26,7 @@ func newOptions(o ...Option) (*options, error) {
 		asyncResultsChanBuffer: 1,
 		httpClient:             http.DefaultClient,
 		httpClientTimeout:      time.Minute,
-		httpUserAgent:          "lassie",
+		httpUserAgent:          "sheltie",
 	}
 	for _, apply := range o {
 		if err := apply(&opts); err != nil {
@@ -76,7 +76,7 @@ func WithHttpEndpoint(e *url.URL) Option {
 
 // WithHttpUserAgent sets the User-Agent header value when contacting the delegated routing HTTP API.
 // Setting this option to empty string will disable inclusion of User-Agent header.
-// Defaults to "lassie" if unspecified.
+// defaults to "sheltie" if unspecified.
 func WithHttpUserAgent(a string) Option {
 	return func(o *options) error {
 		o.httpUserAgent = a

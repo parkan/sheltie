@@ -6,18 +6,18 @@ import (
 
 	"github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/types"
 	"github.com/urfave/cli/v2"
 )
 
 var (
 	defaultTempDirectory     string   = os.TempDir() // use the system default temp dir
 	verboseLoggingSubsystems []string = []string{    // verbose logging is enabled for these subsystems when using the verbose or very-verbose flags
-		"lassie/main",
-		"lassie/retriever",
-		"lassie/httpserver",
-		"lassie/indexerlookup",
-		"lassie/aggregateeventrecorder",
+		"sheltie/main",
+		"sheltie/retriever",
+		"sheltie/httpserver",
+		"sheltie/indexerlookup",
+		"sheltie/aggregateeventrecorder",
 	}
 )
 
@@ -63,7 +63,7 @@ var FlagEventRecorderAuth = &cli.StringFlag{
 	Name:        "event-recorder-auth",
 	Usage:       "the authorization token for an event recorder API",
 	DefaultText: "no authorization token will be used",
-	EnvVars:     []string{"LASSIE_EVENT_RECORDER_AUTH", "LASSIE_EVENT_RECORDER_AUTH"},
+	EnvVars:     []string{"SHELTIE_EVENT_RECORDER_AUTH", "LASSIE_EVENT_RECORDER_AUTH"},
 }
 
 // FlagEventRecorderUrl asks for and provides the URL for an event recorder API
@@ -72,7 +72,7 @@ var FlagEventRecorderInstanceId = &cli.StringFlag{
 	Name:        "event-recorder-instance-id",
 	Usage:       "the instance ID to use for an event recorder API request",
 	DefaultText: "a random v4 uuid",
-	EnvVars:     []string{"LASSIE_EVENT_RECORDER_INSTANCE_ID", "LASSIE_EVENT_RECORDER_INSTANCE_ID"},
+	EnvVars:     []string{"SHELTIE_EVENT_RECORDER_INSTANCE_ID", "LASSIE_EVENT_RECORDER_INSTANCE_ID"},
 }
 
 // FlagEventRecorderUrl asks for and provides the URL for an event recorder API
@@ -81,7 +81,7 @@ var FlagEventRecorderUrl = &cli.StringFlag{
 	Name:        "event-recorder-url",
 	Usage:       "the url of an event recorder API",
 	DefaultText: "no event recorder API will be used",
-	EnvVars:     []string{"LASSIE_EVENT_RECORDER_URL", "LASSIE_EVENT_RECORDER_URL"},
+	EnvVars:     []string{"SHELTIE_EVENT_RECORDER_URL", "LASSIE_EVENT_RECORDER_URL"},
 }
 
 var providerBlockList map[peer.ID]bool
@@ -89,7 +89,7 @@ var FlagExcludeProviders = &cli.StringFlag{
 	Name:        "exclude-providers",
 	DefaultText: "All providers allowed",
 	Usage:       "Provider peer IDs to exclude, separated by a comma. Note: peer IDs are opaque identifiers from the delegated router. Example: 12D3KooWBSTEYMLSu5FnQjshEVah9LFGEZoQt26eacCEVYfedWA4",
-	EnvVars:     []string{"LASSIE_EXCLUDE_PROVIDERS", "LASSIE_EXCLUDE_PROVIDERS"},
+	EnvVars:     []string{"SHELTIE_EXCLUDE_PROVIDERS", "LASSIE_EXCLUDE_PROVIDERS"},
 	Action: func(cctx *cli.Context, v string) error {
 		// Do nothing if given an empty string
 		if v == "" {
@@ -118,7 +118,7 @@ var FlagAllowProviders = &cli.StringFlag{
 	Usage: "Comma-separated addresses of HTTP gateways to use instead of " +
 		"automatic discovery. Accepts HTTP URLs and multiaddrs with /http or /https. " +
 		"Example: https://ipfs.io,/dns/gateway.example.com/tcp/443/https",
-	EnvVars: []string{"LASSIE_ALLOW_PROVIDERS", "LASSIE_ALLOW_PROVIDERS"},
+	EnvVars: []string{"SHELTIE_ALLOW_PROVIDERS", "LASSIE_ALLOW_PROVIDERS"},
 	Action: func(cctx *cli.Context, v string) error {
 		if v == "" {
 			return nil
@@ -135,14 +135,14 @@ var FlagTempDir = &cli.StringFlag{
 	Usage:       "directory to store temporary files while downloading",
 	Value:       defaultTempDirectory,
 	DefaultText: "os temp directory",
-	EnvVars:     []string{"LASSIE_TEMP_DIRECTORY", "LASSIE_TEMP_DIRECTORY"},
+	EnvVars:     []string{"SHELTIE_TEMP_DIRECTORY", "LASSIE_TEMP_DIRECTORY"},
 }
 
 var FlagGlobalTimeout = &cli.DurationFlag{
 	Name:    "global-timeout",
 	Aliases: []string{"gt"},
 	Usage:   "consider it an error after not completing a retrieval after this amount of time",
-	EnvVars: []string{"LASSIE_GLOBAL_TIMEOUT", "LASSIE_GLOBAL_TIMEOUT"},
+	EnvVars: []string{"SHELTIE_GLOBAL_TIMEOUT", "LASSIE_GLOBAL_TIMEOUT"},
 }
 
 var FlagDelegatedRoutingEndpoint = &cli.StringFlag{
@@ -150,7 +150,7 @@ var FlagDelegatedRoutingEndpoint = &cli.StringFlag{
 	Aliases:     []string{"delegated"},
 	DefaultText: "Defaults to https://cid.contact",
 	Usage:       "HTTP endpoint of the delegated routing service used to discover providers.",
-	EnvVars:     []string{"LASSIE_DELEGATED_ROUTING_ENDPOINT"},
+	EnvVars:     []string{"SHELTIE_DELEGATED_ROUTING_ENDPOINT", "LASSIE_DELEGATED_ROUTING_ENDPOINT"},
 }
 
 // FlagSkipBlockVerification disables per-block hash verification.
@@ -158,7 +158,7 @@ var FlagDelegatedRoutingEndpoint = &cli.StringFlag{
 var FlagSkipBlockVerification = &cli.BoolFlag{
 	Name:    "skip-block-verification",
 	Usage:   "DANGEROUS: skip per-block hash verification. Malicious gateways can serve arbitrary data!",
-	EnvVars: []string{"LASSIE_SKIP_BLOCK_VERIFICATION"},
+	EnvVars: []string{"SHELTIE_SKIP_BLOCK_VERIFICATION", "LASSIE_SKIP_BLOCK_VERIFICATION"},
 }
 
 func ResetGlobalFlags() {

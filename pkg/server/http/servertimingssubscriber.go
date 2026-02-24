@@ -7,8 +7,8 @@ import (
 	"time"
 
 	servertiming "github.com/mitchellh/go-server-timing"
-	"github.com/filecoin-project/lassie/pkg/events"
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/events"
+	"github.com/parkan/sheltie/pkg/types"
 )
 
 // servertimingsSubscriber is a retrieval event subscriber that records

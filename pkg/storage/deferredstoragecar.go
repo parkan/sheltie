@@ -155,7 +155,7 @@ func (dcs *DeferredStorageCar) readWrite() (ReadableWritableStorage, error) {
 	}
 	if dcs.rw == nil {
 		var err error
-		if dcs.f, err = os.CreateTemp(dcs.tempDir, "lassie_carstorage"); err != nil {
+		if dcs.f, err = os.CreateTemp(dcs.tempDir, "sheltie_carstorage"); err != nil {
 			return nil, err
 		}
 		rw, err := carstorage.NewReadableWritable(

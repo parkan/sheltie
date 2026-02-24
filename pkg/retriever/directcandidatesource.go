@@ -5,7 +5,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 	"github.com/ipni/go-libipni/metadata"
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/types"
 )
 
 var _ types.CandidateSource = &DirectCandidateSource{}

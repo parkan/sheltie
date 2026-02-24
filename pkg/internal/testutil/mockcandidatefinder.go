@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/ipfs/go-cid"
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/types"
 	"github.com/stretchr/testify/require"
 )
 

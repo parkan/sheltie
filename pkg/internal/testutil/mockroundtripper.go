@@ -116,7 +116,7 @@ func (mrt *MockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error
 	require.NoError(mrt.t, err)
 	ua := req.Header["User-Agent"]
 	require.Len(mrt.t, ua, 1)
-	require.Regexp(mrt.t, `^lassie\/`, ua[0])
+	require.Regexp(mrt.t, `^sheltie\/`, ua[0])
 
 	ip := req.URL.Hostname()
 	port := req.URL.Port()

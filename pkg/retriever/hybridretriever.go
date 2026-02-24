@@ -18,10 +18,10 @@ import (
 	"github.com/ipld/go-ipld-prime/linking"
 	cidlink "github.com/ipld/go-ipld-prime/linking/cid"
 	"github.com/ipld/go-trustless-utils/traversal"
-	"github.com/filecoin-project/lassie/pkg/blockbroker"
-	"github.com/filecoin-project/lassie/pkg/events"
-	"github.com/filecoin-project/lassie/pkg/extractor"
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/blockbroker"
+	"github.com/parkan/sheltie/pkg/events"
+	"github.com/parkan/sheltie/pkg/extractor"
+	"github.com/parkan/sheltie/pkg/types"
 )
 
 const (

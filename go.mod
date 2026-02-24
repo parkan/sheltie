@@ -1,4 +1,4 @@
-module github.com/filecoin-project/lassie
+module github.com/parkan/sheltie
 
 go 1.24.0
 

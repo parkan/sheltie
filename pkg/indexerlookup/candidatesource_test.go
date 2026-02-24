@@ -9,10 +9,10 @@ import (
 	"github.com/filecoin-project/go-clock"
 	goipfscid "github.com/ipfs/go-cid"
 	"github.com/ipni/go-libipni/find/model"
-	"github.com/filecoin-project/lassie/pkg/indexerlookup"
-	"github.com/filecoin-project/lassie/pkg/internal/mockindexer"
-	"github.com/filecoin-project/lassie/pkg/internal/testutil"
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/indexerlookup"
+	"github.com/parkan/sheltie/pkg/internal/mockindexer"
+	"github.com/parkan/sheltie/pkg/internal/testutil"
+	"github.com/parkan/sheltie/pkg/types"
 	"github.com/stretchr/testify/require"
 )
 

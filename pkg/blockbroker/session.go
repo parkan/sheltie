@@ -16,10 +16,10 @@ import (
 	trustlesshttp "github.com/ipld/go-trustless-utils/http"
 	"github.com/ipld/go-trustless-utils/traversal"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/types"
 )
 
-var logger = log.Logger("lassie/blockbroker")
+var logger = log.Logger("sheltie/blockbroker")
 
 var _ BlockSession = (*TrustlessGatewaySession)(nil)
 

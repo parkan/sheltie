@@ -6,7 +6,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multicodec"
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/types"
 )
 
 var (
@@ -14,7 +14,7 @@ var (
 	_ EventWithProtocols   = StartedFetchEvent{}
 )
 
-// StartedFetchEvent signals the start of a Lassie fetch. It is emitted when a fetch is started.
+// StartedFetchEvent signals the start of a fetch.
 type StartedFetchEvent struct {
 	retrievalEvent
 	urlPath            string

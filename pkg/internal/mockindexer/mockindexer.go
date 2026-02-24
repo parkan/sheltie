@@ -16,7 +16,7 @@ import (
 	"github.com/ipni/go-libipni/metadata"
 	"github.com/multiformats/go-multicodec"
 	"github.com/multiformats/go-multihash"
-	"github.com/filecoin-project/lassie/pkg/indexerlookup"
+	"github.com/parkan/sheltie/pkg/indexerlookup"
 )
 
 type MockIndexer struct {

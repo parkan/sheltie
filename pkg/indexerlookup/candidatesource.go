@@ -11,13 +11,13 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-log/v2"
 	"github.com/multiformats/go-multibase"
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/types"
 )
 
 var (
 	_ types.CandidateSource = (*IndexerCandidateSource)(nil)
 
-	logger = log.Logger("lassie/indexerlookup")
+	logger = log.Logger("sheltie/indexerlookup")
 )
 
 type IndexerCandidateSource struct {

@@ -15,9 +15,9 @@ import (
 	"github.com/ipni/go-libipni/metadata"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multicodec"
-	"github.com/filecoin-project/lassie/pkg/events"
-	"github.com/filecoin-project/lassie/pkg/extractor"
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/events"
+	"github.com/parkan/sheltie/pkg/extractor"
+	"github.com/parkan/sheltie/pkg/types"
 )
 
 var (
@@ -164,7 +164,7 @@ func (retriever *Retriever) Retrieve(
 	}
 	descriptor = strings.TrimPrefix(descriptor, "/ipfs/"+request.Root.String())
 
-	// Emit a StartedFetch event signaling that the Lassie fetch has started
+	// emit a StartedFetch event signaling that the fetch has started
 	onRetrievalEvent(events.StartedFetch(retriever.clock.Now(), request.RetrievalID, request.Root, descriptor, request.GetSupportedProtocols(retriever.protocols)...))
 
 	// retrieve, note that we could get a successful retrieval

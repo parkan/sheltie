@@ -8,9 +8,9 @@ import (
 	"testing"
 
 	trustlessutils "github.com/ipld/go-trustless-utils"
-	"github.com/filecoin-project/lassie/pkg/internal/mockfetcher"
-	"github.com/filecoin-project/lassie/pkg/retriever"
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/internal/mockfetcher"
+	"github.com/parkan/sheltie/pkg/retriever"
+	"github.com/parkan/sheltie/pkg/types"
 	"github.com/stretchr/testify/require"
 )
 

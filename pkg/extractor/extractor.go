@@ -18,7 +18,7 @@ import (
 	"github.com/multiformats/go-multihash"
 )
 
-var logger = log.Logger("lassie/extractor")
+var logger = log.Logger("sheltie/extractor")
 
 // isIdentityCid returns true if the CID uses identity multihash (data embedded in CID).
 func isIdentityCid(c cid.Cid) bool {

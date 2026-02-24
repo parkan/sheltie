@@ -14,8 +14,8 @@ import (
 	selectorparse "github.com/ipld/go-ipld-prime/traversal/selector/parse"
 	trustlessutils "github.com/ipld/go-trustless-utils"
 	trustlesstestutil "github.com/ipld/go-trustless-utils/testutil"
-	"github.com/filecoin-project/lassie/pkg/internal/testutil"
-	"github.com/filecoin-project/lassie/pkg/storage"
+	"github.com/parkan/sheltie/pkg/internal/testutil"
+	"github.com/parkan/sheltie/pkg/storage"
 	"github.com/stretchr/testify/require"
 )
 

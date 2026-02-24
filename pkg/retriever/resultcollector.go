@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/filecoin-project/lassie/pkg/retriever/prioritywaitqueue"
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/retriever/prioritywaitqueue"
+	"github.com/parkan/sheltie/pkg/types"
 	"go.uber.org/multierr"
 )
 
