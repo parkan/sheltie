@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +15,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/ipld/go-car/v2"
@@ -31,6 +33,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/multiformats/go-multicodec"
 	"github.com/multiformats/go-multihash"
+	"github.com/parkan/sheltie/pkg/extractor"
 	"github.com/parkan/sheltie/pkg/types"
 	"github.com/stretchr/testify/require"
 )
@@ -681,6 +684,81 @@ func (m *mockCandidateSource) FindCandidates(ctx context.Context, c cid.Cid, cb 
 		cb(cand)
 	}
 	return nil
+}
+
+// mockBlockSession implements blockbroker.BlockSession for testing.
+// It records all CIDs passed to Get() and returns pre-configured blocks.
+type mockBlockSession struct {
+	blocks     map[cid.Cid][]byte
+	fetchedMu  sync.Mutex
+	fetchedCids []cid.Cid
+}
+
+func (m *mockBlockSession) Get(ctx context.Context, c cid.Cid) (blocks.Block, error) {
+	m.fetchedMu.Lock()
+	m.fetchedCids = append(m.fetchedCids, c)
+	m.fetchedMu.Unlock()
+
+	data, ok := m.blocks[c]
+	if !ok {
+		return nil, fmt.Errorf("block not found: %s", c)
+	}
+	return blocks.NewBlockWithCid(data, c)
+}
+
+func (m *mockBlockSession) GetSubgraph(ctx context.Context, c cid.Cid, lsys linking.LinkSystem) (int, error) {
+	return 0, fmt.Errorf("not implemented")
+}
+
+func (m *mockBlockSession) GetSubgraphStream(ctx context.Context, c cid.Cid) (io.ReadCloser, string, error) {
+	return nil, "", fmt.Errorf("not implemented")
+}
+
+func (m *mockBlockSession) SeedProviders(ctx context.Context, c cid.Cid) {}
+func (m *mockBlockSession) UsedProviders() []string                       { return nil }
+func (m *mockBlockSession) Close() error                                  { return nil }
+
+// TestExtractPerBlockDoesNotFetchUndefCid verifies that extractPerBlock does
+// not try to fetch cid.Undef. Regression test for a bug where
+// NewFrontier(cid.Undef) seeded the frontier with an undefined CID that
+// prints as "b" (base32 multibase prefix with empty payload).
+func TestExtractPerBlockDoesNotFetchUndefCid(t *testing.T) {
+	ctx := context.Background()
+
+	// create a raw leaf block with no children
+	leafData := []byte("test leaf data for extraction")
+	mh, err := multihash.Sum(leafData, multihash.SHA2_256, -1)
+	require.NoError(t, err)
+	leafCid := cid.NewCidV1(cid.Raw, mh)
+
+	session := &mockBlockSession{
+		blocks: map[cid.Cid][]byte{
+			leafCid: leafData,
+		},
+	}
+
+	tmpDir := t.TempDir()
+	ext, err := extractor.New(tmpDir)
+	require.NoError(t, err)
+	defer ext.Close()
+
+	hr := &HybridRetriever{}
+	blocks, bytes, err := hr.extractPerBlock(ctx, ext, session, []cid.Cid{leafCid}, nil)
+	require.NoError(t, err)
+	require.Equal(t, uint64(1), blocks)
+	require.Equal(t, uint64(len(leafData)), bytes)
+
+	// the critical assertion: cid.Undef must never be fetched
+	session.fetchedMu.Lock()
+	fetched := session.fetchedCids
+	session.fetchedMu.Unlock()
+
+	for _, c := range fetched {
+		if !c.Defined() {
+			t.Fatalf("extractPerBlock tried to fetch cid.Undef (prints as %q)", c.String())
+		}
+	}
+	require.Equal(t, []cid.Cid{leafCid}, fetched, "should only fetch the one missing block")
 }
 
 type mockFailingRetriever struct {

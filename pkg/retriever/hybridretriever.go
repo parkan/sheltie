@@ -562,8 +562,11 @@ func (hr *HybridRetriever) extractPerBlock(
 	startCids []cid.Cid,
 	onBlock func(int),
 ) (uint64, uint64, error) {
-	frontier := NewFrontier(cid.Undef)
-	frontier.pending = append(frontier.pending, startCids...)
+	frontier := &Frontier{
+		pending: make([]cid.Cid, len(startCids)),
+		seen:    make(map[cid.Cid]struct{}),
+	}
+	copy(frontier.pending, startCids)
 
 	var totalBlocks uint64
 	var totalBytes uint64

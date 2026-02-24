@@ -2,6 +2,7 @@ package blockbroker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -20,6 +21,18 @@ import (
 )
 
 var logger = log.Logger("sheltie/blockbroker")
+
+// httpStatusError indicates the provider responded with a non-200 HTTP status.
+// this is distinct from transport errors — the provider is reachable but
+// doesn't have (or won't serve) this specific block.
+type httpStatusError struct {
+	StatusCode int
+	URL        string
+}
+
+func (e *httpStatusError) Error() string {
+	return fmt.Sprintf("HTTP %d from %s", e.StatusCode, e.URL)
+}
 
 var _ BlockSession = (*TrustlessGatewaySession)(nil)
 
@@ -203,7 +216,12 @@ func (s *TrustlessGatewaySession) tryProviders(ctx context.Context, c cid.Cid, p
 		case result := <-results:
 			if result.err != nil {
 				logger.Debugw("provider failed", "cid", c, "provider", result.provider.Endpoint(), "err", result.err)
-				s.evictProvider(result.provider.MinerPeer.ID)
+				// only evict on transport errors, not HTTP status errors;
+				// a 404 means the provider is alive but doesn't have this block
+				var httpErr *httpStatusError
+				if !errors.As(result.err, &httpErr) {
+					s.evictProvider(result.provider.MinerPeer.ID)
+				}
 				lastErr = result.err
 				continue
 			}
@@ -241,7 +259,7 @@ func (s *TrustlessGatewaySession) fetchBlock(
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP %d from %s", resp.StatusCode, url)
+		return nil, &httpStatusError{StatusCode: resp.StatusCode, URL: url.String()}
 	}
 
 	data, err := io.ReadAll(resp.Body)
