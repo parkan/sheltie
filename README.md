@@ -1,11 +1,11 @@
-# Lassie
+# Sheltie
 
 <img width="1024" height="1530" alt="image" src="https://github.com/user-attachments/assets/4933d6c9-2335-4a34-b797-c2a8e9b7d9c8" />
 <a href="https://www.flickr.com/photos/8842985@N03">Chris</a>, <a href="https://commons.wikimedia.org/wiki/File:Shetland_Sheepdog_and_Rough_Collie.jpg">Shetland Sheepdog and Rough Collie</a>, <a href="https://creativecommons.org/licenses/by/2.0/legalcode" rel="license">CC BY 2.0</a>
 
 ---
 
-Lassie is the leaner, nimbler cousin of [lassie](https://github.com/filecoin-project/lassie) that knows a few more tricks.
+Sheltie is the leaner, nimbler cousin of [lassie](https://github.com/filecoin-project/lassie) that knows a few more tricks.
 
 
 ## Table of Contents
@@ -25,44 +25,35 @@ Lassie is the leaner, nimbler cousin of [lassie](https://github.com/filecoin-pro
 * [License](#license)
 
 ## Changes from Lassie
-- Lassie is **HTTP-only** (no Bitswap, no Graphsync)
-- Lassie **uses delegated routing V1 API** to find providers instead of legacy IPNI, see https://github.com/filecoin-project/lassie/issues/489
-- Lassie **reconstructs DAGs across HTTP providers** via frontier traversal when a provider returns an incomplete CAR
-- Lassie fully implements the client side of the **[trustless gateway spec](https://specs.ipfs.tech/http-gateways/trustless-gateway/)**
-- Lassie supports **streaming extraction** (`--extract`) to write UnixFS content directly to disk during retrieval
+- Sheltie is **HTTP-only** (no Bitswap, no Graphsync)
+- Sheltie **uses delegated routing V1 API** to find providers instead of legacy IPNI, see https://github.com/filecoin-project/lassie/issues/489
+- Sheltie **reconstructs DAGs across HTTP providers** via frontier traversal when a provider returns an incomplete CAR
+- Sheltie fully implements the client side of the **[trustless gateway spec](https://specs.ipfs.tech/http-gateways/trustless-gateway/)**
+- Sheltie supports **streaming extraction** (`--extract`) to write UnixFS content directly to disk during retrieval
 
 See below for more details.
 
-_This project is a fork of Protocol Labs’s Lassie (https://github.com/filecoin-project/lassie) under Apache 2.0/MIT._
+_This project is a fork of Protocol Labs' Lassie (https://github.com/filecoin-project/lassie) under Apache 2.0/MIT._
 
 ## Overview
 
-Lassie is a retrieval client for Filecoin/IPFS using the HTTP Trustless Gateway protocol. It attempts whole-DAG retrieval first, then continues with frontier traversal when providers have partial content. This allows fetching data split across multiple providers (e.g., one has directory nodes, another has leaf blocks).
+Sheltie is a retrieval client for Filecoin/IPFS using the HTTP Trustless Gateway protocol. It attempts whole-DAG retrieval first, then continues with frontier traversal when providers have partial content. This allows fetching data split across multiple providers (e.g., one has directory nodes, another has leaf blocks).
 
 ## Installation
 
-Download the [sheltie binary form the latest release](https://github.com/filecoin-project/lassie/releases/latest) based on your system architecture, or download and install the [sheltie](https://github.com/filecoin-project/lassie) package using the Go package manager:
+Download the [sheltie binary from the latest release](https://github.com/parkan/sheltie/releases/latest) based on your system architecture, or install via the Go package manager:
 
 ```bash
-$ go install github.com/filecoin-project/lassie/cmd/lassie@latest
-
-go: downloading github.com/filecoin-project/lassie v0.25.0
-...
+$ go install github.com/parkan/sheltie/cmd/sheltie@latest
 ```
 
 Optionally, download the [go-car binary from the latest release](https://github.com/ipld/go-car/releases/latest) based on your system architecture, or install the [go-car](https://github.com/ipld/go-car) package using the Go package manager:
 
 ```bash
 $ go install github.com/ipld/go-car/cmd/car@latest
-
-go: downloading github.com/ipld/go-car v0.6.0
-go: downloading github.com/ipld/go-car/cmd v0.0.0-20230215023242-a2a8d2f9f60f
-go: downloading github.com/ipld/go-codec-dagpb v1.6.0 
-
-...
 ```
 
-The go-car package makes it easier to work with files in the content-addressed archive (CAR) format, which is what Lassie uses to return the content it fetches. For the sheltie use-case, go-car will be used to extract the contents of the CAR into usable files.
+The go-car package makes it easier to work with files in the content-addressed archive (CAR) format, which is what sheltie uses to return the content it fetches. For the sheltie use-case, go-car can be used to extract the contents of a CAR into usable files -- though `sheltie fetch --extract` can do this directly during retrieval (see below).
 
 ## Methods of Retrieval
 
@@ -97,7 +88,7 @@ More information about available flags can be found by running `sheltie fetch --
 | `-v`, `--verbose` | Enable verbose logging. |
 | `--vv`, `--very-verbose` | Enable debug-level logging. |
 
-These options can also be set via environment variables prefixed with `LASSIE_` (e.g., `LASSIE_DELEGATED_ROUTING_ENDPOINT`). Legacy `LASSIE_` prefixed variables are also supported.
+These options can also be set via environment variables prefixed with `SHELTIE_` (e.g., `SHELTIE_DELEGATED_ROUTING_ENDPOINT`). Legacy `LASSIE_`-prefixed variables are also still honored.
 
 #### Fetch Example
 
@@ -111,7 +102,7 @@ This will fetch the `bafybeic56z3yccnla3cutmvqsn5zy3g24muupcsjtoyp3pu5pm5amurjx4
 
 The `-p` flag shows verbose provider events (indexer queries, connections, etc). Progress is shown by default; use `-q` to suppress it.
 
-_Note: try fetching `bafybeibxtfn2zibw4olisv3aajmrqnozxtm2h4q6zvh7ea6s2foul4kkgm` for a little easer egg._
+_Note: try fetching `bafybeibxtfn2zibw4olisv3aajmrqnozxtm2h4q6zvh7ea6s2foul4kkgm` for a little easter egg._
 
 To extract the contents of the `fetch-example.car` file we created in the previous example, we would run:
 
@@ -133,20 +124,20 @@ You should now have a `birb.mp4` file under `bafybeic56z3yccnla3cutmvqsn5zy3g24m
 
 ### HTTP API
 
-The sheltie HTTP API allows one to run a web server that can be used to retrieve content from the Filecoin/IPFS network via HTTP requests. It's primarily retained for backwards comaptibility with lassie.
+The sheltie HTTP API allows one to run a web server that can be used to retrieve content from the Filecoin/IPFS network via HTTP requests. It's primarily retained for backwards compatibility with lassie.
 
-The API server can be started with the `lassie daemon` command:
+The API server can be started with the `sheltie daemon` command:
 
 ```bash
-$ lassie daemon
+$ sheltie daemon
 
-Lassie daemon listening on address 127.0.0.1:41443
+Sheltie daemon listening on address 127.0.0.1:41443
 Hit CTRL-C to stop the daemon
 ```
 
 The port can be changed by using the `-p` port flag. Any available port will be used by default.
 
-More information about available flags can be found by running `lassie daemon --help`.
+More information about available flags can be found by running `sheltie daemon --help`.
 
 To fetch content using the HTTP API, make a `GET` request to the `/ipfs/<CID>[/path/to/content]` endpoint:
 
@@ -184,21 +175,13 @@ this allows for retrieving potentially TiB-to-PiB scale datasets. Furthermore, t
 
 ### Golang Library
 
-The sheltie library allows one to integrate sheltie into their own Go programs. The library is best used when needing to retrieve content from the network programmatically.
-
-The sheltie dependency can be added to a project with the following command:
+Use the sheltie library to fetch content programmatically from Go:
 
 ```bash
-$ go get github.com/filecoin-project/lassie@latest
+$ go get github.com/parkan/sheltie@latest
 ```
 
-The sheltie library can then be imported into a project with the following import statement:
-
-```go
-import "github.com/filecoin-project/lassie/pkg/lassie"
-```
-
-The following code shows a small example of how to use the sheltie library to fetch a CID:
+A minimal fetch:
 
 ```go
 package main
@@ -208,90 +191,41 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/filecoin-project/lassie/pkg/lassie"
-	"github.com/filecoin-project/lassie/pkg/storage"
-	"github.com/filecoin-project/lassie/pkg/types"
+	"github.com/parkan/sheltie/pkg/sheltie"
+	"github.com/parkan/sheltie/pkg/storage"
+	"github.com/parkan/sheltie/pkg/types"
 	"github.com/ipfs/go-cid"
 	trustlessutils "github.com/ipld/go-trustless-utils"
 )
 
-// main creates a default sheltie instance and fetches a CID
 func main() {
 	ctx := context.Background()
 
-	// Create a default sheltie instance
-	sheltie, err := sheltie.NewLassie(ctx)
+	s, err := sheltie.NewSheltie(ctx)
 	if err != nil {
 		panic(err)
 	}
 
-	// Prepare the fetch
-	rootCid := cid.MustParse("bafybeic56z3yccnla3cutmvqsn5zy3g24muupcsjtoyp3pu5pm5amurjx4")       // The CID to fetch
-	store := storage.NewDeferredStorageCar(os.TempDir(), rootCid)                                 // The place to put the CAR file
-	request, err := types.NewRequestForPath(store, rootCid, "", trustlessutils.DagScopeAll, nil)  // The fetch request
+	rootCid := cid.MustParse("bafybeic56z3yccnla3cutmvqsn5zy3g24muupcsjtoyp3pu5pm5amurjx4")
+	store := storage.NewDeferredStorageCar(os.TempDir(), rootCid)
+	request, err := types.NewRequestForPath(store, rootCid, "", trustlessutils.DagScopeAll, nil)
 	if err != nil {
 		panic(err)
 	}
 
-	// Fetch the CID
-	stats, err := sheltie.Fetch(ctx, request)
+	stats, err := s.Fetch(ctx, request)
 	if err != nil {
 		panic(err)
 	}
 
-	// Print the stats
 	fmt.Printf("Fetched %d blocks in %d bytes\n", stats.Blocks, stats.Size)
 }
-
 ```
 
-Let's break down the above code.
-
-First, we create a default sheltie instance:
-
-```go
-ctx := context.Background()
-
-// Create a default sheltie instance
-sheltie, err := sheltie.NewLassie(ctx)
-if err != nil {
-	panic(err)
-}
-```
-
-The `NewLassie` function creates a new sheltie instance with default settings, taking a `context.Context`. The context is used to control the lifecycle of the sheltie instance. The function returns a `*Lassie` instance and an `error`. The `*Lassie` instance is used to make fetch requests. The `error` is used to indicate if there was an error creating the sheltie instance.
-
-Additionally, the `NewLassie` function takes a variable number of `LassieOption`s. These options can be used to customize the sheltie instance. For example, the `WithGlobalTimeout` option can be used to set a global timeout for all fetch requests made with the sheltie instance. More information about the available options can be found in the [lassie.go](https://pkg.go.dev/github.com/filecoin-project/lassie/pkg/lassie) file.
-
-Next, we prepare the fetch request:
-
-```go
-// Prepare the fetch
-rootCid := cid.MustParse("bafybeic56z3yccnla3cutmvqsn5zy3g24muupcsjtoyp3pu5pm5amurjx4")       // The CID to fetch
-store := storage.NewDeferredStorageCar(os.TempDir(), rootCid)                                 // The place to put the CAR file
-request, err := types.NewRequestForPath(store, rootCid, "", trustlessutils.DagScopeAll, nil)  // The fetch request
-if err != nil {
-	panic(err)
-}
-```
-
-The `rootCid` is the CID we want to fetch. The `store` is where we want to write the car file. In this case we are choosing to store it in the OS's temp directory. The `request` is the resulting fetch request that we'll hand to the `sheltie.Fetch` function.
-
-The `request` is created using the `NewRequestForPath` function. The only new information that this function takes that we haven't discussed is the `path` and the `dagScope`. The `path` is an optional path string to a file in the CID being requested. In this case we don't have a path, so pass an empty string. The `dagScope` has to do with traversal and describes the shape of the DAG fetched at the terminus of the specified path whose blocks are included in the returned CAR file after the blocks required to traverse path segments. More information on `dagScope` can be found in the [dag-scope HTTP Specification](./docs/HTTP_SPEC.md#dag-scope-request-query-parameter) section. In this case we use `trustlessutils.DagScopeAll` to specify we want everything from the root CID onward.
-
-The function returns a `*types.Request` and an `error`. The `*types.Request` is the resulting fetch request we'll pass to `sheltie.Fetch`, and the `error` is used to indicate if there was an error creating the fetch request.
-
-Finally, we fetch the CID:
-
-```go
-// Fetch the CID
-stats, err := sheltie.Fetch(ctx, request)
-if err != nil {
-	panic(err)
-}
-```
-
-The `Fetch` function takes a `context.Context`, a `*types.Request`, and a `*types.FetchOptions`. The `context.Context` is used to control the lifecycle of the fetch. The `*types.Request` is the fetch request we made above. The `*types.FetchOptions` is used to control the behavior of the fetch, but it's variadic, so we don't pass anything. The function returns a `*types.FetchStats` and an `error`. The `*types.FetchStats` is the fetch stats. The `error` is used to indicate if there was an error fetching the CID.
+Notes:
+- `NewSheltie` accepts variadic `SheltieOption`s (e.g. `WithGlobalTimeout`). Full list: [pkg.go.dev/github.com/parkan/sheltie/pkg/sheltie](https://pkg.go.dev/github.com/parkan/sheltie/pkg/sheltie).
+- `NewRequestForPath(store, cid, path, dagScope, byteRange)` -- `path` is an optional path under the CID; `dagScope` controls DAG traversal at the path terminus (see [HTTP spec](./docs/HTTP_SPEC.md#dag-scope-request-query-parameter)).
+- `Fetch` takes variadic `types.FetchOption`s.
 
 ## Contribute
 
