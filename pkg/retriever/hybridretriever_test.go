@@ -689,8 +689,8 @@ func (m *mockCandidateSource) FindCandidates(ctx context.Context, c cid.Cid, cb 
 // mockBlockSession implements blockbroker.BlockSession for testing.
 // It records all CIDs passed to Get() and returns pre-configured blocks.
 type mockBlockSession struct {
-	blocks     map[cid.Cid][]byte
-	fetchedMu  sync.Mutex
+	blocks      map[cid.Cid][]byte
+	fetchedMu   sync.Mutex
 	fetchedCids []cid.Cid
 }
 
@@ -715,8 +715,8 @@ func (m *mockBlockSession) GetSubgraphStream(ctx context.Context, c cid.Cid) (io
 }
 
 func (m *mockBlockSession) SeedProviders(ctx context.Context, c cid.Cid) {}
-func (m *mockBlockSession) UsedProviders() []string                       { return nil }
-func (m *mockBlockSession) Close() error                                  { return nil }
+func (m *mockBlockSession) UsedProviders() []string                      { return nil }
+func (m *mockBlockSession) Close() error                                 { return nil }
 
 // TestExtractPerBlockDoesNotFetchUndefCid verifies that extractPerBlock does
 // not try to fetch cid.Undef. Regression test for a bug where
